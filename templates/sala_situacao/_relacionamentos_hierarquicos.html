@@ -1,0 +1,19 @@
+{% if related_groups %}
+  {% include "sala_situacao/_card_search.html" with search_id="sala-relacionados" target_selector=".sala-relacionados" item_selector=".sala-relacionado-card" placeholder="Pesquisar itens relacionados..." aria_label="Pesquisar itens relacionados" %}
+  <div class="sala-relacionados">
+    {% for grupo in related_groups %}
+      <section class="sala-relacionados-grupo" data-related-group>
+        <h3 class="sala-side-title">
+          {{ grupo.titulo }} - <span data-related-count>{{ grupo.itens|length }}</span>
+        </h3>
+        <div class="sala-relacionados-cards">
+          {% for item in grupo.itens %}
+            <a class="sala-relacionado-card" href="{% url grupo.url_name item.pk %}">{{ item.nome }}</a>
+          {% empty %}
+            <p class="audit-history-meta">{{ grupo.vazio }}</p>
+          {% endfor %}
+        </div>
+      </section>
+    {% endfor %}
+  </div>
+{% endif %}

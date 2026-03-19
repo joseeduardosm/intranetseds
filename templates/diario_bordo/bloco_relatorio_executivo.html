@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/diario_bordo/diario_bordo.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <div class="diario-report diario-report-executivo">
+    <section class="page-header">
+      <h2>Relatório Executivo - Diário de Bordo</h2>
+      <p>Resumo dos blocos com última atualização.</p>
+    </section>
+
+    <div class="card-actions">
+      <button class="btn" type="button" onclick="window.print()">Imprimir</button>
+      <a class="btn btn-light" href="{% url 'diario_bordo_list' %}">Voltar</a>
+    </div>
+
+    {% if blocos %}
+      <div class="executive-grid">
+      {% for bloco in blocos %}
+        <article class="executive-card">
+          <h3 class="executive-title">{{ bloco.nome }}</h3>
+          <p class="executive-meta"><strong>Status:</strong> {{ bloco.get_status_display }}</p>
+          <p class="executive-meta">
+            <strong>Última atualização:</strong>
+            {{ bloco.ultima_atualizacao|date:"d/m/Y H:i" }}
+          </p>
+          <p class="executive-meta">
+            <strong>Atualizado por:</strong>
+            {% if bloco.ultimo_usuario_nome %}{{ bloco.ultimo_usuario_nome }}{% else %}Usuário não informado{% endif %}
+          </p>
+          <p class="executive-meta"><strong>Dias sem atualização:</strong> {{ bloco.dias_desde }}</p>
+        </article>
+      {% endfor %}
+      </div>
+    {% else %}
+      <p>Nenhum bloco encontrado.</p>
+    {% endif %}
+  </div>
+{% endblock %}

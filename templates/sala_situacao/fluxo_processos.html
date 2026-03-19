@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/sala_situacao/sala_situacao.css' %}" />
+{% endblock %}
+
+
+{% block content %}
+  <section class="page-header">
+    <h2>{{ indicador_estrategico.nome }} - <span data-search-heading-count="fluxo-processos">{{ processos|length }}</span> processos relacionados</h2>
+    <p>Processos do indicador selecionado.</p>
+  </section>
+
+  <div class="card-actions">
+    {% if indicador_estrategico_retorno %}
+      <a class="btn btn-light" href="{% url 'sala_fluxo_indicadores_taticos_por_ie' indicador_estrategico_retorno.pk %}">Voltar para indicadores</a>
+    {% else %}
+      <a class="btn btn-light" href="{% url 'sala_indicador_estrategico_list' %}">Voltar para indicadores</a>
+    {% endif %}
+    {% if perms.sala_situacao.add_processo %}
+      <a class="btn" href="{% url 'sala_processo_create' %}">Novo processo</a>
+    {% endif %}
+  </div>
+
+  {% include "sala_situacao/_card_search.html" with search_id="fluxo-processos" target_selector=".card-grid" item_selector=".card" placeholder="Pesquisar processos..." aria_label="Pesquisar processos" %}
+  <div class="card-grid card-grid-fixed">
+    {% for processo in processos %}
+      <article
+        class="card card-bloco"
+        data-search-text="{{ processo.nome }} {{ processo.descricao }} {% for indicador in processo.indicadores_estrategicos.all %}{{ indicador.nome }} {% endfor %}{% for marcador in processo.marcadores_efetivos %}{{ marcador.nome }} {% endfor %}"
+      >
+        <a class="card-link" href="{% url 'sala_processo_detail' processo.pk %}">
+          <div class="card-body">
+            <h3 class="card-title">{{ processo.nome }}</h3>
+            {% if processo.marcadores_efetivos %}
+              <div class="sala-marcadores-wrap">
+                {% for marcador in processo.marcadores_efetivos %}
+                  <span class="sala-marcador-chip" style="--marcador-cor: {{ marcador.cor }};">{{ marcador.nome }}</span>
+                {% endfor %}
+              </div>
+            {% endif %}
+            {% include "sala_situacao/_progresso_duplo.html" with item=processo %}
+          </div>
+        </a>
+      </article>
+    {% empty %}
+      <p>Nenhum processo vinculado a este indicador.</p>
+    {% endfor %}
+  </div>
+{% endblock %}

@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <!-- Detalhe completo da notícia -->
+  <article class="detail">
+    <div class="detail-header">
+      <h2>{{ object.titulo }}</h2>
+      <p class="detail-meta">{{ object.categoria }} · {{ object.data_publicacao|date:"d/m/Y" }}</p>
+            <div class="detail-actions">
+        {% if perms.noticias.change_noticia %}
+          <a class="btn" href="{% url 'noticia_update' object.pk %}">Editar</a>
+        {% endif %}
+        {% if perms.noticias.delete_noticia %}
+          <a class="btn btn-danger" href="{% url 'noticia_delete' object.pk %}">Excluir</a>
+        {% endif %}
+      </div>
+    </div>
+    {% if object.imagem_destaque %}
+      <!-- Imagem de destaque -->
+      <img class="detail-image" src="{{ object.imagem_destaque.url }}" alt="{{ object.titulo }}" />
+    {% endif %}
+    <div class="detail-text">
+      {{ object.texto|urlize|linebreaksbr }}
+    </div>
+  </article>
+{% endblock %}
+

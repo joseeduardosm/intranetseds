@@ -1,0 +1,145 @@
+4. INFRAESTRUTURA REDUNDANTE PARA ATIVIDADES CONTÍNUAS DOS SISTEMAS DA SECRETARIA DE DESENVOLVIMENTO SOCIAL
+
+4.1. Todos os componentes da infraestrutura redundante da CONTRATADA devem cumprir com as especificações deste termo de referência, sendo sua utilização exclusiva, de forma a suprir toda a necessidade das atividades contínuas dos SISTEMAS DA SECRETARIA DE DESENVOLVIMENTO SOCIAL, prevendo inclusive futuros aumentos na demanda por consumo e tráfego de dados.
+
+4.1.1. Deverá a CONTRATADA assegurar em seu Datacenter, rack exclusivo para acondicionamento de todos os componentes especificados neste termo de referência.
+
+4.2. O ambiente da infraestrutura redundante, deverá permitir a instalação, configuração, execução continuada e realização dos níveis de serviços acordados neste termo de referência.
+
+4.2.1. O ambiente deverá ser criado em 3 camadas, sendo ambiente de produção, ambiente de homologação e ambiente de desenvolvimento;
+
+4.3. A Secretaria de Desenvolvimento Social constituirá equipe técnica para o acompanhamento dos serviços. Essa equipe será responsável pela avaliação do planejamento e aprovação da implantação.
+
+4.4. O serviço engloba a instalação de todos os módulos da solução, as configurações requeridas nos ambientes computacionais e a atividade necessária para garantir o seu pleno funcionamento.
+
+4.4.1. Inclui também a instalação dos sistemas de softwares básicos (sistema operacional, servidor de banco de dados, servidor de aplicação, etc.) e demais sistemas de software necessários ao funcionamento da solução CONTRATADA.
+
+4.5. Os serviços de instalação e configuração deverão ser precedidos do efetivo levantamento do ambiente da Secretaria de Desenvolvimento Social, para os devidos ajustes no ambiente da CONTRATADA, documentação e planejamento detalhado, incluindo rollback, sendo submetido à aprovação da Secretaria de Desenvolvimento Social.
+
+4.6. A CONTRATADA deverá instalar, configurar e testar a solução ofertada. Estas ações deverão contemplar pelo menos as seguintes atividades:
+
+4.6.1. Análise preliminar da topologia e operação atual das Conexões IP Internet Permanente da Secretaria de Desenvolvimento Social com vistas a seu aproveitamento na solução ofertada;
+
+4.6.2. Completa instalação e configuração, testes e ajustes de toda a solução ofertada;
+
+4.6.3. Acompanhamento e homologação dos ambientes de desenvolvimento, homologação e de produção;
+
+4.6.4. Documentação detalhada de todos os passos da instalação, configuração e ajustes, no ambiente de produção, a qual deverá ser entregue em meio impresso e em arquivo eletrônico no formato PDF antes da emissão do Termo de Aceite Técnico a ser expedido pela Secretaria de Desenvolvimento Social/DNI;
+
+4.7. A solução será considerada integralmente implantada quando atender a todos os requisitos descritos neste documento;
+
+4.8. A CONTRATADA deverá atender a disponibilização de máquinas virtuais com os sistemas operacionais, redes, armazenamento, backups dos dados e das máquinas virtuais, serviços de domínio, gerenciamento, comunicação, segurança, monitoramento e demais insumos;
+
+4.9. Todos os equipamentos, softwares, infraestrutura e sustentação são de inteira responsabilidade da CONTRATADA, que deverá realizar de forma continuada tarefas e rotinas que garantam o pleno funcionamento de toda a infraestrutura, de forma integral e ininterrupta, ou seja, "24x7x365" (vinte e quatro horas por dia, sete dias por semana, trezentos e sessenta e cinco dias por ano) no ambiente de infraestrutura redundante, mantendo em pleno funcionamento todo objeto da contratação;
+
+4.10. A sustentação da infraestrutura redundante, necessários à implementação da solução proposta, são de inteira responsabilidade da CONTRATADA, que deverá se mantê-la em pleno funcionamento acima de 99,5% de disponibilidade;
+
+4.11. A CONTRATADA deverá gerenciar, monitorar, sustentar e operar de forma proativa todos os recursos disponibilizados para o CONTRATANTE, de forma a garantir o correto funcionamento de todas as funcionalidades especificadas neste Termo de Referência, em regime 24 x 7 (24 horas por dia, 7 dias por semana);
+
+4.12. A solução deverá ser escalável, de forma a permitir aumentar os recursos na infraestrutura redundante da CONTRATADA para absorver as demandas existentes, bem como novas demandas;
+
+4.13. Os serviços de infraestrutura redundante a serem prestados deverão manter compatibilidade durante toda vigência do contrato com os requisitos abaixo descritos:
+
+4.13.1. Toda a infraestrutura de DATACENTER que irá hospedar os dados da CONTRATANTE deve estar sediada nas dependências da CONTRATADA e possuir plataforma de alta disponibilidade;
+
+4.13.2.Deverá a infraestrutura redundante possuir 02 (dois) links de dados de no mínimo 200 Mbps, com operadoras diferentes, de uso exclusivo para os serviços aqui listados;
+
+4.13.2.1. Deverá estar incluso na contingência de acesso, 01 (um) link de dados por satélite ou rádio, de velocidade compatível ao item anterior, evitando paralisação por interrupções de meio físico;
+
+4.13.3. Máquinas virtuais devem possibilitar a utilização de sistemas operacionais Windows e Linux;
+
+4.13.4. Deverá prover mecanismos de monitoração de métricas das máquinas virtuais, tais como: quantidade de acessos, erros, utilização de CPU, leitura e escrita em disco, porcentagem de disponibilidade do serviço;
+
+4.13.5. Deverá prover mecanismos de automação de gestão de máquinas virtuais com serviços como criação, inicialização, paralização e remoção de máquinas automaticamente através de execução de script ou ferramenta de orquestração;
+
+4.13.6. Deverá prover mecanismos de configuração de escala automática para cima, sendo possível que máquinas virtuais sejam acrescidas automaticamente, baseado no valor de métricas como processamento de CPU ou fila de requisições;
+
+4.13.7. Implementar características de escalabilidade horizontal (novos servidores) e vertical (aumento de recursos do mesmo servidor), flexibilidade de configuração de memória, processador e disco.
+
+4.13.8. Implementar a movimentação automática de servidores virtuais para redistribuição de carga e recuperação de falhas do ambiente.
+
+4.13.9. Aplicações devem poder ser executadas em modelo de plataforma na nuvem, sem necessidade de gestão de infraestrutura e sistema operacional;
+
+4.13.10. O ambiente deverá suportar aplicações escritas nas tecnologias mais difundidas do mercado, como .NET, Java e PHP;
+
+4.13.11.Deverá prover integração nativa com as ferramentas de desenvolvimento mais utilizadas no mercado;
+
+4.13.12. O ambiente deverá providenciar ambientes de desenvolvimento, homologação e produção lado-a-lado, de maneira que permita de maneira simples a troca de versões;
+
+4.13.13.Permitir habilitação com o logon único para simplificar o acesso do usuário aos milhares de aplicativos na nuvem dos dispositivos Windows, Mac, Android e iOS;
+
+4.13.14.Oferecer suporte a redefinição e alteração de senha e gerenciamento de grupos por método de autoatendimento.
+
+4.13.15.Permitir utilização com VPN;
+
+4.13.16. A CONTRATADA deverá disponibilizar funcionalidades que permitam aos servidores virtuais na infraestrutura redundante adaptar-se à carga, aumentando o número de servidores disponíveis quando estes estão sendo sobrecarregados;
+
+4.13.17. A CONTRATADA deverá disponibilizar infraestrutura para distribuição automática de tráfego de entrada nos servidores virtuais, com o objetivo de melhorar o aspecto de tolerância a falhas nas aplicações, e fornecendo capacidade de equilíbrio de carga, necessária em resposta ao tráfego de entrada das aplicações;
+
+4.13.18.Garantir a proteção e replicação automatizadas de máquinas virtuais;
+
+4.13.19. A partir do momento dessa configuração inicial, o CONTRATANTE poderá solicitar alteração e personalização as regras conforme necessárias;
+
+4.13.20. O ambiente deverá permitir comunicação de redes e subredes com a infraestrutura local de forma segura através de VPN (Virtual Private Network);
+
+4.13.20.1. Esta VPN deve suportar conexão através de dispositivos de VPN ou através de rede criada;
+
+4.13.20.2. Também deve ser possível conectar à esta VPN através de um computador fora da rede, utilizando um software de conexão VPN;
+
+4.14. A equipe técnica da Secretaria de Desenvolvimento Social realizará inspeção técnica nas dependências da CONTRATADA, no dia seguinte à assinatura do contrato, com o objetivo de avaliar as instalações da infraestrutura de TI redundante. Nesse procedimento será avaliada a estrutura física do ambiente e todas as características técnicas confrontando com as informações contidas no Termo de Referência.
+
+4.14.1. Na hipótese de incoerência entre as informações dispostas no Relatório Técnico da CONTRATADA e Relatório de Inspeção confeccionado pela equipe técnica da Secretaria de Desenvolvimento Social, será concedido o prazo de 05 dias para a correção das não conformidades do ambiente.
+
+4.14.2. Ao término do prazo, não sendo corrigida as falhas identificadas, inicia- se o procedimento de inexecução contratual com as sanções impostas por lei.
+
+4.15. Instalações físicas da infraestrutura Redundante
+
+4.15.1. As instalações físicas e recursos de infraestrutura que suportem o ambiente crítico de serviço deverão atender, no mínimo, às características aqui definidas de estrutura e instalações físicas, energia elétrica, climatização, proteção contra incêndio, segurança física, infraestrutura de acesso à internet do Datacenter e segurança lógica.
+
+4.15.2. Toda a infraestrutura de Datacenter e comunicação deve garantir o atendimento aos níveis de serviços.
+
+4.15.3. Possuir estrutura física, que garanta um ambiente seguro e controlado, atendendo, ainda, aos requisitos de segurança física e lógica.
+
+4.15.4. Piso elevado com no mínimo 3 (três) camadas de cabeamento, com vias independentes de cabos de energia, lógicos e ópticos.
+
+4.15.5. Garantir total independência no fornecimento de energia na eventualidade de falha da fornecedora local.
+
+4.15.5.1. Possuir solução de grupo gerador, com acionamento automático na eventualidade de interrupção no fornecimento de energia, com capacidade de funcionamento pleno e ininterrupto com combustível local e abastecimento sem interrupção.
+
+4.15.5.2. Possuir sistema redundante de baterias para garantir a transição entre o fornecimento normal de energia e o grupo gerador.
+
+4.15.6. Garantir alimentação elétrica redundante e independente para os equipamentos.
+
+4.15.7. Sistema de proteção contra descargas eletromagnéticas, descargas atmosféricas e aterramento, garantindo o equipotencial de toda infraestrutura metálica, que deverá estar interligada e devidamente aterrada.
+
+4.15.8. Possuir sistema de climatização de modo a garantir as corretas condições térmicas para os equipamentos no ambiente da infraestrutura física.
+
+4.15.9. Manter a temperatura ideal, umidade relativa do ar, controle de poluição do ar e possíveis variações controladas e administradas.
+
+4.15.10. O sistema deve ser redundante com disponibilidade de equipamentos igual a N+1.
+
+4.15.11.Possuir dispositivos tradicionais de prevenção e combate a incêndio (brigada de incêndio, extintores).
+
+4.15.12.Equipe de segurança 24x7x365 com câmeras de vídeo em circuito fechado de TV que possibilite o rastreamento de pessoas dentro do Datacenter.
+
+4.15.12.1. Arquivo das imagens gravadas com retenção de pelo menos 30 (trinta) dias.
+
+4.15.13.Garantir a disponibilidade de pessoas dedicadas, treinadas e responsáveis pela segurança de acesso ao prédio e aos equipamentos.
+
+4.15.14.Sistemas de detecção de tentativas de arrombamento e sensores de abertura de portas ou câmeras de vigilância para o acesso aos equipamentos de infraestrutura de rede de energia elétrica para os ambientes de geradores, no-breaks e entrada de energia no Datacenter.
+
+4.15.15.Possuir integração com sistema de alarme e ser monitorado em tempo integral. Disponibilizar mecanismos efetivos de controle, de entrada e saída de pessoas que acessem e façam uso da infraestrutura física do Ambiente, bem como de registros para possibilitar posteriores pesquisas.
+
+4.15.16.Possuir travas eletrônicas que, de acordo com a política de segurança estabelecida, dividindo a infraestrutura física do ambiente em regiões diferentes, e com níveis de restrições diferenciados, monitorando e verificando toda e qualquer tentativa de roubo.
+
+4.15.17.Utilizar câmeras de circuito interno de televisão, monitoradas e gerenciadas cujas imagens possam ser posteriormente consultadas por um período mínimo de 5 (cinco) dias, viabilizando o rastreamento de pessoas dentro do ambiente.
+
+4.15.18. O prédio deverá possuir no mínimo três níveis de acesso controlado.
+
+4.15.19.Controle de acesso, inclusive com câmera de vigilância ativada em período integral, e infraestrutura de modo a garantir a proteção contra roubos, utilização indevida e vandalismos.
+
+4.16.1.Toda a infraestrutura de servidores virtuais das atividades contínuas dos SISTEMAS DA SECRETARIA DE DESENVOLVIMENTO SOCIAL deverão funcionar em plataforma de alta disponibilidade;
+
+4.16.2. A CONTRATADA deverá garantir, durante toda a vigência contratual, a manutenção integral da infraestrutura disponibilizada, implantada e configurada, assegurando sua replicação fiel, continuidade operacional e inalterabilidade das especificações técnicas originalmente definidas, conforme estabelecido no item 3.3 – Infraestrutura Local para Atividades Contínuas dos Sistemas, Programas ou Projetos da Secretaria de Desenvolvimento Social.
+
+4.16.2.1. Adicionalmente, a CONTRATADA deverá assegurar que quaisquer ações de manutenção, substituição ou atualização não impliquem degradação de desempenho, perda de capacidade, descontinuidade dos serviços ou alteração não autorizada das características técnicas da solução, responsabilizando-se integralmente pela conformidade, disponibilidade e estabilidade do ambiente ao longo de todo o período contratual.

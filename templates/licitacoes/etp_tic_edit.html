@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/licitacoes/licitacoes.css' %}" />
+{% endblock %}
+
+{% block container_class %}container-wide{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>ETP TIC - {{ etp.numero_processo_servico }}</h2>
+    {% if etp.titulo %}<p>{{ etp.titulo }}</p>{% endif %}
+  </section>
+
+  <div class="etp-wizard">
+    <aside class="etp-sidebar">
+      <h3>Secoes</h3>
+      <ul>
+        {% for secao in secoes %}
+          <li class="etp-step etp-step--{{ secao.status }} {% if secao.numero == secao_numero %}is-active{% endif %}">
+            <a href="{% url 'licitacoes_etp_tic_edit' etp.pk %}?secao={{ secao.numero }}">{{ secao.numero }}. {{ secao.titulo }}</a>
+          </li>
+        {% endfor %}
+      </ul>
+    </aside>
+
+    <section class="etp-main">
+      <div class="etp-stepper" aria-label="Progresso por secao">
+        {% for secao in secoes %}
+          <a href="{% url 'licitacoes_etp_tic_edit' etp.pk %}?secao={{ secao.numero }}" class="etp-stepper-item etp-stepper-item--{{ secao.status }} {% if secao.numero == secao_numero %}is-active{% endif %}">{{ secao.numero }}</a>
+        {% endfor %}
+      </div>
+
+      <article class="form etp-section-form" data-autosave-url="{% url 'licitacoes_etp_tic_autosave' etp.pk %}" data-secao="{{ secao_numero }}">
+        <h3>{{ secao_atual.numero }}. {{ secao_atual.titulo }}</h3>
+        {% if secao_atual.descricao %}
+          <p class="etp-description">{{ secao_atual.descricao }}</p>
+        {% endif %}
+
+        <form method="post" id="etp-form">
+          {% csrf_token %}
+          <div class="etp-grid-2">
+            {% for field in form %}
+              <div class="{% if field.name == 'area_requisitante' or field.name == 'responsavel_area' %}etp-col-half{% else %}etp-col-full{% endif %}">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+                <div class="etp-counter" data-counter-for="{{ field.id_for_label }}"></div>
+                {% if field.errors %}
+                  <div class="field-error">{{ field.errors }}</div>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+
+          <div class="etp-hint">Separe paragrafos por linha em branco para gerar subitens na exportacao.</div>
+
+          <div class="etp-footer-actions">
+            {% if secao_numero > 1 %}
+              <button class="btn btn-light" type="submit" name="_acao" value="anterior">Voltar</button>
+            {% endif %}
+            <button class="btn btn-light" type="submit" name="_acao" value="salvar">Salvar rascunho</button>
+            {% if secao_numero < 18 %}
+              <button class="btn" type="submit" name="_acao" value="proximo">Proximo</button>
+            {% endif %}
+            <a class="btn btn-light" href="{{ preview_url }}">Preview</a>
+            <a class="btn btn-light" href="{{ export_url }}">Exportar</a>
+            <button class="btn" form="etp-concluir" type="submit">Concluir</button>
+          </div>
+        </form>
+
+        <form id="etp-concluir" method="post" action="{% url 'licitacoes_etp_tic_concluir' etp.pk %}">
+          {% csrf_token %}
+        </form>
+        <div id="autosave-status" class="etp-autosave-status"></div>
+      </article>
+    </section>
+  </div>
+
+  <script>
+    const getCookie = (name) => {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop().split(';').shift();
+      return "";
+    };
+
+    document.querySelectorAll(".etp-section-form textarea").forEach((el) => {
+      const counter = document.querySelector(`[data-counter-for="${el.id}"]`);
+      const render = () => {
+        if (counter) counter.textContent = `${el.value.length} caracteres`;
+      };
+      el.addEventListener("input", render);
+      render();
+    });
+
+    const formWrap = document.querySelector(".etp-section-form");
+    const form = document.getElementById("etp-form");
+    const status = document.getElementById("autosave-status");
+    if (formWrap && form) {
+      let timer = null;
+      const autosave = async () => {
+        const fields = Object.fromEntries(new FormData(form).entries());
+        delete fields.csrfmiddlewaretoken;
+        const payload = {
+          secao: Number(formWrap.dataset.secao || 1),
+          ...fields,
+        };
+        const response = await fetch(formWrap.dataset.autosaveUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCookie("csrftoken"),
+          },
+          body: JSON.stringify(payload),
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (data.ok && status) {
+          status.textContent = `Salvo as ${data.salvo_em}`;
+        }
+      };
+
+      form.addEventListener("input", () => {
+        window.clearTimeout(timer);
+        timer = window.setTimeout(autosave, 20000);
+      });
+    }
+  </script>
+{% endblock %}

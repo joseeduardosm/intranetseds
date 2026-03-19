@@ -1,0 +1,9 @@
+/* Base do módulo de Empresas */
+
+.empresas-page {
+  --empresas-surface: var(--card);
+  --empresas-border: var(--border);
+  --empresas-primary: var(--primary);
+  --empresas-text: var(--text);
+  --empresas-muted: var(--muted);
+}

@@ -1,0 +1,74 @@
+.lousa-dashboard {
+  display: grid;
+  gap: 16px;
+}
+
+.lousa-dashboard-kpis {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+
+.lousa-kpi-card,
+.lousa-chart-card,
+.lousa-table-card {
+  padding: 16px;
+}
+
+.lousa-kpi-label,
+.lousa-chart-meta {
+  margin: 0;
+  font-size: 0.84rem;
+  color: var(--muted);
+}
+
+.lousa-kpi-value {
+  margin: 8px 0 4px;
+  font-size: 2rem;
+  line-height: 1;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.lousa-kpi-meta {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.lousa-dashboard-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.lousa-dashboard-grid--2 {
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.lousa-dashboard-grid--3 {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.lousa-dashboard-grid--1-2 {
+  grid-template-columns: minmax(340px, 1.25fr) minmax(300px, 1fr);
+}
+
+.lousa-chart-title {
+  margin: 0 0 10px;
+  font-size: 1rem;
+  color: var(--primary);
+}
+
+.lousa-chart {
+  min-height: 320px;
+}
+
+.lousa-chart--compact {
+  min-height: 280px;
+}
+
+@media (max-width: 980px) {
+  .lousa-dashboard-grid--1-2 {
+    grid-template-columns: 1fr;
+  }
+}

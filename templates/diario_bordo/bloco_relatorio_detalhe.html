@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/diario_bordo/diario_bordo.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <div class="diario-report diario-report-detalhe">
+    <section class="page-header">
+      <h2>Relatório - Diário de Bordo</h2>
+      <p>Bloco: {{ bloco.nome }}</p>
+      <p>Dias sem atualização: {{ dias_desde }}</p>
+    </section>
+
+    <div class="card-actions">
+      <button class="btn" type="button" onclick="window.print()">Imprimir</button>
+      <a class="btn btn-light" href="{% url 'diario_bordo_detail' bloco.pk %}">Voltar</a>
+    </div>
+
+    {% if bloco.incrementos.all %}
+      <table class="report-table">
+      <thead>
+        <tr>
+          <th>Data</th>
+          <th>Incremento</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for incremento in bloco.incrementos.all %}
+          <tr>
+            <td class="report-date">{{ incremento.criado_em|date:"d/m/Y H:i" }}</td>
+            <td class="report-text">{{ incremento.texto|urlize|linebreaksbr }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+      </table>
+    {% else %}
+      <p>Sem atualizações.</p>
+    {% endif %}
+  </div>
+{% endblock %}

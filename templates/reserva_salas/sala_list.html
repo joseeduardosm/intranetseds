@@ -1,0 +1,629 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/reserva_salas/reserva_salas.css' %}" />
+{% endblock %}
+
+{% block container_class %}container-wide calendar-container{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Reserva de Salas</h2>
+  </section>
+
+  <div class="card-actions">
+    {% if user.is_authenticated %}
+      <a class="btn" href="{% url 'reservas_create' %}">Nova reserva</a>
+    {% else %}
+      <button class="btn" type="button" data-login-popup="true" data-next="{% url 'reservas_create' %}">Nova reserva</button>
+    {% endif %}
+    {% if perms.reserva_salas.add_sala %}
+      <a class="btn" href="{% url 'salas_create' %}">Nova sala</a>
+    {% elif not user.is_authenticated %}
+      <button class="btn btn-light" type="button" data-login-popup="true" data-next="{% url 'salas_create' %}">Nova sala</button>
+    {% endif %}
+    <a class="btn btn-light" href="{% url 'reservas_dashboard' %}">Dashboard</a>
+    <a class="btn btn-light" href="{% url 'reservas_list' %}">Ver reservas</a>
+  </div>
+
+  <section class="calendar-shell">
+    <div class="calendar-toolbar">
+      <div class="calendar-controls">
+        <div class="calendar-filter">
+          <label for="sala-filter">Sala</label>
+          <select id="sala-filter" name="sala">
+            <option value="all" data-color="var(--muted)">Todas as salas</option>
+            {% for sala in salas %}
+              <option value="{{ sala.pk }}" data-color="{{ sala.cor }}" style="color: {{ sala.cor }};">
+                {{ sala.nome }} - {{ sala.localizacao }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="calendar-view-tabs" role="tablist" aria-label="Visualizacoes do calendario">
+          <button class="view-tab is-active" type="button" data-view="month">Mensal</button>
+          <button class="view-tab" type="button" data-view="week">Semanal</button>
+          <button class="view-tab" type="button" data-view="biweek">Quinzenal</button>
+          <button class="view-tab" type="button" data-view="day">Diaria</button>
+          <button class="view-tab is-disabled" type="button" data-view="year" aria-disabled="true" title="Em breve">
+            Anual
+          </button>
+        </div>
+      </div>
+      <div class="calendar-nav">
+        <button class="btn btn-light btn-small" type="button" data-action="today">Hoje</button>
+        <button class="btn btn-light btn-icon" type="button" data-action="prev" aria-label="Voltar">
+          &#8249;
+        </button>
+        <div class="calendar-title" id="calendar-title"></div>
+        <button class="btn btn-light btn-icon" type="button" data-action="next" aria-label="Avancar">
+          &#8250;
+        </button>
+      </div>
+    </div>
+
+    <div class="calendar-weekdays" id="calendar-weekdays">
+      <span>Dom</span>
+      <span>Seg</span>
+      <span>Ter</span>
+      <span>Qua</span>
+      <span>Qui</span>
+      <span>Sex</span>
+      <span>Sab</span>
+    </div>
+    <div class="calendar-body" id="calendar-body"></div>
+  </section>
+
+  <details class="calendar-salas">
+    <summary>Salas cadastradas</summary>
+    {% if salas %}
+      <div class="card-grid card-grid-fixed">
+        {% for sala in salas %}
+          <article class="card">
+            <a class="card-link" href="{% url 'salas_detail' sala.pk %}">
+              <div class="card-body">
+                <h3 class="card-title">{{ sala.nome }}</h3>
+                <p class="card-meta">Capacidade: {{ sala.capacidade }} pessoas</p>
+                <p class="card-text"><strong>Localizacao:</strong> {{ sala.localizacao }}</p>
+                <p class="card-text">
+                  <strong>Recursos:</strong>
+                  {% if sala.recursos_disponiveis %}
+                    {{ sala.recursos_disponiveis|join:", " }}
+                  {% else %}
+                    Sem recursos cadastrados.
+                  {% endif %}
+                </p>
+              </div>
+            </a>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p>Nenhuma sala cadastrada.</p>
+    {% endif %}
+  </details>
+
+  {{ reservas_data|json_script:"reservas-data" }}
+
+  <script>
+    const calendarBody = document.getElementById("calendar-body");
+    const calendarTitle = document.getElementById("calendar-title");
+    const weekdaysRow = document.getElementById("calendar-weekdays");
+    const viewTabs = document.querySelectorAll(".view-tab");
+    const actionButtons = document.querySelectorAll("[data-action]");
+    const salaFilter = document.getElementById("sala-filter");
+    const locale = "pt-BR";
+    const today = new Date();
+    let currentDate = new Date();
+    let currentView = "month";
+    let activeSala = "all";
+
+    const reservasRaw = JSON.parse(
+      document.getElementById("reservas-data")?.textContent || "[]"
+    );
+    const reservas = reservasRaw.map((item) => ({
+      ...item,
+      date: new Date(item.inicio),
+      end: item.fim ? new Date(item.fim) : null,
+    }));
+    let reservasIndex = {};
+
+    const startOfWeek = (date) => {
+      const d = new Date(date);
+      const day = d.getDay(); // domingo = 0
+      d.setDate(d.getDate() - day);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    };
+
+    const isSameDay = (a, b) =>
+      a.getFullYear() === b.getFullYear() &&
+      a.getMonth() === b.getMonth() &&
+      a.getDate() === b.getDate();
+
+    const pad = (value) => value.toString().padStart(2, "0");
+    const dateKey = (d) =>
+      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const escapeHtml = (value) =>
+      String(value || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    const reservadoPorLinha = (reserva) => {
+      if (!reserva.reservado_por_nome_curto) return "";
+      const ramal = reserva.reservado_por_ramal || "-";
+      const email = reserva.reservado_por_email || "-";
+      return `Reservado por ${escapeHtml(reserva.reservado_por_nome_curto)} - ${escapeHtml(ramal)} - ${escapeHtml(email)}`;
+    };
+
+    const getFilteredReservas = () => {
+      if (activeSala === "all") return reservas;
+      const salaId = parseInt(activeSala, 10);
+      return reservas.filter((reserva) => reserva.sala_id === salaId);
+    };
+
+    const rebuildIndex = () => {
+      reservasIndex = {};
+      getFilteredReservas().forEach((reserva) => {
+        const key = dateKey(reserva.date);
+        if (!reservasIndex[key]) reservasIndex[key] = [];
+        reservasIndex[key].push(reserva);
+      });
+    };
+
+    const getEventosForDate = (d) => reservasIndex[dateKey(d)] || [];
+
+    const formatRangeTitle = (start, end) => {
+      const sameMonth = start.getMonth() === end.getMonth();
+      const sameYear = start.getFullYear() === end.getFullYear();
+      const startLabel = start.toLocaleDateString(locale, {
+        day: "2-digit",
+        month: "short",
+      });
+      const endLabel = end.toLocaleDateString(locale, {
+        day: "2-digit",
+        month: sameMonth ? "short" : "short",
+        year: sameYear ? undefined : "numeric",
+      });
+      const yearLabel = end.toLocaleDateString(locale, { year: "numeric" });
+      return `${startLabel} - ${endLabel} ${yearLabel}`.replace(/\s+/g, " ");
+    };
+
+    const setTitle = (text) => {
+      if (calendarTitle) calendarTitle.textContent = text;
+    };
+
+    const clearCalendar = () => {
+      calendarBody.innerHTML = "";
+      calendarBody.className = "calendar-body";
+      calendarBody.style.setProperty("--calendar-columns", "7");
+    };
+
+    const buildEventElement = (reserva) => {
+      const isMonthView = currentView === "month";
+      const element = document.createElement("a");
+      element.className = isMonthView ? "event-dot" : "event-chip";
+      element.href = reserva.url;
+      element.style.setProperty("--event-color", reserva.sala_cor);
+      element.setAttribute("aria-label", reserva.nome_evento);
+
+      const horaLabel = reserva.date.toLocaleTimeString(locale, {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      const horaFimLabel = reserva.end
+        ? reserva.end.toLocaleTimeString(locale, {
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        : "";
+      if (!isMonthView) {
+        const dataLabel = reserva.date.toLocaleDateString(locale, {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        });
+        const reservadoPor = reservadoPorLinha(reserva);
+        element.innerHTML = `
+          <div class="event-chip-title">${escapeHtml(reserva.nome_evento)}</div>
+          <div class="event-chip-meta">${dataLabel} - ${horaLabel}${horaFimLabel ? " - " + horaFimLabel : ""}</div>
+          <div class="event-chip-meta">${escapeHtml(reserva.sala_nome)} - ${escapeHtml(reserva.sala_localizacao || "-")}</div>
+          ${reservadoPor ? `<div class="event-chip-meta">${reservadoPor}</div>` : ""}
+        `;
+      }
+
+      if (isMonthView) {
+        const tooltip = document.createElement("span");
+        tooltip.className = "event-tooltip";
+        const dataLabel = reserva.date.toLocaleDateString(locale, {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        });
+        const reservadoPor = reservadoPorLinha(reserva);
+        tooltip.innerHTML = `
+          <strong>${escapeHtml(reserva.nome_evento)}</strong>
+          <span>${dataLabel} - ${horaLabel}${horaFimLabel ? " - " + horaFimLabel : ""}</span>
+          <span>${escapeHtml(reserva.sala_nome)} - ${escapeHtml(reserva.sala_localizacao || "-")}</span>
+          ${reservadoPor ? `<span>${reservadoPor}</span>` : ""}
+        `;
+        element.appendChild(tooltip);
+      }
+      return element;
+    };
+
+    const buildCell = (dateObj, label, muted = false) => {
+      const cell = document.createElement("div");
+      cell.className = "calendar-cell";
+      if (muted) cell.classList.add("is-muted");
+      if (isSameDay(dateObj, today)) cell.classList.add("is-today");
+      cell.setAttribute("data-date", dateObj.toISOString().slice(0, 10));
+
+      const header = document.createElement("span");
+      header.className = "day-number";
+      header.textContent = label;
+
+      const body = document.createElement("div");
+      body.className = "day-body";
+      if (currentView !== "month") {
+        body.classList.add("day-body--scrollable");
+      }
+      const events = getEventosForDate(dateObj);
+      if (events.length) {
+        const list = document.createElement("div");
+        list.className =
+          currentView === "month" ? "day-events" : "day-events day-events--stack";
+        events.forEach((reserva) => list.appendChild(buildEventElement(reserva)));
+        body.appendChild(list);
+      } else {
+        body.textContent = "Sem reservas";
+      }
+
+      cell.appendChild(header);
+      cell.appendChild(body);
+      return cell;
+    };
+
+    const renderMonth = (date) => {
+      clearCalendar();
+      rebuildIndex();
+      const year = date.getFullYear();
+      const month = date.getMonth();
+      const first = new Date(year, month, 1);
+      const start = startOfWeek(first);
+      const days = [];
+      for (let i = 0; i < 42; i += 1) {
+        const d = new Date(start);
+        d.setDate(start.getDate() + i);
+        days.push(d);
+      }
+      calendarBody.classList.add("calendar-grid");
+      days.forEach((d) => {
+        const cell = buildCell(d, d.getDate().toString(), d.getMonth() !== month);
+        calendarBody.appendChild(cell);
+      });
+      setTitle(
+        date.toLocaleDateString(locale, { month: "long", year: "numeric" })
+      );
+      weekdaysRow.style.display = "grid";
+    };
+
+    const renderRange = (date, daysCount) => {
+      clearCalendar();
+      rebuildIndex();
+      calendarBody.classList.add("calendar-grid");
+      const start = daysCount === 1 ? new Date(date) : startOfWeek(date);
+      const columns = daysCount === 1 ? 1 : 7;
+      calendarBody.style.setProperty("--calendar-columns", columns.toString());
+      for (let i = 0; i < daysCount; i += 1) {
+        const d = new Date(start);
+        d.setDate(start.getDate() + i);
+        const dayLabel = d.toLocaleDateString(locale, {
+          weekday: "short",
+          day: "2-digit",
+          month: "short",
+        });
+        const cell = buildCell(d, dayLabel);
+        calendarBody.appendChild(cell);
+      }
+      const end = new Date(start);
+      end.setDate(start.getDate() + daysCount - 1);
+      setTitle(formatRangeTitle(start, end));
+      weekdaysRow.style.display = daysCount === 1 ? "none" : "grid";
+    };
+
+    const renderYear = (date) => {
+      clearCalendar();
+      rebuildIndex();
+      calendarBody.classList.add("calendar-year");
+      const year = date.getFullYear();
+      setTitle(year.toString());
+      weekdaysRow.style.display = "none";
+      for (let month = 0; month < 12; month += 1) {
+        const mini = document.createElement("div");
+        mini.className = "mini-month";
+        const monthTitle = new Date(year, month, 1).toLocaleDateString(locale, {
+          month: "long",
+        });
+        const header = document.createElement("div");
+        header.className = "mini-month-title";
+        header.textContent = monthTitle;
+        const grid = document.createElement("div");
+        grid.className = "mini-grid";
+        const first = new Date(year, month, 1);
+        const start = startOfWeek(first);
+        for (let i = 0; i < 42; i += 1) {
+          const d = new Date(start);
+          d.setDate(start.getDate() + i);
+          const cell = document.createElement("div");
+          cell.className = "mini-cell";
+          if (d.getMonth() !== month) cell.classList.add("is-muted");
+          if (isSameDay(d, today)) cell.classList.add("is-today");
+          cell.setAttribute("data-date", d.toISOString().slice(0, 10));
+          if (getEventosForDate(d).length) {
+            cell.classList.add("has-event");
+            cell.style.setProperty(
+              "--event-color",
+              getEventosForDate(d)[0].sala_cor
+            );
+          }
+          cell.textContent = d.getDate();
+          grid.appendChild(cell);
+        }
+        mini.appendChild(header);
+        mini.appendChild(grid);
+        calendarBody.appendChild(mini);
+      }
+    };
+
+    const renderTimeGrid = (date, daysCount) => {
+      clearCalendar();
+      rebuildIndex();
+      calendarBody.classList.add("calendar-timegrid");
+      calendarBody.style.setProperty("--timegrid-days", daysCount.toString());
+      weekdaysRow.style.display = "none";
+
+      const header = document.createElement("div");
+      header.className = "timegrid-header";
+      const corner = document.createElement("div");
+      corner.className = "timegrid-corner";
+      header.appendChild(corner);
+      const start = daysCount === 1 ? new Date(date) : startOfWeek(date);
+      for (let i = 0; i < daysCount; i += 1) {
+        const d = new Date(start);
+        d.setDate(start.getDate() + i);
+        const label = d.toLocaleDateString(locale, {
+          weekday: "short",
+          day: "2-digit",
+          month: "short",
+        });
+        const cell = document.createElement("div");
+        cell.className = "timegrid-day-label";
+        if (isSameDay(d, today)) cell.classList.add("is-today");
+        cell.textContent = label;
+        header.appendChild(cell);
+      }
+
+      const body = document.createElement("div");
+      body.className = "timegrid-body";
+      const hours = document.createElement("div");
+      hours.className = "timegrid-hours";
+      for (let h = 0; h < 24; h += 1) {
+        const hour = document.createElement("div");
+        hour.className = "timegrid-hour";
+        hour.textContent = `${h.toString().padStart(2, "0")}:00`;
+        hours.appendChild(hour);
+      }
+
+      const days = document.createElement("div");
+      days.className = "timegrid-days";
+      days.style.setProperty("--timegrid-days", daysCount.toString());
+
+      for (let i = 0; i < daysCount; i += 1) {
+        const d = new Date(start);
+        d.setDate(start.getDate() + i);
+        const dayCol = document.createElement("div");
+        dayCol.className = "timegrid-day";
+        if (isSameDay(d, today)) dayCol.classList.add("is-today");
+        const eventsLayer = document.createElement("div");
+        eventsLayer.className = "timegrid-day-events";
+        dayCol.appendChild(eventsLayer);
+        days.appendChild(dayCol);
+
+        const dayEvents = getEventosForDate(d).map((reserva) => {
+          const startMinutes = reserva.date.getHours() * 60 + reserva.date.getMinutes();
+          let endMinutes = reserva.end
+            ? reserva.end.getHours() * 60 + reserva.end.getMinutes()
+            : startMinutes + 60;
+          if (endMinutes <= startMinutes) {
+            endMinutes = startMinutes + 30;
+          }
+          endMinutes = Math.min(24 * 60, endMinutes);
+          return {
+            reserva,
+            startMinutes,
+            endMinutes,
+          };
+        });
+
+        dayEvents.sort((a, b) => a.startMinutes - b.startMinutes);
+        const lanes = [];
+        dayEvents.forEach((evt) => {
+          let laneIndex = lanes.findIndex((laneEnd) => evt.startMinutes >= laneEnd);
+          if (laneIndex === -1) {
+            laneIndex = lanes.length;
+            lanes.push(evt.endMinutes);
+          } else {
+            lanes[laneIndex] = evt.endMinutes;
+          }
+          evt.lane = laneIndex;
+          evt.lanesCount = Math.max(lanes.length, evt.lanesCount || 0);
+        });
+        const lanesCount = Math.max(lanes.length, 1);
+
+        dayEvents.forEach((evt) => {
+          const block = document.createElement("a");
+          block.className = "event-block";
+          block.href = evt.reserva.url;
+          block.style.setProperty("--event-color", evt.reserva.sala_cor);
+          const hourRow = parseFloat(
+            getComputedStyle(calendarBody).getPropertyValue("--hour-row-height") || "36"
+          );
+          const topPx = (evt.startMinutes / 60) * hourRow;
+          const heightPx = Math.max(24, ((evt.endMinutes - evt.startMinutes) / 60) * hourRow);
+          const laneWidth = 100 / lanesCount;
+          block.style.top = `${topPx}px`;
+          block.style.height = `${heightPx}px`;
+          block.style.left = `${evt.lane * laneWidth}%`;
+          block.style.width = `${laneWidth}%`;
+
+          const horaLabel = evt.reserva.date.toLocaleTimeString(locale, {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+          const horaFimLabel = evt.reserva.end
+            ? evt.reserva.end.toLocaleTimeString(locale, {
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+            : "";
+          const dataLabel = evt.reserva.date.toLocaleDateString(locale, {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+          });
+          const reservadoPor = reservadoPorLinha(evt.reserva);
+          block.innerHTML = `
+            <div class="event-block-title">${escapeHtml(evt.reserva.nome_evento)}</div>
+            <div class="event-block-meta">${dataLabel} - ${horaLabel}${horaFimLabel ? " - " + horaFimLabel : ""}</div>
+            <div class="event-block-meta">${escapeHtml(evt.reserva.sala_nome)} - ${escapeHtml(evt.reserva.sala_localizacao || "-")}</div>
+            ${reservadoPor ? `<div class="event-block-meta">${reservadoPor}</div>` : ""}
+          `;
+          eventsLayer.appendChild(block);
+        });
+      }
+
+      body.appendChild(hours);
+      body.appendChild(days);
+      calendarBody.appendChild(header);
+      calendarBody.appendChild(body);
+
+      const end = new Date(start);
+      end.setDate(start.getDate() + daysCount - 1);
+      setTitle(daysCount === 1 ? start.toLocaleDateString(locale, { dateStyle: "full" }) : formatRangeTitle(start, end));
+      resizeTimegrid();
+    };
+
+    const renderCalendar = () => {
+      if (currentView === "month") {
+        renderMonth(currentDate);
+      } else if (currentView === "week") {
+        renderRange(currentDate, 7);
+      } else if (currentView === "biweek") {
+        renderRange(currentDate, 14);
+      } else if (currentView === "day") {
+        renderRange(currentDate, 1);
+      } else if (currentView === "year") {
+        renderYear(currentDate);
+      }
+      attachDayClick();
+    };
+
+    const attachDayClick = () => {
+      const baseUrl = "{% url 'reservas_create' %}";
+      calendarBody.querySelectorAll("[data-date]").forEach((el) => {
+        el.addEventListener("click", (event) => {
+          if (event.target.closest("a, button")) return;
+          const date = el.getAttribute("data-date");
+          if (!date) return;
+          window.location.href = `${baseUrl}?data=${date}`;
+        });
+      });
+    };
+
+    const shiftDate = (direction) => {
+      const dir = direction === "next" ? 1 : -1;
+      if (currentView === "month") {
+        currentDate.setMonth(currentDate.getMonth() + dir);
+      } else if (currentView === "year") {
+        currentDate.setFullYear(currentDate.getFullYear() + dir);
+      } else if (currentView === "week") {
+        currentDate.setDate(currentDate.getDate() + 7 * dir);
+      } else if (currentView === "biweek") {
+        currentDate.setDate(currentDate.getDate() + 14 * dir);
+      } else {
+        currentDate.setDate(currentDate.getDate() + dir);
+      }
+    };
+
+    viewTabs.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        if (tab.classList.contains("is-disabled")) {
+          return;
+        }
+        currentView = tab.getAttribute("data-view") || "month";
+        viewTabs.forEach((btn) => btn.classList.remove("is-active"));
+        tab.classList.add("is-active");
+        renderCalendar();
+      });
+    });
+
+    actionButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const action = button.getAttribute("data-action");
+        if (action === "today") {
+          currentDate = new Date();
+        } else if (action === "prev") {
+          shiftDate("prev");
+        } else if (action === "next") {
+          shiftDate("next");
+        }
+        renderCalendar();
+      });
+    });
+
+    const resizeCalendar = () => {
+      const shell = document.querySelector(".calendar-shell");
+      if (!shell) return;
+      const rect = shell.getBoundingClientRect();
+      const available = Math.max(0, window.innerHeight - rect.top - 16);
+      shell.style.setProperty("--calendar-shell-height", `${Math.floor(available)}px`);
+      resizeTimegrid();
+    };
+
+    const resizeTimegrid = () => {
+      const timegrid = calendarBody.querySelector(".timegrid-body");
+      if (!timegrid) return;
+      const header = calendarBody.querySelector(".timegrid-header");
+      const headerHeight = header ? header.getBoundingClientRect().height : 0;
+      const bodyRect = calendarBody.getBoundingClientRect();
+      const available = Math.max(240, bodyRect.height - headerHeight - 8);
+      const hourHeight = Math.max(22, Math.floor(available / 24));
+      calendarBody.style.setProperty("--hour-row-height", `${hourHeight}px`);
+    };
+
+    window.addEventListener("resize", resizeCalendar);
+    resizeCalendar();
+    const applySelectColor = (select) => {
+      if (!select) return;
+      const option = select.options[select.selectedIndex];
+      const color = option?.dataset?.color;
+      select.style.color = color || "var(--text)";
+    };
+
+    if (salaFilter) {
+      salaFilter.addEventListener("change", (event) => {
+        activeSala = event.target.value;
+        applySelectColor(salaFilter);
+        renderCalendar();
+      });
+      applySelectColor(salaFilter);
+    }
+
+    renderCalendar();
+  </script>
+{% endblock %}

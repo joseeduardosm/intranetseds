@@ -1,0 +1,7 @@
+/* Ajustes específicos da listagem */
+
+@media (max-width: 720px) {
+  .card-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,9 @@
+/* Base do módulo de Prepostos */
+
+.prepostos-page {
+  --prepostos-surface: var(--card);
+  --prepostos-border: var(--border);
+  --prepostos-primary: var(--primary);
+  --prepostos-text: var(--text);
+  --prepostos-muted: var(--muted);
+}

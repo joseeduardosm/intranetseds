@@ -1,0 +1,4 @@
+<div class="card-actions usuarios-tabs">
+  <a class="btn {% if usuarios_tab == 'usuarios' %}{% else %}btn-light{% endif %}" href="{% url 'usuarios_list' %}">Usuarios</a>
+  <a class="btn {% if usuarios_tab == 'setores' %}{% else %}btn-light{% endif %}" href="{% url 'setores_list' %}">Setores</a>
+</div>

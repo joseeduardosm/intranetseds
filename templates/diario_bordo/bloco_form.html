@@ -1,0 +1,488 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/diario_bordo/diario_bordo.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header db-page-header">
+    <h2>{% if object %}Editar bloco{% else %}Novo bloco{% endif %}</h2>
+  </section>
+
+  <div class="form db-form-wrap">
+    <form
+      method="post"
+      data-marcador-sugestoes-url="{{ marcador_sugestoes_url }}"
+      data-marcador-criar-url="{{ marcador_criar_url }}"
+      data-marcador-cor-url-template="{{ marcador_cor_url_template }}"
+      data-marcador-excluir-url-template="{{ marcador_excluir_url_template }}"
+      data-marcador-item-url-template="{{ marcador_item_url_template }}"
+      data-marcador-item-id="{{ marcador_item_id }}"
+      data-marcador-vincular-url-template="{% url 'diario_bordo_bloco_marcador_vincular_api' 0 %}"
+      data-marcador-desvincular-url-template="{% url 'diario_bordo_bloco_marcador_desvincular_api' 0 0 %}"
+    >
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      <p>
+        <label for="{{ form.nome.id_for_label }}">{{ form.nome.label }}</label>
+        {{ form.nome }}
+        {{ form.nome.errors }}
+      </p>
+      <p>
+        <label for="{{ form.descricao.id_for_label }}">{{ form.descricao.label }}</label>
+        {{ form.descricao }}
+        {{ form.descricao.errors }}
+      </p>
+
+      <p>
+        <label for="{{ form.marcadores_ids.id_for_label }}-input">{{ form.marcadores_ids.label }}</label>
+        <div class="db-marcador-editor" data-marcador-editor>
+          {{ form.marcadores_ids }}
+          <div class="db-marcador-editor-selecionados" data-marcador-selecionados></div>
+          <input
+            type="text"
+            id="{{ form.marcadores_ids.id_for_label }}-input"
+            class="form-control"
+            placeholder="Clique para listar marcadores ou digite para buscar/criar..."
+            autocomplete="off"
+            data-marcador-input
+          />
+          <div class="db-marcador-editor-dropdown db-hidden" data-marcador-dropdown></div>
+          <div class="db-marcador-editor-dropdown db-hidden" data-marcador-actions-menu></div>
+          <div class="db-marcador-editor-popover db-hidden" data-marcador-popover>
+            <div class="db-marcador-editor-paleta" data-marcador-paleta></div>
+            <small>Cor global do marcador</small>
+          </div>
+          <div class="db-marcador-admin-modal db-hidden" data-marcador-admin-modal>
+            <div class="db-marcador-admin-modal-card">
+              <h4>Inativar marcador no sistema</h4>
+              <div class="db-form-field">
+                <label>Usuário admin</label>
+                <input type="text" class="form-control" data-admin-username />
+              </div>
+              <div class="db-form-field">
+                <label>Senha admin</label>
+                <input type="password" class="form-control" data-admin-password />
+              </div>
+              <div class="form-actions">
+                <button type="button" class="btn btn-secondary" data-admin-cancelar>Cancelar</button>
+                <button type="button" class="btn" data-admin-confirmar>Confirmar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        {{ form.marcadores_ids.errors }}
+      </p>
+
+      <p>
+        <label for="{{ form.participantes.id_for_label }}">{{ form.participantes.label }}</label>
+        <input type="text" class="form-control" id="participantes-search" placeholder="Buscar participante..." />
+        {{ form.participantes }}
+        <div class="participants-picker">
+          <div class="participants-column">
+            <div class="participants-label">Disponiveis</div>
+            <div class="participants-list" id="participants-available"></div>
+          </div>
+          <div class="participants-column">
+            <div class="participants-label">Incluidos</div>
+            <div class="participants-list is-selected" id="participants-selected"></div>
+          </div>
+        </div>
+        {{ form.participantes.errors }}
+      </p>
+      {% if form.status %}
+      <p>
+        <label for="{{ form.status.id_for_label }}">{{ form.status.label }}</label>
+        {{ form.status }}
+        {{ form.status.errors }}
+      </p>
+      {% endif %}
+      <div class="form-actions">
+        <button type="submit" class="btn">Salvar</button>
+        <a class="btn btn-light" href="{% url 'diario_bordo_list' %}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    const participantesSelect = document.getElementById("{{ form.participantes.id_for_label }}");
+    const participantesSearch = document.getElementById("participantes-search");
+    const participantesAvailable = document.getElementById("participants-available");
+    const participantesSelected = document.getElementById("participants-selected");
+
+    if (participantesSelect && participantesSearch && participantesAvailable && participantesSelected) {
+      participantesSelect.classList.add("participants-select-hidden");
+
+      const renderLists = (filterText = "") => {
+        participantesAvailable.innerHTML = "";
+        participantesSelected.innerHTML = "";
+        const filter = filterText.trim().toLowerCase();
+        Array.from(participantesSelect.options).forEach((option) => {
+          const label = (option.textContent || "").trim();
+          const value = option.value;
+          const isSelected = option.selected;
+          const item = document.createElement("button");
+          item.type = "button";
+          item.className = "participants-item";
+          item.textContent = label || value;
+          item.dataset.value = value;
+
+          if (isSelected) {
+            item.classList.add("is-selected");
+            item.addEventListener("click", () => {
+              option.selected = false;
+              renderLists(participantesSearch.value);
+            });
+            participantesSelected.appendChild(item);
+          } else {
+            if (filter && !label.toLowerCase().includes(filter)) {
+              return;
+            }
+            item.addEventListener("click", () => {
+              option.selected = true;
+              renderLists(participantesSearch.value);
+            });
+            participantesAvailable.appendChild(item);
+          }
+        });
+      };
+
+      participantesSearch.addEventListener("input", () => {
+        renderLists(participantesSearch.value);
+      });
+
+      renderLists("");
+    }
+
+    (function () {
+      const palette = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2", "#17becf", "#bcbd22", "#7f7f7f", "#5da5da", "#60bd68"];
+      const getCsrf = () => document.querySelector('input[name="csrfmiddlewaretoken"]')?.value || "";
+
+      document.querySelectorAll("[data-marcador-editor]").forEach((editor) => {
+        const form = editor.closest("form");
+        if (!form) return;
+        const hidden = editor.querySelector('input[type="hidden"]');
+        const input = editor.querySelector("[data-marcador-input]");
+        const dropdown = editor.querySelector("[data-marcador-dropdown]");
+        const actionsMenu = editor.querySelector("[data-marcador-actions-menu]");
+        const selectedWrap = editor.querySelector("[data-marcador-selecionados]");
+        const popover = editor.querySelector("[data-marcador-popover]");
+        const paletaEl = editor.querySelector("[data-marcador-paleta]");
+        const adminModal = editor.querySelector("[data-marcador-admin-modal]");
+        const adminUsername = editor.querySelector("[data-admin-username]");
+        const adminPassword = editor.querySelector("[data-admin-password]");
+        const adminCancelar = editor.querySelector("[data-admin-cancelar]");
+        const adminConfirmar = editor.querySelector("[data-admin-confirmar]");
+        if (!hidden || !input || !dropdown || !actionsMenu || !selectedWrap || !popover || !paletaEl || !adminModal || !adminUsername || !adminPassword || !adminCancelar || !adminConfirmar) return;
+
+        const sugestoesUrl = form.dataset.marcadorSugestoesUrl || "";
+        const criarUrl = form.dataset.marcadorCriarUrl || "";
+        const corUrlTemplate = form.dataset.marcadorCorUrlTemplate || "";
+        const excluirUrlTemplate = form.dataset.marcadorExcluirUrlTemplate || "";
+        const vincularUrlTemplate = form.dataset.marcadorVincularUrlTemplate || "";
+        const desvincularUrlTemplate = form.dataset.marcadorDesvincularUrlTemplate || "";
+        const itemId = form.dataset.marcadorItemId || "";
+
+        const selectedMap = new Map();
+        let suggestions = [];
+        let highlighted = -1;
+        let currentColorTargetId = null;
+        let actionTargetItem = null;
+
+        const buildVincularUrl = (blocoId) =>
+          vincularUrlTemplate.replace("/blocos/0/marcadores/vincular/", `/blocos/${blocoId}/marcadores/vincular/`);
+        const buildDesvincularUrl = (blocoId, marcadorId) =>
+          desvincularUrlTemplate.replace("/blocos/0/marcadores/0/", `/blocos/${blocoId}/marcadores/${marcadorId}/`);
+        const buildCorUrl = (marcadorId) =>
+          corUrlTemplate.replace("/marcadores/0/cor/", `/marcadores/${marcadorId}/cor/`);
+        const buildExcluirUrl = (marcadorId) =>
+          excluirUrlTemplate.replace("/marcadores/0/excluir/", `/marcadores/${marcadorId}/excluir/`);
+        const buildListarBlocoUrl = (blocoId) =>
+          form.dataset.marcadorItemUrlTemplate.replace("/blocos/0/marcadores/", `/blocos/${blocoId}/marcadores/`);
+
+        const normalize = (value) => (value || "").toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+        const syncHidden = () => { hidden.value = Array.from(selectedMap.keys()).join(","); };
+        const closeDropdown = () => { dropdown.classList.add("db-hidden"); highlighted = -1; };
+        const closeActionsMenu = (clear = true) => {
+          actionsMenu.classList.add("db-hidden");
+          actionsMenu.innerHTML = "";
+          if (clear) actionTargetItem = null;
+        };
+        const closePopover = () => { popover.classList.add("db-hidden"); currentColorTargetId = null; };
+        const closeAdminModal = () => {
+          adminModal.classList.add("db-hidden");
+          adminUsername.value = "";
+          adminPassword.value = "";
+        };
+
+        const chipFor = (item) => {
+          const chip = document.createElement("button");
+          chip.type = "button";
+          chip.className = "db-marcador-chip db-marcador-chip--editor";
+          chip.style.setProperty("--marcador-cor", item.cor || "#5b7db1");
+          chip.dataset.marcadorId = String(item.id);
+          chip.innerHTML = `<span>${item.nome}</span><span class="db-marcador-chip-close" aria-hidden="true">&times;</span>`;
+          chip.addEventListener("click", (event) => {
+            closeActionsMenu();
+            const rect = chip.getBoundingClientRect();
+            currentColorTargetId = item.id;
+            popover.style.left = `${Math.max(8, rect.left)}px`;
+            popover.style.top = `${rect.bottom + 6}px`;
+            popover.classList.remove("db-hidden");
+            event.stopPropagation();
+          });
+          chip.querySelector(".db-marcador-chip-close").addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            actionTargetItem = item;
+            actionsMenu.innerHTML = "";
+            const desvincularBtn = document.createElement("button");
+            desvincularBtn.type = "button";
+            desvincularBtn.className = "db-marcador-opcao";
+            desvincularBtn.textContent = "Desvincular deste bloco";
+            desvincularBtn.addEventListener("click", async () => {
+              closeActionsMenu(false);
+              if (!itemId) {
+                selectedMap.delete(item.id);
+                renderSelected();
+                return;
+              }
+              const endpoint = buildDesvincularUrl(itemId, item.id);
+              const response = await fetch(endpoint, {
+                method: "DELETE",
+                headers: { "X-CSRFToken": getCsrf(), "X-Requested-With": "XMLHttpRequest" },
+              });
+              if (!response.ok) {
+                window.alert("Não foi possível desvincular o marcador.");
+                return;
+              }
+              selectedMap.delete(item.id);
+              renderSelected();
+            });
+            const excluirBtn = document.createElement("button");
+            excluirBtn.type = "button";
+            excluirBtn.className = "db-marcador-opcao db-marcador-opcao--criar";
+            excluirBtn.textContent = "Inativar no sistema";
+            excluirBtn.addEventListener("click", () => {
+              closeActionsMenu(false);
+              adminModal.classList.remove("db-hidden");
+            });
+            actionsMenu.appendChild(desvincularBtn);
+            actionsMenu.appendChild(excluirBtn);
+            const rect = chip.getBoundingClientRect();
+            actionsMenu.style.left = `${Math.max(8, rect.left)}px`;
+            actionsMenu.style.top = `${rect.bottom + 6}px`;
+            actionsMenu.classList.remove("db-hidden");
+          });
+          return chip;
+        };
+
+        const renderSelected = () => {
+          selectedWrap.innerHTML = "";
+          Array.from(selectedMap.values()).forEach((item) => selectedWrap.appendChild(chipFor(item)));
+          syncHidden();
+        };
+
+        const renderDropdown = () => {
+          const term = normalize(input.value);
+          const candidates = suggestions.filter((item) => normalize(item.nome).includes(term));
+          dropdown.innerHTML = "";
+          candidates.forEach((item, index) => {
+            const option = document.createElement("button");
+            option.type = "button";
+            option.className = "db-marcador-opcao";
+            if (index === highlighted) option.classList.add("is-highlighted");
+            option.innerHTML = `<span class="db-marcador-opcao-dot" style="background:${item.cor};"></span>${item.nome}`;
+            option.addEventListener("click", async () => {
+              selectedMap.set(item.id, item);
+              if (itemId) {
+                const endpoint = buildVincularUrl(itemId);
+                await fetch(endpoint, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCsrf(),
+                    "X-Requested-With": "XMLHttpRequest"
+                  },
+                  body: JSON.stringify({ marcador_id: item.id })
+                });
+              }
+              renderSelected();
+              input.value = "";
+              closeDropdown();
+            });
+            dropdown.appendChild(option);
+          });
+
+          if (input.value.trim()) {
+            const createOption = document.createElement("button");
+            createOption.type = "button";
+            createOption.className = "db-marcador-opcao db-marcador-opcao--criar";
+            createOption.textContent = `Criar \"${input.value.trim()}\"`;
+            createOption.addEventListener("click", async () => {
+              const response = await fetch(criarUrl, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "X-CSRFToken": getCsrf(),
+                  "X-Requested-With": "XMLHttpRequest"
+                },
+                body: JSON.stringify({ nome: input.value.trim() })
+              });
+              if (!response.ok) {
+                window.alert("Não foi possível criar o marcador.");
+                return;
+              }
+              const created = await response.json();
+              suggestions.unshift(created);
+              selectedMap.set(created.id, created);
+              if (itemId) {
+                const endpoint = buildVincularUrl(itemId);
+                await fetch(endpoint, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCsrf(),
+                    "X-Requested-With": "XMLHttpRequest"
+                  },
+                  body: JSON.stringify({ marcador_id: created.id })
+                });
+              }
+              renderSelected();
+              input.value = "";
+              closeDropdown();
+            });
+            dropdown.appendChild(createOption);
+          }
+
+          dropdown.classList.toggle("db-hidden", dropdown.children.length === 0);
+        };
+
+        const loadSuggestions = async (query = "") => {
+          const response = await fetch(`${sugestoesUrl}?q=${encodeURIComponent(query)}`, {
+            headers: { "X-Requested-With": "XMLHttpRequest" }
+          });
+          if (!response.ok) return;
+          const data = await response.json();
+          suggestions = Array.isArray(data.results) ? data.results : [];
+          renderDropdown();
+        };
+
+        const buildPalette = () => {
+          paletaEl.innerHTML = "";
+          palette.forEach((color) => {
+            const swatch = document.createElement("button");
+            swatch.type = "button";
+            swatch.className = "db-marcador-cor";
+            swatch.style.background = color;
+            swatch.addEventListener("click", async () => {
+              if (!currentColorTargetId) return;
+              const endpoint = buildCorUrl(currentColorTargetId);
+              const response = await fetch(endpoint, {
+                method: "PATCH",
+                headers: {
+                  "Content-Type": "application/json",
+                  "X-CSRFToken": getCsrf(),
+                  "X-Requested-With": "XMLHttpRequest"
+                },
+                body: JSON.stringify({ cor: color })
+              });
+              if (!response.ok) {
+                window.alert("Não foi possível atualizar a cor.");
+                return;
+              }
+              const payload = await response.json();
+              if (selectedMap.has(payload.id)) selectedMap.set(payload.id, payload);
+              suggestions = suggestions.map((item) => item.id === payload.id ? payload : item);
+              renderSelected();
+              closePopover();
+            });
+            paletaEl.appendChild(swatch);
+          });
+        };
+
+        adminCancelar.addEventListener("click", closeAdminModal);
+        adminConfirmar.addEventListener("click", async () => {
+          if (!actionTargetItem) return;
+          const endpoint = buildExcluirUrl(actionTargetItem.id);
+          const response = await fetch(endpoint, {
+            method: "DELETE",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": getCsrf(),
+              "X-Requested-With": "XMLHttpRequest"
+            },
+            body: JSON.stringify({
+              admin_username: adminUsername.value,
+              admin_password: adminPassword.value
+            })
+          });
+          const contentType = (response.headers.get("Content-Type") || "").toLowerCase();
+          if (!contentType.includes("application/json")) {
+            window.alert("Não foi possível validar a operação. Atualize a página e tente novamente.");
+            return;
+          }
+          const payload = await response.json();
+          if (!response.ok || !payload?.ok) {
+            let detail = "Não foi possível inativar o marcador no sistema.";
+            if (payload?.detail) detail = payload.detail;
+            window.alert(detail);
+            return;
+          }
+          selectedMap.delete(actionTargetItem.id);
+          suggestions = suggestions.filter((item) => item.id !== actionTargetItem.id);
+          actionTargetItem = null;
+          renderSelected();
+          closeAdminModal();
+        });
+
+        document.addEventListener("click", (event) => {
+          if (!editor.contains(event.target)) {
+            closeDropdown();
+            closeActionsMenu();
+            closePopover();
+          }
+        });
+
+        input.addEventListener("focus", () => loadSuggestions(input.value || ""));
+        input.addEventListener("input", () => {
+          highlighted = -1;
+          loadSuggestions(input.value || "");
+        });
+        input.addEventListener("keydown", (event) => {
+          const options = Array.from(dropdown.querySelectorAll(".db-marcador-opcao"));
+          if (!options.length) return;
+          if (event.key === "ArrowDown") {
+            event.preventDefault();
+            highlighted = Math.min(options.length - 1, highlighted + 1);
+            options.forEach((opt, idx) => opt.classList.toggle("is-highlighted", idx === highlighted));
+          } else if (event.key === "ArrowUp") {
+            event.preventDefault();
+            highlighted = Math.max(0, highlighted - 1);
+            options.forEach((opt, idx) => opt.classList.toggle("is-highlighted", idx === highlighted));
+          } else if (event.key === "Enter") {
+            event.preventDefault();
+            if (highlighted >= 0 && options[highlighted]) options[highlighted].click();
+          } else if (event.key === "Escape") {
+            closeDropdown();
+          }
+        });
+
+        buildPalette();
+
+        if (itemId) {
+          const endpoint = buildListarBlocoUrl(itemId);
+          fetch(endpoint, { headers: { "X-Requested-With": "XMLHttpRequest" } })
+            .then((response) => response.ok ? response.json() : { locais: [] })
+            .then((payload) => {
+              (payload.locais || []).forEach((item) => selectedMap.set(item.id, item));
+              renderSelected();
+            });
+        } else {
+          renderSelected();
+        }
+      });
+    })();
+  </script>
+{% endblock %}

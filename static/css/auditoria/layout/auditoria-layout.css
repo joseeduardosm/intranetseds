@@ -1,0 +1,23 @@
+/* Cabeçalhos e busca */
+
+.page-header {
+  margin: 32px 0 16px;
+}
+
+.page-header h2 {
+  margin: 0;
+  font-size: 1.7rem;
+  color: var(--primary);
+}
+
+.search-form {
+  margin: 12px 0 24px;
+}
+
+.search-form input[type="search"] {
+  width: min(520px, 100%);
+  padding: 12px 14px;
+  border: 1px solid #d7d4cc;
+  border-radius: 12px;
+  font-size: 1rem;
+}

@@ -1,0 +1,200 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Folha de Ponto - {{ mes_label }}/{{ ano }}</title>
+    <link rel="stylesheet" href="{% static 'css/folha_print.css' %}" />
+  </head>
+  <body>
+    <section class="page page-front">
+      <table class="fp-table">
+        <colgroup>
+          <col class="fp-grid-dia" />
+          <col class="fp-grid-hora" />
+          <col class="fp-grid-ass" />
+          <col class="fp-grid-hora" />
+          <col class="fp-grid-ass" />
+          <col class="fp-grid-obs" />
+          <col class="fp-grid-visto" />
+          <col class="fp-grid-visto" />
+        </colgroup>
+        <tr>
+          <td class="sp-logo" colspan="2">
+            {% if brasao_url %}
+              <img src="{{ brasao_url }}" alt="Brasao do Estado" />
+            {% else %}
+              SP
+            {% endif %}
+          </td>
+          <td colspan="6" class="header-main">
+            GOVERNO DO ESTADO DE SAO PAULO<br />
+            <span class="subheader">SECRETARIA DE DESENVOLVIMENTO SOCIAL</span><br />
+            <span class="subheader">Unidade: <strong>{{ profile.setor|default:"-" }}</strong></span><br />
+            REGISTRO DE PONTO - {{ mes_label|upper }} / {{ ano }}
+          </td>
+        </tr>
+        <tr>
+          <td colspan="5"><strong>Servidor:</strong> {{ request.user.get_full_name|default:request.user.username }}</td>
+          <td colspan="3"><strong>RG n°:</strong> {{ profile.rg|default:"-" }}</td>
+        </tr>
+        <tr>
+          <td colspan="8"><strong>Cargo / Funcao:</strong> {{ profile.cargo|default:"-" }}</td>
+        </tr>
+        <tr>
+          <td colspan="5"><strong>Jornada de Trabalho/Horas Semanais:</strong> {{ jornada_label }}</td>
+          <td colspan="3"><strong>Regime de Plantao:</strong> {{ regime_plantao_label }}</td>
+        </tr>
+        <tr>
+          <td colspan="8"><strong>Horario de Trabalho:</strong> {{ horario_trabalho_label }}</td>
+        </tr>
+        <tr>
+          <td colspan="5"><strong>Intervalo de Almoco e Descanso:</strong> {{ intervalo_label }}</td>
+          <td colspan="3"><strong>Horario de Estudante:</strong> {{ horario_estudante_label }}</td>
+        </tr>
+        <tr>
+          <th rowspan="2" class="center">Dia</th>
+          <th colspan="2" class="center">Entrada</th>
+          <th colspan="2" class="center">Saida</th>
+          <th rowspan="2" class="center">Observacoes</th>
+          <th rowspan="2" colspan="2" class="center visto-header">Visto<br />Superior<br />Imediato</th>
+        </tr>
+        <tr>
+          <th class="center">Hora</th>
+          <th class="center">Assinatura</th>
+          <th class="center">Hora</th>
+          <th class="center">Assinatura</th>
+        </tr>
+        {% for linha in dias %}
+          <tr class="dia-row">
+            <td class="center {% if linha.tipo == 'sabado' or linha.tipo == 'domingo' or linha.tipo == 'feriado' %}red{% endif %}">{{ linha.dia }}</td>
+            <td class="center {% if linha.tipo == 'sabado' or linha.tipo == 'domingo' or linha.tipo == 'feriado' %}red{% endif %}">{{ linha.entrada_hora }}</td>
+            <td class="center {% if linha.tipo == 'sabado' or linha.tipo == 'domingo' or linha.tipo == 'feriado' or linha.tipo == 'ferias' %}red{% endif %}">{{ linha.entrada_assinatura }}</td>
+            <td class="center {% if linha.tipo == 'sabado' or linha.tipo == 'domingo' or linha.tipo == 'feriado' %}red{% endif %}">{{ linha.saida_hora }}</td>
+            <td class="center {% if linha.tipo == 'sabado' or linha.tipo == 'domingo' or linha.tipo == 'feriado' or linha.tipo == 'ferias' %}red{% endif %}">{{ linha.saida_assinatura }}</td>
+            <td class="center obs-cell">{{ linha.observacoes }}</td>
+            <td colspan="2" class="visto-cell"></td>
+          </tr>
+        {% endfor %}
+        <tr>
+          <td colspan="8" class="fp-footer-title">INFORMACOES FINANCEIRAS</td>
+        </tr>
+        <tr>
+          <td colspan="8" class="fp-finance-wrap">
+            <table class="fp-finance">
+              <colgroup>
+                <col class="fp-finance-col-12" />
+                <col class="fp-finance-col-22" />
+                <col class="fp-finance-col-15" />
+                <col class="fp-finance-col-15" />
+                <col class="fp-finance-col-20" />
+                <col class="fp-finance-col-16" />
+              </colgroup>
+              <tr>
+                <td class="lbl">FERIAS</td>
+                <td class="periodo">
+                  <div class="top">Periodo</div>
+                  <div class="bottom"><span class="de">De</span><span class="ate">Até</span></div>
+                </td>
+                <td class="metric">MEDIA de GTN</td>
+                <td class="metric">ACA</td>
+                <td class="periodo">
+                  <div class="top">Periodo</div>
+                  <div class="bottom"><span class="de">De</span><span class="ate">Até</span></div>
+                </td>
+                <td class="qtd-field">
+                  <div class="top">Quantidade</div>
+                  <div class="bottom"></div>
+                </td>
+              </tr>
+              <tr>
+                <td class="lbl">GTN</td>
+                <td class="periodo">
+                  <div class="top">Periodo</div>
+                  <div class="bottom"><span class="de">De</span><span class="ate">Até</span></div>
+                </td>
+                <td class="metric">Percentual GTN</td>
+                <td class="metric">SERVICO<br />EXTRAORDINARIO</td>
+                <td class="periodo">
+                  <div class="top">Periodo</div>
+                  <div class="bottom"><span class="de">De</span><span class="ate">Até</span></div>
+                </td>
+                <td class="qtd-field">
+                  <div class="top">Quantidade</div>
+                  <div class="bottom"></div>
+                </td>
+              </tr>
+              <tr>
+                <td class="lbl-sub" rowspan="2">SUBSTITUICAO<br />EVENTUAL</td>
+                <td class="periodo">
+                  <div class="top center">Periodo</div>
+                </td>
+                <td colspan="3" class="metric">Cargo/Funcao Substituido</td>
+                <td class="qtd">VALE</td>
+              </tr>
+              <tr>
+                <td class="periodo">
+                  <div class="bottom"><span class="de">De</span><span class="ate">Até</span></div>
+                </td>
+                <td colspan="3">&nbsp;</td>
+                <td>&nbsp;</td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+
+      <div class="assinaturas-front">
+        <div class="assinatura-item">
+          <div class="line"></div>
+          <div>Assinatura do Servidor</div>
+        </div>
+        <div class="assinatura-item">
+          <div class="line"></div>
+          <div>Assinatura do Superior Imediato</div>
+        </div>
+        <div class="assinatura-data">Data:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>
+      </div>
+    </section>
+
+    <section class="page page-back">
+      <table class="fp-table">
+        <tr>
+          <td class="sp-logo" colspan="2">
+            {% if brasao_url %}
+              <img src="{{ brasao_url }}" alt="Brasao do Estado" />
+            {% else %}
+              SP
+            {% endif %}
+          </td>
+          <td colspan="4" class="header-main">
+            GOVERNO DO ESTADO DE SAO PAULO<br />
+            <span class="subheader">SECRETARIA DE DESENVOLVIMENTO SOCIAL</span><br />
+            <span class="subheader">Unidade: <strong>{{ profile.setor|default:"-" }}</strong></span><br />
+            REGISTRO DE FREQUENCIA - {{ mes_label|upper }} / {{ ano }}
+          </td>
+        </tr>
+      </table>
+
+      <h2 class="center consolidacao-title">CONSOLIDACAO</h2>
+
+      <div class="linhas">
+        {% for evento in eventos_consolidacao %}
+          <div class="line">{{ evento }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="assinaturas">
+        <div class="assinatura-box">Data</div>
+        <div class="assinatura-box">Assinatura do Superior imediato ou Responsavel</div>
+      </div>
+    </section>
+
+    <script>
+      window.addEventListener("load", function () {
+        window.print();
+      });
+    </script>
+  </body>
+</html>

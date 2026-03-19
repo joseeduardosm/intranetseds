@@ -1,0 +1,9 @@
+/* Base do módulo de Auditoria */
+
+.auditoria-page {
+  --auditoria-surface: var(--card);
+  --auditoria-border: var(--border);
+  --auditoria-primary: var(--primary);
+  --auditoria-text: var(--text);
+  --auditoria-muted: var(--muted);
+}

@@ -1,0 +1,68 @@
+/* Formulário principal da auditoria */
+
+.form {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 24px;
+  margin: 16px 0 48px;
+}
+
+.form p {
+  margin: 0 0 16px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.form-grid--ramais {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 24px;
+}
+
+.form-grid--ramais .form-field--wide {
+  grid-column: 1 / -1;
+}
+
+.form--ramais {
+  max-width: 1280px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.form input,
+.form textarea,
+.form select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d7d4cc;
+  border-radius: 10px;
+  font-size: 1rem;
+  margin-top: 6px;
+}
+
+.form-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 900px) {
+  .form-grid--ramais {
+    grid-template-columns: 1fr;
+    column-gap: 16px;
+  }
+}
+
+@media (max-width: 600px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+}

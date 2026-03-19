@@ -1,0 +1,40 @@
+/* Barra de prazo */
+
+.lousa-progress {
+  position: relative;
+  margin-top: 0;
+  padding-top: 0;
+  overflow: visible;
+}
+
+.lousa-progress-track {
+  margin-top: 0;
+  width: 100%;
+  height: 10px;
+  background: #e7e3db;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid #d7d2c8;
+}
+
+.lousa-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+.lousa-progress-fill.is-safe {
+  background: #2e9d44;
+}
+
+.lousa-progress-fill.is-warning {
+  background: #d9a400;
+}
+
+.lousa-progress-fill.is-danger {
+  background: #c73b2e;
+}
+
+.lousa-progress-fill.is-complete {
+  background: #72808e;
+}

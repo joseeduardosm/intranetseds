@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/folha_ponto/folha_ponto.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Brasao - RH</h2>
+  </section>
+
+  <form class="form" method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {% for field in form %}
+      <p>
+        {{ field.label_tag }}
+        {{ field }}
+        {{ field.errors }}
+      </p>
+    {% endfor %}
+    <div class="form-actions">
+      <button class="btn" type="submit">Salvar</button>
+      <a class="btn btn-secondary" href="{% url 'administracao_rh' %}">Cancelar</a>
+    </div>
+  </form>
+{% endblock %}

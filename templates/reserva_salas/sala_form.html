@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/reserva_salas/reserva_salas.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>{% if object %}Editar sala{% else %}Nova sala{% endif %}</h2>
+  </section>
+
+  <div class="form">
+    <form method="post">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      <p>
+        <label for="{{ form.nome.id_for_label }}">{{ form.nome.label }}</label>
+        {{ form.nome }}
+        {{ form.nome.errors }}
+      </p>
+      <p>
+        <label for="{{ form.capacidade.id_for_label }}">{{ form.capacidade.label }}</label>
+        {{ form.capacidade }}
+        {{ form.capacidade.errors }}
+      </p>
+      <p>
+        <label for="{{ form.localizacao.id_for_label }}">{{ form.localizacao.label }}</label>
+        {{ form.localizacao }}
+        {{ form.localizacao.errors }}
+      </p>
+
+      <fieldset class="form-fieldset">
+        <legend>Recursos</legend>
+        <div class="checkbox-grid">
+          <label class="checkbox-item" for="{{ form.televisao.id_for_label }}">
+            {{ form.televisao }} {{ form.televisao.label }}
+          </label>
+          <label class="checkbox-item" for="{{ form.projetor.id_for_label }}">
+            {{ form.projetor }} {{ form.projetor.label }}
+          </label>
+          <label class="checkbox-item" for="{{ form.som.id_for_label }}">
+            {{ form.som }} {{ form.som.label }}
+          </label>
+          <label class="checkbox-item" for="{{ form.microfone_evento.id_for_label }}">
+            {{ form.microfone_evento }} {{ form.microfone_evento.label }}
+          </label>
+          <label class="checkbox-item" for="{{ form.som_evento.id_for_label }}">
+            {{ form.som_evento }} {{ form.som_evento.label }}
+          </label>
+          <label class="checkbox-item" for="{{ form.mesa_som_evento.id_for_label }}">
+            {{ form.mesa_som_evento }} {{ form.mesa_som_evento.label }}
+          </label>
+          <label class="checkbox-item" for="{{ form.videowall.id_for_label }}">
+            {{ form.videowall }} {{ form.videowall.label }}
+          </label>
+          <label class="checkbox-item" for="{{ form.wifi.id_for_label }}">
+            {{ form.wifi }} {{ form.wifi.label }}
+          </label>
+        </div>
+      </fieldset>
+
+      <div class="form-actions">
+        <button type="submit" class="btn">Salvar</button>
+        <a class="btn btn-light" href="{% url 'salas_list' %}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}

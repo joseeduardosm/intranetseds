@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/folha_ponto/folha_ponto.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>{% if object %}Editar ferias{% else %}Nova ferias{% endif %}</h2>
+  </section>
+
+  <form class="form" method="post">
+    {% csrf_token %}
+    {% for field in form %}
+      <p>
+        {{ field.label_tag }}
+        {{ field }}
+        {{ field.errors }}
+      </p>
+    {% endfor %}
+    <div class="form-actions">
+      <button class="btn" type="submit">Salvar</button>
+      <a class="btn btn-secondary" href="{% url 'folha_ponto_ferias_list' %}">Cancelar</a>
+    </div>
+  </form>
+{% endblock %}

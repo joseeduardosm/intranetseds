@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/licitacoes/licitacoes.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>{% if object %}Editar sessao{% else %}Nova sessao{% endif %}</h2>
+    <p>{{ termo.apelido }}</p>
+  </section>
+
+  <div class="form">
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ next_url }}" />
+      {{ form.non_field_errors }}
+      <p>
+        <label for="{{ form.titulo.id_for_label }}">{{ form.titulo.label }}</label>
+        {{ form.titulo }}
+        {{ form.titulo.errors }}
+      </p>
+      <div class="form-actions">
+        <button class="btn" type="submit">Salvar</button>
+        <a class="btn btn-light" href="{{ next_url }}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}

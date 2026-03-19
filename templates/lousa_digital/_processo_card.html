@@ -1,0 +1,55 @@
+{% load lousa_tags %}
+
+<article class="card card-bloco lousa-card">
+  <div class="card-body">
+    <a class="card-link lousa-card-head-link" href="{% url 'lousa_digital_detail' processo.pk %}">
+      <h3 class="card-title lousa-card-title">{{ processo.numero_sei }}</h3>
+      <p class="card-meta card-meta-processos lousa-card-subtitle">{{ processo.assunto }}</p>
+    </a>
+
+    {% if processo.encaminhamentos_ativos_card %}
+      <div class="lousa-card-progress-list{% if processo.ativos >= 3 %} lousa-card-progress-list--compact{% endif %}">
+        {% for enc in processo.encaminhamentos_ativos_card %}
+          <div class="lousa-progress-row">
+            <div
+              class="lousa-progress"
+              data-progress
+              data-start="{{ enc.progress_inicio_iso }}"
+              data-total-days="{{ enc.progress_total_days }}"
+            >
+              <div class="lousa-progress-track">
+                <div class="lousa-progress-fill {{ enc.progress_class }}" style="width: {{ enc.prazo_consumido|floatformat:2 }}%" data-progress-fill></div>
+              </div>
+            </div>
+            <div class="lousa-progress-end">
+              <div class="lousa-progress-end-main">
+                <button
+                  type="button"
+                  class="sala-marcador-chip lousa-marcador-acao"
+                  style="--marcador-cor: {{ enc.destino|marcador_cor }};"
+                  title="processo devolvido"
+                  data-devolver-open
+                  data-devolver-url="{% url 'lousa_digital_devolver' processo.pk enc.pk %}"
+                >
+                  {{ enc.destino }}
+                </button>
+                <span class="lousa-progress-date">{{ enc.prazo_data|date:"d/m/Y" }}</span>
+              </div>
+              {% if enc.progress_alerta_exibir %}
+                <span class="lousa-progress-note lousa-progress-note--{{ enc.progress_alerta_classe }}">
+                  {{ enc.progress_alerta_texto }}
+                </span>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="card-meta lousa-empty-state">Sem encaminhamento ativo</p>
+    {% endif %}
+  </div>
+
+  <div class="card-footer lousa-card-footer">
+    Atualizado por {{ processo.atualizado_por_nome_curto }} em {{ processo.atualizado_em|date:"d/m/Y H:i" }}
+  </div>
+</article>

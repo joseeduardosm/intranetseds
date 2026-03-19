@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/lousa_digital/lousa_digital.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>{% if object %}Editar processo{% else %}Novo processo{% endif %}</h2>
+  </section>
+
+  <div class="form">
+    <form method="post">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      <div class="{% if form.sequencia %}lousa-form-grid-3{% else %}lousa-form-grid-2{% endif %}">
+        {% if form.sequencia %}
+          <p>
+            <label for="{{ form.sequencia.id_for_label }}">{{ form.sequencia.label }}</label>
+            {{ form.sequencia }}
+            {{ form.sequencia.errors }}
+          </p>
+        {% endif %}
+        <p>
+          <label for="{{ form.numero_sei.id_for_label }}">{{ form.numero_sei.label }}</label>
+          {{ form.numero_sei }}
+          {{ form.numero_sei.errors }}
+        </p>
+        <p>
+          <label for="{{ form.link_sei.id_for_label }}">{{ form.link_sei.label }}</label>
+          {{ form.link_sei }}
+          {{ form.link_sei.errors }}
+        </p>
+      </div>
+      <div class="lousa-form-grid-2">
+        <p>
+          <label for="{{ form.assunto.id_for_label }}">{{ form.assunto.label }}</label>
+          {{ form.assunto }}
+          {{ form.assunto.errors }}
+        </p>
+        <p>
+          <label for="{{ form.caixa_origem.id_for_label }}">{{ form.caixa_origem.label }}</label>
+          {{ form.caixa_origem }}
+          {{ form.caixa_origem.errors }}
+        </p>
+      </div>
+      <div class="lousa-checkbox-row">
+        <label for="{{ form.arquivo_morto.id_for_label }}" class="lousa-checkbox-label">
+          {{ form.arquivo_morto }}
+          <span>Arquivo morto</span>
+        </label>
+        {{ form.arquivo_morto.errors }}
+      </div>
+      <div class="form-actions">
+        <button class="btn" type="submit">Salvar</button>
+        {% if object %}
+          <a class="btn btn-light" href="{% url 'lousa_digital_detail' object.pk %}">Cancelar</a>
+        {% else %}
+          <a class="btn btn-light" href="{% url 'lousa_digital_list' %}">Cancelar</a>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+{% endblock %}

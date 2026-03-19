@@ -1,0 +1,179 @@
+/* ETP TIC wizard */
+
+.etp-wizard {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.etp-sidebar {
+  position: sticky;
+  top: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px;
+}
+
+.etp-sidebar h3 {
+  margin: 0 0 10px;
+  color: var(--primary);
+}
+
+.etp-sidebar ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+
+.etp-step a {
+  display: block;
+  text-decoration: none;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 0.9rem;
+}
+
+.etp-step.is-active a,
+.etp-stepper-item.is-active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(217, 79, 4, 0.16);
+}
+
+.etp-step--concluido a,
+.etp-stepper-item--concluido {
+  background: #edf9f0;
+}
+
+.etp-step--em_andamento a,
+.etp-stepper-item--em_andamento {
+  background: #fff7e7;
+}
+
+.etp-stepper {
+  display: grid;
+  grid-template-columns: repeat(18, minmax(28px, 1fr));
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.etp-stepper-item {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  text-decoration: none;
+  color: var(--text);
+  min-height: 32px;
+  font-size: 0.82rem;
+}
+
+.etp-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.etp-col-full {
+  grid-column: 1 / -1;
+}
+
+.etp-col-half {
+  grid-column: auto;
+}
+
+.etp-description {
+  color: var(--muted);
+  margin-bottom: 14px;
+}
+
+.etp-hint {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.etp-footer-actions {
+  margin-top: 16px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  position: sticky;
+  bottom: 0;
+  background: var(--card);
+  padding-top: 8px;
+}
+
+.etp-autosave-status {
+  margin-top: 10px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.etp-preview-card {
+  margin-bottom: 14px;
+}
+
+.etp-preview-card .card-body {
+  padding: 12px 14px 14px;
+}
+
+.etp-preview-card .card-title {
+  min-height: 0;
+  max-height: none;
+  margin-bottom: 10px;
+}
+
+.etp-preview-card .etp-description:last-child,
+.etp-preview-card .etp-preview-list:last-child,
+.etp-preview-card p:last-child {
+  margin-bottom: 0;
+}
+
+.etp-preview-list {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 8px;
+}
+
+.etp-counter {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.etp-section-form textarea {
+  min-height: 52vh;
+  resize: vertical;
+}
+
+@media (max-width: 1200px) {
+  .etp-wizard {
+    grid-template-columns: 1fr;
+  }
+
+  .etp-sidebar {
+    position: static;
+  }
+
+  .etp-stepper {
+    grid-template-columns: repeat(9, minmax(28px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .etp-grid-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .etp-stepper {
+    grid-template-columns: repeat(6, minmax(28px, 1fr));
+  }
+}

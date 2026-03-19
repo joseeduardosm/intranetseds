@@ -1,0 +1,40 @@
+:root {
+  --db-surface: #ffffff;
+  --db-bg-soft: #f6f8fb;
+  --db-border: #dbe2ec;
+  --db-text: #1d2a3a;
+  --db-muted: #5b697a;
+  --db-primary: #1f4f7c;
+  --db-shadow: 0 8px 24px rgba(18, 35, 58, 0.1);
+}
+
+.db-page-header {
+  margin-bottom: 16px;
+}
+
+.db-page-header h2 {
+  margin: 0;
+  color: var(--db-text);
+}
+
+.db-hidden {
+  display: none !important;
+}
+
+.db-form-wrap,
+.db-detail-card,
+.db-aside-card,
+.db-kanban-col {
+  background: var(--db-surface);
+  border: 1px solid var(--db-border);
+  border-radius: 14px;
+  box-shadow: var(--db-shadow);
+}
+
+.db-form-wrap {
+  padding: 20px;
+}
+
+.db-form-field {
+  margin-bottom: 10px;
+}

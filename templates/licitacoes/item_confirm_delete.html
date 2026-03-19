@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/licitacoes/licitacoes.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Excluir item</h2>
+  </section>
+
+  <div class="form">
+    <p>Tem certeza que deseja excluir este item?</p>
+    <p><strong>{{ object.texto|truncatechars:180 }}</strong></p>
+    <form method="post" id="item-delete-form">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ next_url }}" />
+      <div class="form-actions">
+        <button class="btn btn-danger" type="submit">Excluir</button>
+        <a class="btn btn-light" href="{{ next_url }}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+  <script>
+    (function () {
+      const form = document.getElementById("item-delete-form");
+      if (!form) return;
+      document.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter") return;
+        if (event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) return;
+        event.preventDefault();
+        form.requestSubmit();
+      });
+    })();
+  </script>
+{% endblock %}

@@ -1,0 +1,8 @@
+/* Base do módulo de Contratos */
+
+.contratos-page {
+  --contratos-surface: #ffffff;
+  --contratos-border: var(--border);
+  --contratos-primary: var(--primary);
+  --contratos-muted: var(--muted);
+}

@@ -1,0 +1,9 @@
+/* Base do módulo de Usuários */
+
+.usuarios-page {
+  --usuarios-surface: var(--card);
+  --usuarios-border: var(--border);
+  --usuarios-primary: var(--primary);
+  --usuarios-text: var(--text);
+  --usuarios-muted: var(--muted);
+}

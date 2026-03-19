@@ -1,0 +1,43 @@
+.db-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+}
+
+.db-feed-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.db-feed-item {
+  border-left: 2px solid #bfd0e4;
+  padding: 8px 8px 8px 10px;
+}
+
+.db-feed-link {
+  text-decoration: none;
+  color: inherit;
+  display: grid;
+  gap: 4px;
+}
+
+.db-feed-title {
+  color: var(--db-primary);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.db-feed-meta {
+  color: var(--db-muted);
+  font-size: 0.75rem;
+}
+
+.db-feed-text,
+.db-feed-empty {
+  color: var(--db-text);
+  font-size: 0.82rem;
+}

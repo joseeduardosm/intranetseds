@@ -1,0 +1,23 @@
+#header {
+  background: var(--primary);
+  color: #ffffff;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+}
+
+#branding h1,
+#branding h1 a {
+  color: #ffffff;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.breadcrumbs {
+  background: #f6f1e7;
+  color: var(--primary);
+  border-bottom: 1px solid var(--border);
+}
+
+.breadcrumbs a {
+  color: var(--primary);
+  font-weight: 600;
+}

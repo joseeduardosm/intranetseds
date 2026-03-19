@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <!-- Confirmação de exclusão de notícia -->
+  <section class="page-header">
+    <h2>Excluir noticia</h2>
+  </section>
+
+  <!-- Formulário de confirmação (POST) -->
+  <form class="form" method="post">
+    {% csrf_token %}
+    <p>Tem certeza que deseja excluir "{{ object.titulo }}"?</p>
+    <div class="form-actions">
+      <button class="btn btn-danger" type="submit">Excluir</button>
+      <a class="btn btn-secondary" href="{% url 'noticia_detail' object.pk %}">Cancelar</a>
+    </div>
+  </form>
+{% endblock %}

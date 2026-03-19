@@ -1,0 +1,19 @@
+.object-tools a,
+.button,
+input[type="submit"],
+input[type="button"],
+.submit-row input {
+  background: var(--accent);
+  color: #ffffff;
+  border-radius: 999px;
+  border: none;
+  font-weight: 600;
+}
+
+.object-tools a:hover,
+.button:hover,
+input[type="submit"]:hover,
+input[type="button"]:hover,
+.submit-row input:hover {
+  background: #bf4303;
+}

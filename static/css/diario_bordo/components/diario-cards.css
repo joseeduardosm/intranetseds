@@ -1,0 +1,306 @@
+.db-kanban {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(clamp(210px, 18vw, 300px), 1fr));
+  gap: 14px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  width: 100%;
+  justify-content: center;
+  align-items: start;
+}
+
+.db-kanban-col {
+  min-height: 260px;
+  padding: 10px;
+  background: #f9fbfe;
+}
+
+.db-kanban-col-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.db-kanban-col-header h3 {
+  font-size: 0.95rem;
+  margin: 0;
+  color: var(--db-primary);
+}
+
+.db-kanban-col-count {
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.78rem;
+  border: 1px solid var(--db-border);
+  background: #fff;
+  color: var(--db-muted);
+}
+
+.db-kanban-dropzone {
+  min-height: 180px;
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  border-radius: 10px;
+}
+
+.db-kanban-dropzone.is-over {
+  outline: 2px dashed #7aa6cc;
+  background: #edf5fb;
+}
+
+.db-col-empty {
+  margin: 0;
+  color: var(--db-muted);
+  font-size: 0.85rem;
+}
+
+.db-card {
+  border: 1px solid var(--db-border);
+  border-radius: 10px;
+  background: #fff;
+  width: 100%;
+  min-width: 0;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.db-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(18, 35, 58, 0.12);
+}
+
+.db-card.is-dragging {
+  opacity: 0.8;
+  transform: rotate(1deg);
+}
+
+.db-card-link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+.db-card-body {
+  padding: 9px 10px;
+}
+
+.db-card-title {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+  line-height: 1.3;
+}
+
+.db-card-meta {
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--db-muted);
+  line-height: 1.35;
+}
+
+.db-card-meta + .db-card-meta {
+  margin-top: 3px;
+}
+
+.db-marcadores-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 4px 0 6px;
+}
+
+.db-marcador-chip {
+  --marcador-cor: #5b7db1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 21px;
+  gap: 6px;
+  border-radius: 7px;
+  margin: 3px 6px 3px 0;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+  background: var(--marcador-cor, #5b7db1);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  padding: 4px 10px;
+}
+
+.db-marcador-chip--editor {
+  cursor: pointer;
+}
+
+.db-marcador-chip-close {
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+.db-marcador-editor {
+  position: relative;
+}
+
+.db-marcador-editor-selecionados {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 8px;
+}
+
+.db-marcador-editor-dropdown,
+.db-marcador-editor-popover {
+  position: fixed;
+  z-index: 40;
+  background: #fff;
+  border: 1px solid var(--db-border);
+  border-radius: 10px;
+  box-shadow: var(--db-shadow);
+  padding: 6px;
+}
+
+.db-marcador-editor-dropdown {
+  min-width: 260px;
+  max-width: 340px;
+  max-height: 260px;
+  overflow: auto;
+}
+
+.db-marcador-opcao {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  border-radius: 8px;
+  padding: 7px 8px;
+  font-size: 0.86rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.db-marcador-opcao:hover,
+.db-marcador-opcao.is-highlighted {
+  background: #eef4fa;
+}
+
+.db-marcador-opcao-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+.db-marcador-opcao--criar {
+  color: #0f4f7f;
+  font-weight: 600;
+}
+
+.db-marcador-editor-paleta {
+  display: grid;
+  grid-template-columns: repeat(6, 22px);
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.db-marcador-cor {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+.db-marcador-admin-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(13, 25, 40, 0.45);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+}
+
+.db-marcador-admin-modal-card {
+  width: min(430px, 100%);
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid var(--db-border);
+  box-shadow: var(--db-shadow);
+  padding: 16px;
+}
+
+.db-marcador-admin-modal-card h4 {
+  margin: 0 0 12px;
+}
+
+.db-timeline-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.db-timeline-header h3 {
+  margin: 0;
+}
+
+.db-incrementos-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+  border-left: 0;
+}
+
+.db-incremento-item {
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.db-incremento-item::before {
+  display: none;
+}
+
+.db-incremento-item + .db-incremento-item {
+  border-top: 1px solid rgba(29, 42, 58, 0.12);
+  padding-top: 10px;
+}
+
+.db-incremento-item .incremento-meta {
+  gap: 8px;
+  font-size: 0.74rem;
+}
+
+.db-incremento-item .incremento-text {
+  margin-top: 4px;
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.db-incremento-item .incremento-anexo {
+  margin-top: 6px;
+}
+
+.timeline-pagination {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.timeline-page-info {
+  color: var(--db-muted);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 1400px) {
+  .db-kanban {
+    grid-template-columns: repeat(5, minmax(220px, 1fr));
+  }
+}

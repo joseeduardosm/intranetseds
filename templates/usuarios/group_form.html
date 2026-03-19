@@ -1,0 +1,147 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/usuarios/usuarios.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>{% if object %}Editar setor{% else %}Novo setor{% endif %}</h2>
+  </section>
+
+  {% include 'usuarios/_tabs.html' with usuarios_tab='setores' %}
+
+  <form class="form form--ramais" method="post">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    <div class="form-grid form-grid--ramais">
+      <div class="form-field form-field--wide">
+        <label for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+        {{ form.name }}
+        {{ form.name.errors }}
+      </div>
+      <div class="form-field form-field--wide">
+        <label for="{{ form.parent.id_for_label }}">{{ form.parent.label }}</label>
+        {{ form.parent }}
+        {{ form.parent.errors }}
+      </div>
+      <div class="form-field form-field--wide">
+        <label for="{{ form.usuarios.id_for_label }}">Participantes</label>
+        <input type="text" class="form-control" id="grupo-usuarios-search" placeholder="Buscar participante..." />
+        {{ form.usuarios }}
+        <div class="participants-picker">
+          <div class="participants-column">
+            <div class="participants-label">Disponiveis</div>
+            <div class="participants-list" id="group-users-available"></div>
+          </div>
+          <div class="participants-column">
+            <div class="participants-label">Incluidos</div>
+            <div class="participants-list is-selected" id="group-users-selected"></div>
+          </div>
+        </div>
+        {{ form.usuarios.errors }}
+      </div>
+      <div class="form-field form-field--wide">
+        <label>{{ form.perfis.label }}</label>
+        <div class="table-wrapper">
+          <table class="table">
+            <thead>
+              <tr>
+                <th></th>
+                <th>Leitura</th>
+                <th>Criar/Editar</th>
+                <th>Excluir</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in perfil_matrix %}
+                <tr>
+                  <td>{{ row.label }}</td>
+                  {% for cell in row.cells %}
+                    <td>
+                      {% if cell.checkbox %}
+                        {% if cell.is_inherited %}
+                          <input type="checkbox" checked disabled title="Perfil recebido por heranca do setor pai" />
+                        {% else %}
+                          {{ cell.checkbox.tag }}
+                        {% endif %}
+                      {% endif %}
+                    </td>
+                  {% endfor %}
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {{ form.perfis.errors }}
+      </div>
+      <div class="form-field form-field--wide">
+        <label for="{{ form.allow_permissions.id_for_label }}">{{ form.allow_permissions.label }}</label>
+        {{ form.allow_permissions }}
+        {{ form.allow_permissions.errors }}
+      </div>
+      <div class="form-field form-field--wide">
+        <label for="{{ form.deny_permissions.id_for_label }}">{{ form.deny_permissions.label }}</label>
+        {{ form.deny_permissions }}
+        {{ form.deny_permissions.errors }}
+      </div>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn">Salvar</button>
+      <a class="btn btn-light" href="{% url 'setores_list' %}">Cancelar</a>
+    </div>
+  </form>
+
+  <script>
+    const groupUsersSelect = document.getElementById("{{ form.usuarios.id_for_label }}");
+    const groupUsersSearch = document.getElementById("grupo-usuarios-search");
+    const groupUsersAvailable = document.getElementById("group-users-available");
+    const groupUsersSelected = document.getElementById("group-users-selected");
+
+    if (groupUsersSelect && groupUsersSearch && groupUsersAvailable && groupUsersSelected) {
+      groupUsersSelect.classList.add("participants-select-hidden");
+
+      const renderGroupUsers = (filterText = "") => {
+        groupUsersAvailable.innerHTML = "";
+        groupUsersSelected.innerHTML = "";
+        const filter = filterText.trim().toLowerCase();
+
+        Array.from(groupUsersSelect.options).forEach((option) => {
+          const label = (option.textContent || "").trim();
+          const value = option.value;
+          const isSelected = option.selected;
+          const item = document.createElement("button");
+          item.type = "button";
+          item.className = "participants-item";
+          item.textContent = label || value;
+          item.dataset.value = value;
+
+          if (isSelected) {
+            item.classList.add("is-selected");
+            item.addEventListener("click", () => {
+              option.selected = false;
+              renderGroupUsers(groupUsersSearch.value);
+            });
+            groupUsersSelected.appendChild(item);
+          } else {
+            if (filter && !label.toLowerCase().includes(filter)) {
+              return;
+            }
+            item.addEventListener("click", () => {
+              option.selected = true;
+              renderGroupUsers(groupUsersSearch.value);
+            });
+            groupUsersAvailable.appendChild(item);
+          }
+        });
+      };
+
+      groupUsersSearch.addEventListener("input", () => {
+        renderGroupUsers(groupUsersSearch.value);
+      });
+
+      renderGroupUsers("");
+    }
+  </script>
+{% endblock %}

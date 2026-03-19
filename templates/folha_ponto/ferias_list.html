@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/folha_ponto/folha_ponto.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Ferias</h2>
+  </section>
+
+  <div class="card-actions">
+    {% if perms.folha_ponto.add_feriasservidor or user.is_superuser %}
+      <a class="btn" href="{% url 'folha_ponto_ferias_create' %}">Nova ferias</a>
+    {% endif %}
+    <a class="btn btn-secondary" href="{% url 'administracao_rh' %}">Voltar</a>
+  </div>
+
+  {% if ferias %}
+    <div class="table-wrapper">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Servidor</th>
+            <th>Inicio</th>
+            <th>Fim</th>
+            <th>Observacao</th>
+            <th>Acoes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in ferias %}
+            <tr>
+              <td>{{ item.servidor.nome_display }}</td>
+              <td>{{ item.data_inicio|date:"d/m/Y" }}</td>
+              <td>{{ item.data_fim|date:"d/m/Y" }}</td>
+              <td>{{ item.observacao|default:"-" }}</td>
+              <td>
+                {% if perms.folha_ponto.change_feriasservidor or user.is_superuser %}
+                  <a class="btn btn-small" href="{% url 'folha_ponto_ferias_update' item.pk %}">Editar</a>
+                {% endif %}
+                {% if perms.folha_ponto.delete_feriasservidor or user.is_superuser %}
+                  <a class="btn btn-small btn-danger" href="{% url 'folha_ponto_ferias_delete' item.pk %}">Excluir</a>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p>Nenhuma ferias cadastrada.</p>
+  {% endif %}
+{% endblock %}

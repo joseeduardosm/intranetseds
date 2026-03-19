@@ -1,0 +1,63 @@
+/* Layout do detalhe e seções */
+
+.lousa-detail-grid + .card-actions,
+.page-header + .card-actions {
+  margin-bottom: 16px;
+}
+
+.lousa-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  align-items: start;
+}
+
+.lousa-inline-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.lousa-section-divider {
+  border-top: 1px solid var(--border);
+  margin: 18px 0;
+}
+
+.lousa-enc-list {
+  display: grid;
+  gap: 10px;
+}
+
+.lousa-enc-item {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.lousa-enc-item.is-active {
+  border-left: 5px solid #f59f00;
+}
+
+.lousa-enc-item.is-closed {
+  border-left: 5px solid #1f9a58;
+}
+
+.lousa-current-deadline {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  margin-top: 8px;
+  background: rgba(31, 42, 68, 0.03);
+}
+
+.lousa-current-destino {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+@media (max-width: 1000px) {
+  .lousa-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}

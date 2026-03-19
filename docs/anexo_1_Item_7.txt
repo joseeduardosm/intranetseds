@@ -1,0 +1,15 @@
+7. SUSTENTAÇÃO, OPERACIONALIZAÇÃO, GERENCIAMENTO E CONTROLE DOS SISTEMAS DA SECRETARIA DE DESENVOLVIMENTO SOCIAL
+
+7.1. A CONTRATANTE poderá demandar à CONTRATADA, mediante Ordens de Serviço (OS), o desenvolvimento, evolução ou manutenção de sistemas, módulos ou aplicativos necessários à execução e aprimoramento dos programas e projetos institucionais, incluindo, mas não se limitando, aos programas Vivaleite e Bom Prato.
+
+7.1.1. No que se refere ao ciclo de desenvolvimento de soluções digitais, caberá à CONTRATADA, por meio de seus Product Owners (POs) ou perfis equivalentes, a responsabilidade pela elicitação, priorização e validação de requisitos, bem como pela formalização e encaminhamento das demandas ao time de desenvolvimento da CONTRATADA, sob a forma de backlog estruturado ou tarefas técnicas.
+
+7.1.2. A prestação dos serviços de desenvolvimento deverá ocorrer sob modelo “as a service”, orientado à entrega de resultados e valor agregado, não estando vinculada à disponibilização de postos fixos de trabalho, regimes celetistas ou alocação nominal de recursos humanos.
+
+7.1.3. O modelo adotado justifica-se pela necessidade de flexibilidade operacional, escalabilidade sob demanda, incorporação contínua de novas tecnologias e práticas de engenharia de software, bem como pela otimização da gestão contratual, permitindo à CONTRATANTE consumir serviços conforme sua necessidade efetiva, com foco em entregáveis mensuráveis e qualidade técnica.
+
+7.1.4. A CONTRATADA deverá dispor de capacidade técnica e organizacional para atender às demandas encaminhadas, utilizando metodologias ágeis, boas práticas de desenvolvimento seguro (DevSecOps), integração contínua e mecanismos de controle de qualidade.
+
+7.2. Para fins de dimensionamento contratual, os serviços de desenvolvimento e manutenção poderão considerar como referência estimativa de até 320 (trezentas e vinte) horas mensais, totalizando 3.840 (três mil oitocentas e quarenta) horas anuais, sem prejuízo da adoção de mecanismos de mensuração por entregáveis, unidades de serviço técnico (UST) ou métricas equivalentes, conforme definido pela CONTRATANTE.
+
+7.3. A CONTRATADA deverá garantir a rastreabilidade das demandas, o controle de versões, a qualidade do código e a conformidade com padrões técnicos definidos pela CONTRATANTE.

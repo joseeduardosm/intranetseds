@@ -1,0 +1,67 @@
+﻿{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/empresas/empresas.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>{{ empresa.nome }}</h2>
+  </section>
+
+  <div class="detail">
+    <p><strong>CNPJ:</strong> {{ empresa.cnpj|default:"-" }}</p>
+    <div class="detail-actions">
+      <a class="btn" href="{% url 'empresas_update' empresa.pk %}">Editar</a>
+      <a class="btn btn-secondary" href="{% url 'empresas_delete' empresa.pk %}">Excluir</a>
+      <a class="btn btn-light" href="{% url 'empresas_list' %}">Voltar</a>
+    </div>
+  </div>
+
+  <section class="page-header">
+    <h2>Prepostos</h2>
+  </section>
+
+  {% if prepostos %}
+    <div class="card-grid">
+      {% for preposto in prepostos %}
+        <article class="card">
+          <a class="card-link" href="{% url 'prepostos_detail' preposto.pk %}">
+            <div class="card-body">
+              <h3 class="card-title">{{ preposto.nome }}</h3>
+              <p class="card-meta">CPF: {{ preposto.cpf }}</p>
+              <p class="card-text">
+                Telefone: {{ preposto.telefone|default:"-" }}<br />
+                E-mail: {{ preposto.email|default:"-" }}
+              </p>
+            </div>
+          </a>
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p>Sem prepostos cadastrados.</p>
+  {% endif %}
+
+  <section class="page-header">
+    <h2>Contratos</h2>
+  </section>
+
+  {% if contratos %}
+    <div class="card-grid">
+      {% for contrato in contratos %}
+        <article class="card">
+          <a class="card-link" href="{% url 'contratos_detail' contrato.pk %}">
+            <div class="card-body">
+              <h3 class="card-title">{{ contrato.nro_sei }} - {{ contrato.nro_contrato }}</h3>
+              <p class="card-text">{{ contrato.objeto|urlize }}</p>
+            </div>
+          </a>
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p>Sem contratos cadastrados.</p>
+  {% endif %}
+{% endblock %}

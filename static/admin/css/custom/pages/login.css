@@ -1,0 +1,15 @@
+.login #container {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+}
+
+.login .form-row label {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.login .submit-row input {
+  width: 100%;
+}

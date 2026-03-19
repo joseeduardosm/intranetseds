@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/diario_bordo/diario_bordo.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <div class="diario-report diario-report-daily">
+    <section class="page-header">
+      <h2>Pauta Daily - Diário de Bordo</h2>
+      <p>Texto pronto para envio por e-mail com o último incremento de cada bloco.</p>
+    </section>
+
+    <div class="card-actions">
+      <button class="btn" type="button" onclick="window.print()">Imprimir</button>
+      <a class="btn btn-light" href="{% url 'diario_bordo_list' %}">Voltar</a>
+    </div>
+
+    {% if blocos %}
+      <div class="daily-text">
+      <p>Prezados,</p>
+      <p>Espero que este e-mail os encontre bem.</p>
+      <p>Segue tópicos discutidos na daily de hoje:</p>
+      <p>Lista estruturada:</p>
+      <ul>
+        {% for bloco in blocos %}
+          <li>
+            <strong>{{ bloco.nome }}</strong>
+            <ul>
+              {% if bloco.ultimo_incremento %}
+                <li>{{ bloco.ultimo_incremento.criado_em|date:"d/m/Y H:i" }} - {{ bloco.ultimo_incremento.texto|striptags|linebreaksbr }}</li>
+              {% else %}
+                <li>Sem atualizações</li>
+              {% endif %}
+            </ul>
+          </li>
+        {% endfor %}
+      </ul>
+      </div>
+    {% else %}
+      <p>Nenhum bloco encontrado.</p>
+    {% endif %}
+  </div>
+{% endblock %}

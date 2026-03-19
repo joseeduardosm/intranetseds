@@ -1,0 +1,8 @@
+@import url("base/folha-base.css");
+@import url("layout/folha-layout.css");
+@import url("components/folha-forms.css");
+@import url("components/folha-table.css");
+@import url("components/folha-cards.css");
+@import url("components/folha-alerts.css");
+@import url("pages/folha-home.css");
+@import url("utilities/folha-utilities.css");

@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load contratos_extras %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/contratos/contratos.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>{% if contrato.nro_contrato %}{{ contrato.nro_contrato }}{% else %}{{ contrato.nro_sei }}{% endif %}</h2>
+  </section>
+
+  <div class="detail">
+    <p><strong>Nº SEI:</strong> {{ contrato.nro_sei }}</p>
+    <p><strong>Link do processo:</strong>
+      {% if contrato.link_processo %}
+        <a href="{{ contrato.link_processo }}" target="_blank" rel="noopener">{{ contrato.link_processo }}</a>
+      {% else %}
+        -
+      {% endif %}
+    </p>
+    <p><strong>Empresa:</strong>
+      {% if contrato.empresa %}
+        <a href="{% url 'empresas_detail' contrato.empresa.pk %}">{{ contrato.empresa }}</a>
+      {% else %}
+        -
+      {% endif %}
+    </p>
+    <p><strong>Objeto:</strong> {{ contrato.objeto|urlize|linebreaksbr }}</p>
+    <p><strong>Status:</strong> {{ contrato.get_status_display }}</p>
+    <p><strong>Valor Total:</strong> {{ contrato.valor_total|moeda_br|default:"-" }}</p>
+    <p><strong>Valor Mensal:</strong> {{ contrato.valor_mensal|moeda_br|default:"-" }}</p>
+    <p><strong>Data Inicial:</strong>
+      {% if contrato.data_inicial_exibicao %}
+        {{ contrato.data_inicial_exibicao|date:"d/m/Y" }}
+      {% else %}
+        -
+      {% endif %}
+    </p>
+    <p><strong>Vigência:</strong> {{ contrato.get_vigencia_meses_display|default:"-" }}</p>
+    <p><strong>Data Fim:</strong>
+      {% if contrato.data_fim %}
+        {{ contrato.data_fim|date:"d/m/Y" }}
+      {% else %}
+        -
+      {% endif %}
+    </p>
+    <p><strong>Prorrogação Máxima:</strong> {{ contrato.get_prorrogacao_maxima_meses_display|default:"-" }}</p>
+    <div class="detail-actions">
+      {% if perms.contratos.change_contrato %}
+        <a class="btn" href="{% url 'contratos_update' contrato.pk %}">Editar</a>
+      {% endif %}
+      {% if perms.contratos.delete_contrato %}
+        <a class="btn btn-secondary" href="{% url 'contratos_delete' contrato.pk %}">Excluir</a>
+      {% endif %}
+      <a class="btn btn-light" href="{% url 'contratos_list' %}">Voltar</a>
+    </div>
+    <div class="detail-footer">
+      Atualizado em {{ contrato.atualizado_em|date:"d/m/Y H:i" }} por
+      {% if contrato.atualizado_por %}
+        {% if contrato.atualizado_por.get_full_name %}
+          {{ contrato.atualizado_por.get_full_name }}
+        {% else %}
+          {{ contrato.atualizado_por.username }}
+        {% endif %}
+      {% else %}
+        -
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

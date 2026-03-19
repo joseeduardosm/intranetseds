@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/licitacoes/licitacoes.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Excluir ETP TIC</h2>
+  </section>
+
+  <form method="post" class="form">
+    {% csrf_token %}
+    <p>Confirma a exclusao do ETP TIC <strong>{{ object.numero_processo_servico }}</strong>?</p>
+    <div class="form-actions">
+      <button class="btn btn-danger" type="submit">Excluir</button>
+      <a class="btn btn-light" href="{% url 'licitacoes_etp_tic_list' %}">Cancelar</a>
+    </div>
+  </form>
+{% endblock %}

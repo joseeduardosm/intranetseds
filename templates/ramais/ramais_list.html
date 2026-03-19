@@ -1,0 +1,253 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <!-- Cabeçalho da página de ramais -->
+  <section class="page-header">
+    <h2>Ramais</h2>
+  </section>
+
+  <!-- Formulário de busca por texto livre -->
+  <form class="search-form" method="get">
+    <input
+      type="search"
+      name="q"
+      placeholder="Pesquisar por nome, cargo, setor, ramal ou email"
+      value="{{ request.GET.q|default:'' }}"
+      autocomplete="off"
+      id="ramais-search"
+    />
+  </form>
+
+  <!-- Lista de ramais -->
+  {% if ramais %}
+    <div class="card-grid card-grid-fixed">
+      {% for pessoa in ramais %}
+        <article
+          class="card card-ramal card-clickable"
+          data-href="{% url 'ramais_detail' pessoa.pk %}"
+          data-nome="{{ pessoa.nome_display }}"
+          data-cargo="{{ pessoa.cargo }}"
+          data-setor="{{ pessoa.setor }}"
+          data-ramal="{{ pessoa.ramal }}"
+          data-email="{{ pessoa.email_display }}"
+          data-atualizado="{{ pessoa.atualizado_em|date:'d/m/Y H:i' }}"
+          {% if pessoa.foto %}
+            data-foto="{{ pessoa.foto.url }}"
+            style="--ramal-bg: url('{{ pessoa.foto.url }}');"
+          {% endif %}
+        >
+            <div class="card-body card-body-ramal">
+              <div class="card-main">
+                <h3 class="card-title">{{ pessoa.nome_display }}</h3>
+                <div class="ramal-card-info">
+                  <p class="ramal-line ramal-cargo">{{ pessoa.cargo|default:"-" }}</p>
+                  <p class="ramal-line ramal-setor">{{ pessoa.setor|default:"-" }}</p>
+                  <div class="ramal-divider"></div>
+                  <p class="ramal-line ramal-small"><span class="ramal-label">Ramal:</span> {{ pessoa.ramal|default:"-" }}</p>
+                  <p class="ramal-line ramal-small"><span class="ramal-label">E-mail:</span> {{ pessoa.email_display|default:"-" }}</p>
+                </div>
+              </div>
+          </div>
+          <div class="card-footer">
+            Atualizado em {{ pessoa.atualizado_em|date:"d/m/Y H:i" }} por {% if pessoa.atualizado_por %}{% if pessoa.atualizado_por.get_full_name %}{{ pessoa.atualizado_por.get_full_name|truncatechars:20 }}{% else %}{{ pessoa.atualizado_por.username|truncatechars:20 }}{% endif %}{% else %}-{% endif %}
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+    {% if is_paginated %}
+      <nav class="pagination">
+        {% if page_obj.has_previous %}
+          <a class="btn btn-light" href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}page={{ page_obj.previous_page_number }}">Anterior</a>
+        {% endif %}
+        <span class="pagination-meta">Pagina {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+          <a class="btn btn-light" href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}page={{ page_obj.next_page_number }}">Proxima</a>
+        {% endif %}
+      </nav>
+    {% endif %}
+  {% else %}
+    <!-- Mensagem quando não há ramais -->
+    <p>Nenhum ramal cadastrado.</p>
+  {% endif %}
+
+  <!-- Modal com detalhes do ramal -->
+  <div class="photo-modal ramal-modal" id="ramal-modal" aria-hidden="true">
+    <div class="photo-modal-backdrop" data-close="true"></div>
+    <div class="photo-modal-content ramal-modal-content" role="dialog" aria-modal="true" aria-label="Detalhes do ramal">
+      <button class="photo-modal-close ramal-modal-close" type="button" aria-label="Fechar" data-close="true">×</button>
+      <div class="detail detail-ramal ramal-modal-detail">
+        <div class="detail-ramal-layout">
+          <div class="detail-ramal-main">
+            <div class="detail-header">
+              <h2 id="ramal-modal-name"></h2>
+              <p class="detail-meta" id="ramal-modal-meta"></p>
+            </div>
+            <div class="detail-text">
+              <p><strong>Ramal:</strong> <span id="ramal-modal-ramal"></span></p>
+              <p class="detail-email-row">
+                <strong>Email:</strong>
+                <span id="ramal-modal-email"></span>
+                <button class="btn btn-secondary btn-small" type="button" id="ramal-modal-copy">Copiar</button>
+              </p>
+              <p class="detail-meta">Atualizado em <span id="ramal-modal-updated"></span></p>
+            </div>
+            <div class="detail-actions detail-actions-ramal">
+              <a class="btn btn-icon btn-teams" id="ramal-modal-teams" href="#" target="_blank" rel="noopener" aria-label="Enviar mensagem" title="Enviar mensagem">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M5 7h9a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H9l-4 3v-3H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z"/>
+                </svg>
+              </a>
+              <a class="btn btn-icon btn-outlook" id="ramal-modal-outlook" href="#" target="_blank" rel="noopener" aria-label="Enviar e-mail" title="Enviar e-mail">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 6h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2zm0 2 8 5 8-5"/>
+                </svg>
+              </a>
+              <a class="btn" id="ramal-modal-link" href="#">Ver detalhes</a>
+            </div>
+          </div>
+          <div class="detail-avatar">
+            <img id="ramal-modal-foto" src="" alt="" style="display: none;" />
+            <span id="ramal-modal-avatar"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Envia o formulário com pequeno debounce quando digita na busca.
+    const searchInput = document.getElementById("ramais-search");
+    if (searchInput) {
+      let timeoutId;
+      searchInput.addEventListener("input", () => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+          searchInput.form.submit();
+        }, 250);
+      });
+    }
+
+    // Abre modal com detalhes do ramal ao clicar no card.
+    const modal = document.getElementById("ramal-modal");
+    const modalName = document.getElementById("ramal-modal-name");
+    const modalMeta = document.getElementById("ramal-modal-meta");
+    const modalRamal = document.getElementById("ramal-modal-ramal");
+    const modalEmail = document.getElementById("ramal-modal-email");
+    const modalUpdated = document.getElementById("ramal-modal-updated");
+    const modalAvatar = document.getElementById("ramal-modal-avatar");
+    const modalFoto = document.getElementById("ramal-modal-foto");
+    const modalLink = document.getElementById("ramal-modal-link");
+    const modalTeams = document.getElementById("ramal-modal-teams");
+    const modalOutlook = document.getElementById("ramal-modal-outlook");
+    const modalCopy = document.getElementById("ramal-modal-copy");
+
+    const openModal = (card) => {
+      if (!modal) return;
+      const nome = card.getAttribute("data-nome") || "";
+      const cargo = card.getAttribute("data-cargo") || "";
+      const setor = card.getAttribute("data-setor") || "";
+      const ramal = card.getAttribute("data-ramal") || "";
+      const email = card.getAttribute("data-email") || "";
+      const atualizado = card.getAttribute("data-atualizado") || "";
+      const foto = card.getAttribute("data-foto");
+      const href = card.getAttribute("data-href");
+
+      modalName.textContent = nome;
+      modalMeta.textContent = `${cargo} · ${setor}`;
+      modalRamal.textContent = ramal;
+      modalEmail.textContent = email;
+      modalUpdated.textContent = atualizado;
+      modalLink.setAttribute("href", href || "#");
+      modalTeams.setAttribute(
+        "href",
+        email ? `https://teams.microsoft.com/l/chat/0/0?users=${encodeURIComponent(email)}` : "#"
+      );
+      modalOutlook.setAttribute(
+        "href",
+        email ? `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(email)}` : "#"
+      );
+
+      if (foto) {
+        modalFoto.src = foto;
+        modalFoto.alt = nome;
+        modalFoto.style.display = "block";
+        modalAvatar.textContent = "";
+      } else {
+        modalFoto.removeAttribute("src");
+        modalFoto.style.display = "none";
+        modalAvatar.textContent = nome ? nome.charAt(0) : "";
+      }
+
+      modal.classList.add("is-open");
+      modal.setAttribute("aria-hidden", "false");
+    };
+
+    const closeModal = () => {
+      if (!modal) return;
+      modal.classList.remove("is-open");
+      modal.setAttribute("aria-hidden", "true");
+    };
+
+    document.querySelectorAll(".card-clickable").forEach((card) => {
+      card.addEventListener("click", (event) => {
+        if (event.target.closest("a, button")) {
+          return;
+        }
+        event.preventDefault();
+        openModal(card);
+      });
+    });
+
+    if (modal) {
+      modal.addEventListener("click", (event) => {
+        if (event.target.closest("[data-close]")) {
+          closeModal();
+        }
+      });
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          closeModal();
+        }
+      });
+    }
+
+    const copyText = async (text) => {
+      if (!text) return false;
+      if (navigator.clipboard && window.isSecureContext) {
+        try {
+          await navigator.clipboard.writeText(text);
+          return true;
+        } catch (error) {
+          // Continua para o fallback abaixo.
+        }
+      }
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.setAttribute("readonly", "");
+      textarea.style.position = "fixed";
+      textarea.style.top = "-9999px";
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      let copied = false;
+      try {
+        copied = document.execCommand("copy");
+      } catch (error) {
+        copied = false;
+      }
+      document.body.removeChild(textarea);
+      return copied;
+    };
+
+    if (modalCopy && modalEmail) {
+      modalCopy.addEventListener("click", async () => {
+        const ok = await copyText(modalEmail.textContent.trim());
+        modalCopy.textContent = ok ? "Copiado" : "Falha";
+        setTimeout(() => {
+          modalCopy.textContent = "Copiar";
+        }, 1500);
+      });
+    }
+  </script>
+{% endblock %}
+

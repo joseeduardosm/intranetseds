@@ -1,0 +1,9 @@
+body {
+  background: linear-gradient(180deg, #efe8dc 0%, #f7f6f2 45%, #fbfbf9 100%);
+  color: var(--text);
+  font-family: "Montserrat", "Segoe UI", sans-serif;
+}
+
+#content {
+  padding-top: 24px;
+}

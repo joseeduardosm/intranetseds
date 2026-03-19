@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% load static %}
+{% load monitoramento_extras %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/monitoramento/monitoramento.css' %}" />
+{% endblock %}
+
+{% block container_class %}container-wide{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>{% if is_edit_mode %}Editar dashboard em {{ projeto.nome }}{% else %}Novo dashboard em {{ projeto.nome }}{% endif %}</h2>
+  </section>
+
+  <article class="card form-card">
+    <form method="post" class="monitor-form">
+      {% csrf_token %}
+      <div class="monitor-form-grid">
+        <section>
+          <h3>Dashboard</h3>
+          {{ dashboard_form.as_p }}
+        </section>
+        <section>
+          <h3>Consulta</h3>
+          {{ consulta_form.as_p }}
+        </section>
+      </div>
+
+      {% if parameter_names %}
+        <section class="monitor-parameter-config">
+          <h3>Parâmetros detectados</h3>
+          <div class="monitor-parameter-grid">
+            {% for item in parameter_definitions %}
+              <div class="monitor-parameter-card">
+                <p><strong>@{{ item.name }}</strong></p>
+                <label for="id_param_label_{{ item.name }}">Rótulo</label>
+                <input id="id_param_label_{{ item.name }}" type="text" name="param_label_{{ item.name }}" value="{{ item.label }}" />
+                <label for="id_param_type_{{ item.name }}">Tipo</label>
+                <select id="id_param_type_{{ item.name }}" name="param_type_{{ item.name }}">
+                  <option value="date"{% if item.type == "date" %} selected{% endif %}>Data</option>
+                  <option value="datetime"{% if item.type == "datetime" %} selected{% endif %}>Data e hora</option>
+                  <option value="integer"{% if item.type == "integer" %} selected{% endif %}>Inteiro</option>
+                  <option value="decimal"{% if item.type == "decimal" %} selected{% endif %}>Decimal</option>
+                  <option value="text"{% if item.type == "text" %} selected{% endif %}>Texto</option>
+                </select>
+                <label for="id_{{ item.name }}">Valor para prévia</label>
+                <input id="id_{{ item.name }}" type="{% if item.type == 'date' %}date{% elif item.type == 'datetime' %}datetime-local{% else %}text{% endif %}" name="{{ item.name }}" value="{{ request.POST|get_item:item.name }}" />
+              </div>
+            {% endfor %}
+          </div>
+        </section>
+      {% endif %}
+
+      <section>
+        <h3>Gráfico</h3>
+        {{ grafico_form.as_p }}
+      </section>
+
+      <div class="form-actions">
+        <button class="btn btn-light" type="submit" name="preview" value="1">Gerar prévia</button>
+        <button class="btn" type="submit" name="save" value="1">{% if is_edit_mode %}Salvar alterações{% else %}Salvar dashboard{% endif %}</button>
+        <a class="btn btn-light" href="{% if is_edit_mode %}{% url 'monitoramento_dashboard_detail' dashboard.pk %}{% else %}{% url 'monitoramento_dashboard_list' projeto.pk %}{% endif %}">Cancelar</a>
+      </div>
+    </form>
+  </article>
+
+  {% if preview %}
+    <section class="monitor-preview-grid">
+      <article class="card monitor-chart-card">
+        <div class="card-body">
+          <h3 class="card-title">Prévia do gráfico</h3>
+          {% if preview.chart.kind == "plotly" %}
+            <div id="preview-chart" class="monitor-chart"></div>
+            {{ preview.chart|json_script:"preview-chart-data" }}
+            <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+            <script>
+              const previewChartData = JSON.parse(document.getElementById("preview-chart-data")?.textContent || "{}");
+              Plotly.newPlot(
+                "preview-chart",
+                previewChartData.traces || [],
+                previewChartData.layout || {},
+                previewChartData.config || { responsive: true, displaylogo: false }
+              );
+            </script>
+          {% else %}
+            <p>Prévia em tabela.</p>
+          {% endif %}
+        </div>
+      </article>
+
+      <article class="card monitor-table-card">
+        <div class="card-body">
+          <h3 class="card-title">Prévia dos dados</h3>
+          <div class="table-wrapper">
+            <table class="table">
+              <thead>
+                <tr>
+                  {% for column in preview.result.columns %}
+                    <th>{{ column }}</th>
+                  {% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in preview.result.rows %}
+                  <tr>
+                    {% for column in preview.result.columns %}
+                      <td>{{ row|get_item:column }}</td>
+                    {% endfor %}
+                  </tr>
+                {% empty %}
+                  <tr>
+                    <td colspan="{{ preview.result.columns|length|default:1 }}">Nenhum dado retornado para a prévia.</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </article>
+    </section>
+  {% endif %}
+{% endblock %}

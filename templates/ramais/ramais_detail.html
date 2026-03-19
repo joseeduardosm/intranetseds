@@ -1,0 +1,134 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <!-- Detalhe do ramal -->
+  <article class="detail detail-ramal">
+    <div class="detail-ramal-layout">
+      <div class="detail-ramal-main">
+        <div class="detail-header">
+          <h2>{{ object.nome_display }}</h2>
+          <p class="detail-meta">{{ object.cargo }} · {{ object.setor }}</p>
+        </div>
+    <div class="detail-text">
+      <p><strong>Ramal:</strong> {{ object.ramal }}</p>
+      <p class="detail-email-row">
+        <strong>Email:</strong>
+        <span id="ramal-email">{{ object.email_display }}</span>
+        <button class="btn btn-secondary btn-small" type="button" id="copy-email">Copiar</button>
+      </p>
+      {% if object.bio %}
+        <p class="detail-bio">{{ object.bio|urlize|linebreaksbr }}</p>
+      {% endif %}
+      <p class="detail-meta">Atualizado em {{ object.atualizado_em|date:"d/m/Y H:i" }} por {% if object.atualizado_por %}{% if object.atualizado_por.get_full_name %}{{ object.atualizado_por.get_full_name }}{% else %}{{ object.atualizado_por.username }}{% endif %}{% else %}-{% endif %}</p>
+    </div>
+        <!-- Ações rápidas para contato -->
+        <div class="detail-actions detail-actions-ramal">
+          <a class="btn btn-icon btn-teams" href="https://teams.microsoft.com/l/chat/0/0?users={{ object.email_display|urlencode }}" target="_blank" rel="noopener" aria-label="Abrir chat no Teams" title="Teams">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 7h9a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H9l-4 3v-3H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z"/>
+            </svg>
+          </a>
+          <a class="btn btn-icon btn-outlook" href="https://outlook.office.com/mail/deeplink/compose?to={{ object.email_display|urlencode }}" target="_blank" rel="noopener" aria-label="Abrir email no Outlook" title="Outlook">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 6h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2zm0 2 8 5 8-5"/>
+            </svg>
+          </a>
+        </div>
+        <div class="detail-actions">
+          {% if perms.ramais.change_pessoaramal or user.is_authenticated and object.usuario_id == user.id %}
+            <a class="btn" href="{% url 'ramais_update' object.pk %}">Editar</a>
+          {% endif %}
+          {% if perms.ramais.delete_pessoaramal %}
+            <a class="btn btn-danger" href="{% url 'ramais_delete' object.pk %}">Excluir</a>
+          {% endif %}
+        </div>
+      </div>
+      <div class="detail-avatar">
+        {% if object.foto %}
+          <!-- Foto do colaborador (abre em popup ao clicar) -->
+          <img id="ramal-photo" src="{{ object.foto.url }}" alt="{{ object.nome_display }}" />
+        {% else %}
+          <!-- Avatar com inicial quando não há foto -->
+          <span>{{ object.nome_display|first }}</span>
+        {% endif %}
+      </div>
+    </div>
+  </article>
+  {% if object.foto %}
+    <!-- Popup da foto -->
+    <div class="photo-modal" id="photo-modal" aria-hidden="true">
+      <div class="photo-modal-backdrop" data-close="true"></div>
+      <div class="photo-modal-content" role="dialog" aria-modal="true" aria-label="Foto do ramal">
+        <button class="photo-modal-close" type="button" aria-label="Fechar" data-close="true">×</button>
+        <img src="{{ object.foto.url }}" alt="{{ object.nome_display }}" />
+      </div>
+    </div>
+  {% endif %}
+  <script>
+    // Copia o email para a área de transferência com fallback para navegadores restritos.
+    const copyButton = document.getElementById("copy-email");
+    const emailText = document.getElementById("ramal-email");
+    const copyText = async (text) => {
+      if (!text) return false;
+      if (navigator.clipboard && window.isSecureContext) {
+        try {
+          await navigator.clipboard.writeText(text);
+          return true;
+        } catch (error) {
+          // Continua para o fallback abaixo.
+        }
+      }
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.setAttribute("readonly", "");
+      textarea.style.position = "fixed";
+      textarea.style.top = "-9999px";
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      let copied = false;
+      try {
+        copied = document.execCommand("copy");
+      } catch (error) {
+        copied = false;
+      }
+      document.body.removeChild(textarea);
+      return copied;
+    };
+
+    if (copyButton && emailText) {
+      copyButton.addEventListener("click", async () => {
+        const ok = await copyText(emailText.textContent.trim());
+        copyButton.textContent = ok ? "Copiado" : "Falha";
+        setTimeout(() => {
+          copyButton.textContent = "Copiar";
+        }, 1500);
+      });
+    }
+
+    // Abre/fecha popup da foto.
+    const photo = document.getElementById("ramal-photo");
+    const modal = document.getElementById("photo-modal");
+    if (photo && modal) {
+      const closeModal = () => {
+        modal.classList.remove("is-open");
+        modal.setAttribute("aria-hidden", "true");
+      };
+      photo.addEventListener("click", () => {
+        modal.classList.add("is-open");
+        modal.setAttribute("aria-hidden", "false");
+      });
+      modal.addEventListener("click", (event) => {
+        if (event.target.closest("[data-close]")) {
+          closeModal();
+        }
+      });
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          closeModal();
+        }
+      });
+    }
+  </script>
+{% endblock %}
+

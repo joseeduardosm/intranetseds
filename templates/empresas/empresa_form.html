@@ -1,0 +1,33 @@
+﻿{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/empresas/empresas.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>{% if object %}Editar empresa{% else %}Nova empresa{% endif %}</h2>
+  </section>
+
+  <div class="form">
+    <form method="post">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      <p>
+        <label for="{{ form.nome.id_for_label }}">{{ form.nome.label }}</label>
+        {{ form.nome }}
+        {{ form.nome.errors }}
+      </p>
+      <p>
+        <label for="{{ form.cnpj.id_for_label }}">{{ form.cnpj.label }}</label>
+        {{ form.cnpj }}
+        {{ form.cnpj.errors }}
+      </p>
+      <div class="form-actions">
+        <button type="submit" class="btn">Salvar</button>
+        <a class="btn btn-light" href="{% url 'empresas_list' %}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}

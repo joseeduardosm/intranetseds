@@ -1,0 +1,169 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/diario_bordo/diario_bordo.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header db-page-header">
+    <h2>Diário de Bordo - {{ blocos_em_andamento }} blocos em andamento</h2>
+  </section>
+
+  <div class="db-actions">
+    {% if perms.diario_bordo.add_blocotrabalho %}
+      <a class="btn" href="{% url 'diario_bordo_create' %}">Novo bloco</a>
+    {% endif %}
+    {% if perms.diario_bordo.view_blocotrabalho %}
+      <details class="db-report-dropdown">
+        <summary class="btn btn-secondary db-report-dropdown-toggle">Extrair relatório</summary>
+        <div class="db-report-dropdown-menu">
+          <a class="btn btn-light" href="{{ relatorio_url }}" target="_blank" rel="noopener">Relatório completo</a>
+          <a class="btn btn-light" href="{{ relatorio_executivo_url }}" target="_blank" rel="noopener">Relatório executivo</a>
+          <a class="btn btn-light" href="{{ relatorio_daily_url }}" target="_blank" rel="noopener">Pauta daily</a>
+        </div>
+      </details>
+    {% endif %}
+  </div>
+
+  <div class="db-layout">
+    <div class="db-main">
+      <form class="db-search-form" method="get">
+        <input type="search" name="q" placeholder="Pesquisar por nome, descrição ou status" value="{{ request.GET.q }}" />
+        <div class="db-status-filter">
+          <label>
+            <input type="radio" name="status" value="ativos" {% if filtro_status == "ativos" %}checked{% endif %} onchange="this.form.submit()" />
+            Ativos
+          </label>
+          <label>
+            <input type="radio" name="status" value="todos" {% if filtro_status == "todos" %}checked{% endif %} onchange="this.form.submit()" />
+            Todos
+          </label>
+          <label>
+            <input type="radio" name="status" value="concluidos" {% if filtro_status == "concluidos" %}checked{% endif %} onchange="this.form.submit()" />
+            Concluídos
+          </label>
+        </div>
+      </form>
+
+      <div class="db-kanban" id="db-kanban" data-status-api-template="{% url 'diario_bordo_bloco_status_api' 0 %}">
+        {% for col in kanban_columns %}
+          <section class="db-kanban-col" data-status="{{ col.key }}">
+            <header class="db-kanban-col-header">
+              <h3>{{ col.label }}</h3>
+              <span class="db-kanban-col-count">{{ col.count }}</span>
+            </header>
+            <div class="db-kanban-dropzone" data-dropzone="{{ col.key }}">
+              {% for bloco in col.items %}
+                <article
+                  class="db-card"
+                  data-bloco-id="{{ bloco.pk }}"
+                  data-status="{{ bloco.status }}"
+                  data-urgente="{% if bloco.tem_marcador_urgente %}1{% else %}0{% endif %}"
+                  data-search-text="{{ bloco.nome }} {{ bloco.descricao }} {{ bloco.get_status_display }} {% for marcador in bloco.marcadores_efetivos %}{{ marcador.nome }} {% endfor %}"
+                  draggable="{% if perms.diario_bordo.change_blocotrabalho %}true{% else %}false{% endif %}"
+                >
+                  <a class="db-card-link" href="{% url 'diario_bordo_detail' bloco.pk %}{{ detail_querystring }}">
+                    <div class="db-card-body">
+                      <h4 class="db-card-title">{{ bloco.nome }}</h4>
+                      {% if bloco.marcadores_efetivos %}
+                        <div class="db-marcadores-wrap">
+                          {% for marcador in bloco.marcadores_efetivos %}
+                            <span class="db-marcador-chip" style="--marcador-cor: {{ marcador.cor }};" title="Marcador: {{ marcador.nome }}">{{ marcador.nome }}</span>
+                          {% endfor %}
+                        </div>
+                      {% endif %}
+                      <p class="db-card-meta">Criação: {{ bloco.criado_em|date:"d/m/Y" }} - {{ bloco.criado_humanizado }}</p>
+                      <p class="db-card-meta">Atualizado em {{ bloco.ultima_atualizacao|date:"d/m/Y" }} - {{ bloco.atualizado_humanizado }}</p>
+                    </div>
+                  </a>
+                </article>
+              {% empty %}
+                <p class="db-col-empty">Sem blocos</p>
+              {% endfor %}
+            </div>
+          </section>
+        {% endfor %}
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    (function () {
+      const board = document.getElementById("db-kanban");
+      if (!board) return;
+      const apiTemplate = board.dataset.statusApiTemplate || "";
+      const csrf = document.querySelector('input[name="csrfmiddlewaretoken"]')?.value || "{{ csrf_token }}";
+      let dragging = null;
+
+      const endpointFor = (id) => apiTemplate.replace("/0/status/", `/${id}/status/`);
+      const isUrgent = (card) => card?.dataset?.urgente === "1";
+      const reorderZoneUrgents = (zone) => {
+        const cards = Array.from(zone.querySelectorAll(".db-card"));
+        const urgentes = cards.filter(isUrgent);
+        const demais = cards.filter((card) => !isUrgent(card));
+        [...urgentes, ...demais].forEach((card) => zone.appendChild(card));
+      };
+      const placeCardWithPriority = (zone, card) => {
+        zone.appendChild(card);
+        reorderZoneUrgents(zone);
+      };
+      const updateCounts = () => {
+        board.querySelectorAll(".db-kanban-col").forEach((col) => {
+          const count = col.querySelectorAll(".db-card").length;
+          const tag = col.querySelector(".db-kanban-col-count");
+          if (tag) tag.textContent = String(count);
+        });
+      };
+
+      board.querySelectorAll(".db-card[draggable='true']").forEach((card) => {
+        card.addEventListener("dragstart", () => {
+          dragging = card;
+          card.classList.add("is-dragging");
+        });
+        card.addEventListener("dragend", () => {
+          card.classList.remove("is-dragging");
+          dragging = null;
+        });
+      });
+
+      board.querySelectorAll("[data-dropzone]").forEach((zone) => reorderZoneUrgents(zone));
+
+      board.querySelectorAll("[data-dropzone]").forEach((zone) => {
+        zone.addEventListener("dragover", (event) => {
+          event.preventDefault();
+          zone.classList.add("is-over");
+        });
+        zone.addEventListener("dragleave", () => zone.classList.remove("is-over"));
+        zone.addEventListener("drop", async (event) => {
+          event.preventDefault();
+          zone.classList.remove("is-over");
+          if (!dragging) return;
+          const targetStatus = zone.dataset.dropzone;
+          const blocoId = dragging.dataset.blocoId;
+          const previousParent = dragging.parentElement;
+          placeCardWithPriority(zone, dragging);
+          updateCounts();
+
+          try {
+            const response = await fetch(endpointFor(blocoId), {
+              method: "PATCH",
+              headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": csrf,
+                "X-Requested-With": "XMLHttpRequest"
+              },
+              body: JSON.stringify({ status: targetStatus })
+            });
+            if (!response.ok) throw new Error("status update failed");
+          } catch (err) {
+            placeCardWithPriority(previousParent, dragging);
+            updateCounts();
+            window.alert("Não foi possível mover o card para esta coluna.");
+          }
+        });
+      });
+    })();
+  </script>
+{% endblock %}

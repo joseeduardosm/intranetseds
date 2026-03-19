@@ -1,0 +1,43 @@
+.nav-logout {
+  margin: 0;
+}
+
+.nav-logout button {
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.nav-logout button:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.nav-login {
+  position: relative;
+}
+
+.nav-login-toggle {
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.nav-login-toggle:hover {
+  background: rgba(255, 255, 255, 0.14);
+}

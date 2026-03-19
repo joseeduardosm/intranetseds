@@ -1,0 +1,112 @@
+<div
+  class="sala-card-search"
+  data-card-search
+  data-search-id="{{ search_id|default:'sala-cards' }}"
+  data-search-target="{{ target_selector|default:'.card-grid' }}"
+  data-search-item="{{ item_selector|default:'.card' }}"
+>
+  <div class="sala-card-search-box">
+    <span class="sala-card-search-icon" aria-hidden="true">🔍</span>
+    <input
+      type="search"
+      class="sala-card-search-input"
+      placeholder="{{ placeholder|default:'Pesquisar cards...' }}"
+      aria-label="{{ aria_label|default:'Pesquisar cards' }}"
+    >
+    <button type="button" class="sala-card-search-button">Pesquisar</button>
+  </div>
+  <p class="sala-card-search-meta">
+    Exibindo
+    <strong data-search-visible="{{ search_id|default:'sala-cards' }}">0</strong>
+    de
+    <strong data-search-total="{{ search_id|default:'sala-cards' }}">0</strong>
+  </p>
+</div>
+
+<script>
+  (function () {
+    if (window.__salaCardSearchLoaded) return;
+    window.__salaCardSearchLoaded = true;
+
+    function normalize(value) {
+      return (value || "")
+        .toString()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
+    }
+
+    function updateGroupCounters(scope) {
+      scope.querySelectorAll("[data-related-group]").forEach(function (group) {
+        var allItems = group.querySelectorAll(".sala-relacionado-card");
+        var visibleItems = group.querySelectorAll(".sala-relacionado-card:not(.sala-hidden)");
+        var countLabel = group.querySelector("[data-related-count]");
+        if (countLabel) countLabel.textContent = String(visibleItems.length);
+        group.classList.toggle("sala-hidden", allItems.length > 0 && visibleItems.length === 0);
+      });
+    }
+
+    function initSearch(el) {
+      var searchId = el.getAttribute("data-search-id");
+      var targetSelector = el.getAttribute("data-search-target");
+      var itemSelector = el.getAttribute("data-search-item");
+      var input = el.querySelector(".sala-card-search-input");
+      var button = el.querySelector(".sala-card-search-button");
+      if (!input || !button) return;
+
+      var scope = document.querySelector(targetSelector);
+      if (!scope) return;
+
+      var items = Array.prototype.slice.call(scope.querySelectorAll(itemSelector));
+      var total = items.length;
+
+      function syncCounters(visible) {
+        document.querySelectorAll('[data-search-visible="' + searchId + '"]').forEach(function (node) {
+          node.textContent = String(visible);
+        });
+        document.querySelectorAll('[data-search-total="' + searchId + '"]').forEach(function (node) {
+          node.textContent = String(total);
+        });
+        document
+          .querySelectorAll('[data-search-heading-count="' + searchId + '"]')
+          .forEach(function (node) {
+            node.textContent = String(visible);
+          });
+      }
+
+      function applyFilter() {
+        var term = normalize(input.value);
+        var visible = 0;
+        items.forEach(function (item) {
+          var indexedText = (item.getAttribute("data-search-text") || "") + " " + (item.textContent || "");
+          var text = normalize(indexedText);
+          var show = !term || text.indexOf(term) !== -1;
+          item.classList.toggle("sala-hidden", !show);
+          if (show) visible += 1;
+        });
+        updateGroupCounters(scope);
+        syncCounters(visible);
+      }
+
+      syncCounters(total);
+      updateGroupCounters(scope);
+      button.addEventListener("click", applyFilter);
+      input.addEventListener("keydown", function (event) {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          applyFilter();
+        }
+      });
+    }
+
+    function bootSearch() {
+      document.querySelectorAll("[data-card-search]").forEach(initSearch);
+    }
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", bootSearch);
+    } else {
+      bootSearch();
+    }
+  })();
+</script>

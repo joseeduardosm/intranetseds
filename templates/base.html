@@ -1,0 +1,424 @@
+{% load static %}
+<!-- Template base compartilhado pelas páginas -->
+<!DOCTYPE html>
+<html lang="pt-br">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SGI SEDS</title>
+    <!-- Estilos globais -->
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}" />
+    <link rel="stylesheet" href="{% static 'css/auth/auth.css' %}" />
+    {% block extra_css %}{% endblock %}
+    <style>
+      :root {
+        --nav-bg: {{ theme_navbar_color }};
+        --page-bg: {{ theme_background_color }};
+        --brand-text: {{ theme_brand_text_color }};
+        --shortcuts-bg: {{ theme_shortcuts_bg_color }};
+      }
+    </style>
+  </head>
+  <body class="{% if user.is_authenticated and ramal_profile_requires_update and not ramal_profile_update_allowed %}has-profile-alert{% endif %}">
+    <header class="site-header">
+      <div class="container">
+        <!-- Logo com link para a home -->
+        <h1 class="logo">
+          <a href="{% url 'home' %}">Sistema de Gestão Integrada</a>
+        </h1>
+        {% if user.is_authenticated %}
+          <div class="nav-welcome">
+            Bem vindo, {% if user.get_full_name %}{{ user.get_full_name }}{% else %}{{ user.username }}{% endif %}!
+          </div>
+        {% endif %}
+        <nav class="nav">
+          <!-- Navegacao principal -->
+          <a href="{% url 'ramais_list' %}">Ramais</a>
+          {% if user.is_authenticated and sala_situacao_access %}
+            <a href="{% url 'sala_situacao_home' %}">Sala de Situação</a>
+          {% endif %}
+          {% if user.is_authenticated %}
+            {% if perms.contratos.view_contrato or perms.diario_bordo.view_blocotrabalho or perms.licitacoes.view_termoreferencia or perms.licitacoes.add_termoreferencia or perms.licitacoes.change_termoreferencia or perms.licitacoes.delete_termoreferencia or perms.reserva_salas.view_sala or user.is_staff or perms.administracao.view_adconfiguration or perms.administracao.change_adconfiguration or perms.administracao.view_atalhoservico or perms.administracao.add_atalhoservico or perms.administracao.change_atalhoservico or perms.administracao.delete_atalhoservico or perms.folha_ponto.view_feriado or perms.folha_ponto.view_feriasservidor or perms.folha_ponto.change_feriado or perms.folha_ponto.change_feriasservidor or perms.noticias.add_noticia or user.is_authenticated %}
+              <details class="nav-dropdown">
+                <summary class="nav-dropdown-toggle">Administracao</summary>
+                <div class="nav-dropdown-menu">
+                  {% if user.is_superuser %}
+                    <a href="{% url 'audit_log_list' %}">Auditoria</a>
+                  {% endif %}
+                  {% if user.is_superuser or perms.administracao.add_atalhoservico or perms.administracao.change_atalhoservico or perms.administracao.delete_atalhoservico or perms.noticias.add_noticia or perms.noticias.change_noticia or perms.noticias.delete_noticia or perms.folha_ponto.add_feriado or perms.folha_ponto.change_feriado or perms.folha_ponto.delete_feriado or perms.folha_ponto.add_feriasservidor or perms.folha_ponto.change_feriasservidor or perms.folha_ponto.delete_feriasservidor or perms.folha_ponto.change_configuracaorh %}
+                    <a href="{% url 'administracao_configuracoes' %}">Configuracoes</a>
+                  {% endif %}
+                  {% if user.is_superuser or perms.monitoramento.view_projetomonitoramento or perms.monitoramento.add_projetomonitoramento or perms.monitoramento.change_projetomonitoramento %}
+                    <a href="{% url 'monitoramento_home' %}">Monitoramento</a>
+                  {% endif %}
+                  {% if perms.contratos.view_contrato %}
+                    <a href="{% url 'contratos_list' %}">Contratos</a>
+                  {% endif %}
+                  {% if perms.diario_bordo.view_blocotrabalho %}
+                    <a href="{% url 'diario_bordo_list' %}">Diario de Bordo</a>
+                  {% endif %}
+                  {% if user.is_staff or perms.licitacoes.view_termoreferencia or perms.licitacoes.add_termoreferencia or perms.licitacoes.change_termoreferencia or perms.licitacoes.delete_termoreferencia %}
+                    <a href="{% url 'licitacoes_home' %}">Licitacoes</a>
+                  {% endif %}
+                  {% if user.is_authenticated %}
+                    <a href="{% url 'salas_list' %}">Reserva de Salas</a>
+                  {% endif %}
+                  {% if user.is_authenticated %}
+                    <a href="{% url 'lousa_digital_list' %}">Lousa Digital</a>
+                  {% endif %}
+                  {% if user.is_superuser or perms.administracao.add_atalhoservico or perms.administracao.change_atalhoservico or perms.administracao.delete_atalhoservico or perms.noticias.add_noticia or perms.noticias.change_noticia or perms.noticias.delete_noticia or perms.folha_ponto.add_feriado or perms.folha_ponto.change_feriado or perms.folha_ponto.delete_feriado or perms.folha_ponto.add_feriasservidor or perms.folha_ponto.change_feriasservidor or perms.folha_ponto.delete_feriasservidor or perms.folha_ponto.change_configuracaorh %}
+                    <a href="{% url 'administracao_rfs' %}">RFs</a>
+                  {% endif %}
+                  {% if perms.folha_ponto.view_feriado or perms.folha_ponto.view_feriasservidor or perms.folha_ponto.change_feriado or perms.folha_ponto.change_feriasservidor or user.is_superuser %}
+                    <a href="{% url 'administracao_rh' %}">RH</a>
+                  {% endif %}
+                  {% if user.is_staff %}
+                    <a href="{% url 'usuarios_list' %}">Usuarios</a>
+                  {% endif %}
+                </div>
+              </details>
+            {% endif %}
+          {% endif %}
+          {% if user.is_authenticated %}
+            <!-- Logout via POST com CSRF -->
+            <form class="nav-logout" method="post" action="{% url 'logout' %}">
+              {% csrf_token %}
+              <button type="submit">Sair</button>
+            </form>
+          {% else %}
+            <div class="nav-login">
+              <button class="nav-login-toggle" type="button" id="login-toggle">Entrar</button>
+              <div class="login-dropdown" id="login-dropdown" aria-hidden="true">
+                <form method="post" action="{% url 'login' %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="next" id="login-next" value="{{ request.path }}" />
+                  <p>
+                    <label for="login-username">Usuário</label>
+                    <input id="login-username" type="text" name="username" autocomplete="username" required />
+                  </p>
+                  <p>
+                    <label for="login-password">Senha</label>
+                    <input id="login-password" type="password" name="password" autocomplete="current-password" required />
+                  </p>
+                  <div class="form-actions">
+                    <button class="btn" type="submit">Entrar</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          {% endif %}
+        </nav>
+
+
+
+      </div>
+    </header>
+    {% if diario_bordo_alert and diario_bordo_alert_bloco %}
+      <div class="nav-alert-banner">
+        <a class="nav-alert nav-alert-link" href="{% url 'diario_bordo_detail' diario_bordo_alert_bloco.pk %}">
+          {{ diario_bordo_alert }}
+        </a>
+      </div>
+    {% elif diario_bordo_alert %}
+      <div class="nav-alert-banner">
+        <div class="nav-alert">{{ diario_bordo_alert }}</div>
+      </div>
+    {% endif %}
+    <main class="container {% block container_class %}{% endblock %}">
+      {% if messages %}
+        <section class="flash-messages" aria-live="polite">
+          {% for message in messages %}
+            <div class="flash-message flash-{{ message.tags|default:'info' }}">{{ message }}</div>
+          {% endfor %}
+        </section>
+      {% endif %}
+      {% if request.path|slice:":18" == "/sala-de-situacao/" %}
+        {% include "sala_situacao/_etapas_nav.html" %}
+      {% endif %}
+      <!-- Conteúdo específico de cada página -->
+      {% block content %}{% endblock %}
+    </main>
+    <footer class="site-footer">
+      <div class="container">
+        <span>Secretaria de Desenvolvimento Social · SGI SEDS · 2026</span>
+      </div>
+    </footer>
+    {% if user.is_authenticated and ramal_profile_requires_update and not ramal_profile_update_allowed %}
+      <div class="profile-alert-backdrop" aria-hidden="true"></div>
+      <div class="profile-alert-modal" role="dialog" aria-modal="true" aria-label="Atualize seus dados">
+        <h3>Atualize seus dados antes de continuar</h3>
+        <p>
+          {% if ramal_update_reason == "revalidation" %}
+            Já se passaram mais de 30 dias desde sua última atualização. Para continuar usando a intranet, confirme e atualize seus dados de contato.
+          {% else %}
+            Notamos que este é seu primeiro acesso à ferramenta ou que ainda há dados pendentes. Para liberar as funcionalidades do SGI SEDS, atualize seus dados de contato.
+          {% endif %}
+        </p>
+        <div class="profile-alert-actions">
+          {% if ramal_profile %}
+            <a class="btn" href="{% url 'ramais_update' ramal_profile.pk %}">Atualizar agora</a>
+          {% else %}
+            <a class="btn" href="{% url 'ramais_list' %}">Abrir ramais</a>
+          {% endif %}
+          <form method="post" action="{% url 'logout' %}">
+            {% csrf_token %}
+            <button class="btn btn-secondary" type="submit">Sair</button>
+          </form>
+        </div>
+      </div>
+    {% endif %}
+    {% if not user.is_authenticated %}
+      <div class="profile-alert-backdrop auth-required-hidden" id="auth-required-backdrop" aria-hidden="true"></div>
+      <div class="profile-alert-modal auth-required-hidden" id="auth-required-modal" role="dialog" aria-modal="true" aria-label="Login necessário">
+        <h3>Login necessário</h3>
+        <p>Para essa ação, é necessário estar logado.</p>
+        <div class="profile-alert-actions">
+          <button class="btn" type="button" id="auth-required-confirm">Fazer login</button>
+          <button class="btn btn-secondary" type="button" id="auth-required-cancel">Cancelar</button>
+        </div>
+      </div>
+      <script>
+        const loginToggle = document.getElementById("login-toggle");
+        const loginDropdown = document.getElementById("login-dropdown");
+        const loginNext = document.getElementById("login-next");
+        const loginUserInput = document.getElementById("login-username");
+        const authBackdrop = document.getElementById("auth-required-backdrop");
+        const authModal = document.getElementById("auth-required-modal");
+        const authConfirm = document.getElementById("auth-required-confirm");
+        const authCancel = document.getElementById("auth-required-cancel");
+        let authNextUrl = null;
+        const openLoginDropdown = () => {
+          if (!loginDropdown) return;
+          if (loginNext) {
+            loginNext.value = `${window.location.pathname}${window.location.search}`;
+          }
+          loginDropdown.classList.add("is-open");
+          loginDropdown.setAttribute("aria-hidden", "false");
+          if (loginUserInput) {
+            loginUserInput.focus();
+          }
+        };
+        const closeLoginDropdown = () => {
+          if (!loginDropdown) return;
+          loginDropdown.classList.remove("is-open");
+          loginDropdown.setAttribute("aria-hidden", "true");
+        };
+        if (loginToggle) {
+          loginToggle.addEventListener("click", () => {
+            if (loginDropdown.classList.contains("is-open")) {
+              closeLoginDropdown();
+            } else {
+              openLoginDropdown();
+            }
+          });
+        }
+        document.querySelectorAll("[data-login-popup]").forEach((el) => {
+          el.addEventListener("click", (event) => {
+            event.preventDefault();
+            const nextUrl = el.getAttribute("data-next") || `${window.location.pathname}${window.location.search}`;
+            showAuthRequired(nextUrl);
+          });
+        });
+        document.addEventListener("click", (event) => {
+          if (!loginDropdown || !loginToggle) return;
+          if (loginDropdown.contains(event.target) || loginToggle.contains(event.target)) {
+            return;
+          }
+          closeLoginDropdown();
+        });
+        document.addEventListener("keydown", (event) => {
+          if (event.key === "Escape") {
+            closeLoginDropdown();
+          }
+        });
+
+        const showAuthRequired = (nextUrl) => {
+          authNextUrl = nextUrl || `${window.location.pathname}${window.location.search}`;
+          if (authBackdrop) {
+            authBackdrop.classList.remove("auth-required-hidden");
+            authBackdrop.setAttribute("aria-hidden", "false");
+          }
+          if (authModal) {
+            authModal.classList.remove("auth-required-hidden");
+          }
+        };
+
+        const hideAuthRequired = () => {
+          if (authBackdrop) {
+            authBackdrop.classList.add("auth-required-hidden");
+            authBackdrop.setAttribute("aria-hidden", "true");
+          }
+          if (authModal) {
+            authModal.classList.add("auth-required-hidden");
+          }
+        };
+
+        if (authConfirm) {
+          authConfirm.addEventListener("click", () => {
+            const next = encodeURIComponent(authNextUrl || "/");
+            window.location.href = "{% url 'login' %}?next=" + next;
+          });
+        }
+
+        if (authCancel) {
+          authCancel.addEventListener("click", hideAuthRequired);
+        }
+
+        if (authBackdrop) {
+          authBackdrop.addEventListener("click", hideAuthRequired);
+        }
+
+        const isAnonAllowedPath = (path) => {
+          if (path === "/") return true;
+          if (path === "/noticias" || path === "/noticias/") return true;
+          if (path === "/ramais" || path === "/ramais/") return true;
+          if (path === "/reserva-salas" || path === "/reserva-salas/") return true;
+          if (path === "/reserva-salas/reservas" || path === "/reserva-salas/reservas/") return true;
+          if (/^\/noticias\/\d+\/?$/.test(path)) return true;
+          if (/^\/ramais\/\d+\/?$/.test(path)) return true;
+          if (/^\/reserva-salas\/\d+\/?$/.test(path)) return true;
+          if (/^\/reserva-salas\/reservas\/\d+\/?$/.test(path)) return true;
+          return false;
+        };
+
+        document.addEventListener("click", (event) => {
+          const link = event.target.closest("a");
+          if (!link) return;
+          if (link.hasAttribute("data-allow-anon")) return;
+          const href = link.getAttribute("href") || "";
+          if (!href || href.startsWith("#") || href.startsWith("javascript:")) return;
+          try {
+            const url = new URL(href, window.location.origin);
+            if (url.origin !== window.location.origin) return;
+            if (url.pathname.startsWith("{% url 'login' %}")
+                || url.pathname.startsWith("/static/")
+                || url.pathname.startsWith("/media/")) {
+              return;
+            }
+            if (isAnonAllowedPath(url.pathname)) return;
+            event.preventDefault();
+            showAuthRequired(url.pathname + url.search + url.hash);
+          } catch (err) {
+            return;
+          }
+        });
+
+        document.addEventListener("submit", (event) => {
+          const form = event.target;
+          if (!form || form.hasAttribute("data-allow-anon")) return;
+          const action = form.getAttribute("action") || window.location.pathname;
+          try {
+            const url = new URL(action, window.location.origin);
+            if (url.origin !== window.location.origin) return;
+            if (url.pathname.startsWith("{% url 'login' %}")) return;
+            if (isAnonAllowedPath(url.pathname)) return;
+            event.preventDefault();
+            showAuthRequired(url.pathname + url.search);
+          } catch (err) {
+            return;
+          }
+        });
+      </script>
+    {% endif %}
+    <script>
+      (function () {
+        const fitCardTitles = () => {
+          document.querySelectorAll(".card .card-title").forEach((title) => {
+            title.style.fontSize = "";
+            title.style.lineHeight = "";
+            const computed = window.getComputedStyle(title);
+            const minFontPx = 13;
+            const maxLines = 4;
+            const lineHeightPx = parseFloat(computed.lineHeight) || 18;
+            const maxHeight = lineHeightPx * maxLines;
+            let fontPx = parseFloat(computed.fontSize) || 16;
+            let safety = 0;
+            while (title.scrollHeight > maxHeight + 1 && fontPx > minFontPx && safety < 30) {
+              fontPx -= 0.5;
+              title.style.fontSize = fontPx + "px";
+              safety += 1;
+            }
+          });
+        };
+
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", fitCardTitles);
+        } else {
+          fitCardTitles();
+        }
+        window.addEventListener("resize", fitCardTitles);
+      })();
+    </script>
+    <script>
+      (function () {
+        const shouldOpenInNewTab = (anchor) => {
+          if (!anchor || anchor.getAttribute("data-no-new-tab") === "true") return false;
+          const href = (anchor.getAttribute("href") || "").trim().toLowerCase();
+          if (!href) return false;
+          if (href.startsWith("#") || href.startsWith("javascript:")) return false;
+          try {
+            const url = new URL(anchor.href, window.location.origin);
+            if (url.origin === window.location.origin) {
+              // Navegação interna (home e módulos) permanece na mesma aba.
+              // Apenas arquivos/anexos locais continuam em nova aba.
+              if (url.pathname.startsWith("/media/")) return true;
+              return false;
+            }
+          } catch (error) {
+            // Mantém comportamento padrão quando URL não puder ser resolvida.
+          }
+          return true;
+        };
+
+        const enforceAnchor = (anchor) => {
+          if (!shouldOpenInNewTab(anchor)) {
+            if (anchor.getAttribute("target") === "_blank" && anchor.getAttribute("data-keep-blank") !== "true") {
+              anchor.removeAttribute("target");
+            }
+            return;
+          }
+          anchor.setAttribute("target", "_blank");
+          const relParts = (anchor.getAttribute("rel") || "")
+            .split(/\s+/)
+            .filter(Boolean);
+          if (!relParts.includes("noopener")) relParts.push("noopener");
+          if (!relParts.includes("noreferrer")) relParts.push("noreferrer");
+          anchor.setAttribute("rel", relParts.join(" "));
+        };
+
+        const enforceAllAnchors = (root) => {
+          (root || document).querySelectorAll("a[href]").forEach(enforceAnchor);
+        };
+
+        enforceAllAnchors(document);
+
+        document.addEventListener(
+          "click",
+          (event) => {
+            const anchor = event.target.closest("a[href]");
+            if (!anchor) return;
+            enforceAnchor(anchor);
+          },
+          true
+        );
+
+        const observer = new MutationObserver((mutations) => {
+          mutations.forEach((mutation) => {
+            mutation.addedNodes.forEach((node) => {
+              if (!(node instanceof Element)) return;
+              if (node.matches && node.matches("a[href]")) {
+                enforceAnchor(node);
+                return;
+              }
+              enforceAllAnchors(node);
+            });
+          });
+        });
+        observer.observe(document.documentElement, {
+          childList: true,
+          subtree: true,
+        });
+      })();
+    </script>
+  </body>
+</html>

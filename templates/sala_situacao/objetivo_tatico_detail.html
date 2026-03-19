@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/sala_situacao/sala_situacao.css' %}" />
+{% endblock %}
+
+
+{% block content %}
+  <section class="sala-detail-layout sala-detail-layout--wide">
+    <div>
+      <section class="page-header"><h2>Detalhes do item</h2></section>
+      <div class="detail sala-detail-panel">
+        <p><strong>Nome:</strong> {{ objetivo.nome }}</p>
+        <p><strong>Objetivo estratégico:</strong> <a href="{% url 'sala_objetivo_estrategico_detail' objetivo.objetivo_estrategico.pk %}">{{ objetivo.objetivo_estrategico.nome }}</a></p>
+        <p>
+          <strong>Marcadores:</strong>
+          {% for marcador in objetivo.marcadores_efetivos %}
+            <span class="sala-marcador-chip" style="--marcador-cor: {{ marcador.cor }};">{{ marcador.nome }}</span>
+          {% empty %}
+            -
+          {% endfor %}
+        </p>
+        <p><strong>Descrição:</strong> {{ objetivo.descricao|default:'-' }}</p>
+        <p><strong>Data de lançamento:</strong> {{ objetivo.data_lancamento|date:'d/m/Y'|default:'-' }}</p>
+        <p><strong>Data de entrega estipulada:</strong> {{ objetivo.data_entrega_estipulada|date:'d/m/Y'|default:'-' }}</p>
+        <p><strong>Prazo:</strong> {{ objetivo.texto_prazo }}</p>
+        {% include "sala_situacao/_progresso_duplo.html" with item=objetivo show_delta_tooltip=True %}
+        <p><strong>Indicadores vinculados:</strong> {{ objetivo.indicadores_estrategicos.count }}</p>
+        <p><strong>Indicadores vinculados:</strong> {{ objetivo.indicadores_taticos.count }}</p>
+        <div class="detail-actions">
+          <a class="btn btn-light" href="{% url 'sala_fluxo_indicadores_taticos' objetivo.pk %}">Indicadores</a>
+          {% if perms.sala_situacao.change_objetivotatico %}<a class="btn" href="{% url 'sala_objetivo_tatico_update' objetivo.pk %}">Editar</a>{% endif %}
+          {% if perms.sala_situacao.delete_objetivotatico %}<a class="btn btn-secondary" href="{% url 'sala_objetivo_tatico_delete' objetivo.pk %}">Excluir</a>{% endif %}
+          <a class="btn btn-light" href="{% url 'sala_objetivo_tatico_list' %}">Voltar</a>
+        </div>
+      </div>
+      {% include "sala_situacao/_relacionamentos_hierarquicos.html" %}
+    </div>
+    <aside>
+      <section class="page-header"><h2>Notas e histórico</h2></section>
+      <div class="detail sala-detail-panel">
+        {% include "sala_situacao/_notas_item.html" %}
+        <h3 class="sala-side-title">Histórico de evoluções</h3>
+        {% include "sala_situacao/_historico_alteracoes.html" %}
+      </div>
+    </aside>
+  </section>
+{% endblock %}

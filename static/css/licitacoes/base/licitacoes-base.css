@@ -1,0 +1,9 @@
+/* Base do módulo de Licitações */
+
+.licitacoes-page {
+  --licitacoes-surface: var(--card);
+  --licitacoes-border: var(--border);
+  --licitacoes-primary: var(--primary);
+  --licitacoes-text: var(--text);
+  --licitacoes-muted: var(--muted);
+}

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/licitacoes/licitacoes.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>{% if object %}Editar termo{% else %}Novo termo{% endif %}</h2>
+  </section>
+
+  <div class="form">
+    <form method="post">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      <p>
+        <label for="{{ form.apelido.id_for_label }}">{{ form.apelido.label }}</label>
+        {{ form.apelido }}
+        {{ form.apelido.errors }}
+      </p>
+      <p>
+        <label for="{{ form.processo_sei.id_for_label }}">{{ form.processo_sei.label }}</label>
+        {{ form.processo_sei }}
+        {{ form.processo_sei.errors }}
+      </p>
+      <p>
+        <label for="{{ form.link_processo_sei.id_for_label }}">{{ form.link_processo_sei.label }}</label>
+        {{ form.link_processo_sei }}
+        {{ form.link_processo_sei.errors }}
+      </p>
+      <div class="form-actions">
+        <button class="btn" type="submit">Salvar</button>
+        <a class="btn btn-light" href="{% url 'licitacoes_termo_list' %}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}

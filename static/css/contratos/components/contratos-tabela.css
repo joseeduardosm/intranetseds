@@ -1,0 +1,66 @@
+/* Distribuição de colunas da tabela de contratos */
+
+.table-contratos {
+  table-layout: auto;
+}
+
+.table-contratos th,
+.table-contratos td {
+  max-width: none;
+}
+
+.table-contratos th:nth-child(1),
+.table-contratos td:nth-child(1) {
+  min-width: 12ch;
+  width: 12%;
+  white-space: nowrap;
+}
+
+.table-contratos th:nth-child(2),
+.table-contratos td:nth-child(2) {
+  min-width: 10ch;
+  width: 10%;
+  white-space: nowrap;
+}
+
+.table-contratos th:nth-child(3),
+.table-contratos td:nth-child(3) {
+  min-width: 18ch;
+  width: 22%;
+  white-space: normal;
+}
+
+.table-contratos th:nth-child(4),
+.table-contratos td:nth-child(4) {
+  min-width: 28ch;
+  width: 38%;
+  white-space: normal;
+}
+
+.table-contratos th:nth-child(5),
+.table-contratos td:nth-child(5) {
+  min-width: 14ch;
+  width: 10%;
+  white-space: nowrap;
+}
+
+.table-contratos th:nth-child(6),
+.table-contratos td:nth-child(6) {
+  min-width: 12ch;
+  width: 12%;
+  white-space: nowrap;
+}
+
+.table-contratos th:nth-child(7),
+.table-contratos td:nth-child(7) {
+  min-width: 10ch;
+  width: 9%;
+  white-space: nowrap;
+}
+
+.table-contratos th:nth-child(8),
+.table-contratos td:nth-child(8) {
+  min-width: 8ch;
+  width: 7%;
+  white-space: nowrap;
+}

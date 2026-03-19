@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/sala_situacao/sala_situacao.css' %}" />
+{% endblock %}
+
+
+{% block content %}
+  <section class="sala-detail-layout sala-detail-layout--wide sala-indicador-layout">
+    <div>
+      <section class="page-header"><h2>Detalhes do item</h2></section>
+      <div class="detail sala-detail-panel">
+        <p><strong>Nome:</strong> {{ indicador.nome }}</p>
+        <p>
+          <strong>Indicadores vinculados:</strong>
+          {% for indicador_estrategico in indicador.indicadores_estrategicos_herdados %}
+            <a href="{% url 'sala_indicador_estrategico_detail' indicador_estrategico.pk %}">{{ indicador_estrategico.nome }}</a>{% if not forloop.last %}, {% endif %}
+          {% empty %}
+            -
+          {% endfor %}
+        </p>
+        <p><strong>Descrição:</strong> {{ indicador.descricao|default:'-' }}</p>
+        <p>
+          <strong>Marcadores:</strong>
+          {% for marcador in indicador.marcadores_efetivos %}
+            <span class="sala-marcador-chip" style="--marcador-cor: {{ marcador.cor }};">{{ marcador.nome }}</span>
+          {% empty %}
+            -
+          {% endfor %}
+        </p>
+        <p><strong>Tipo de indicador:</strong> {{ indicador.get_tipo_indicador_display }}</p>
+        <p><strong>Data de lançamento:</strong> {{ indicador.data_lancamento|date:'d/m/Y'|default:'-' }}</p>
+        <p><strong>Data de entrega estipulada:</strong> {{ indicador.data_entrega_estipulada|date:'d/m/Y'|default:'-' }}</p>
+        <p><strong>Meta:</strong> {{ indicador.meta_valor }} {{ indicador.meta_unidade_medida }}</p>
+        {% if indicador.eh_indicador_matematico %}
+          <p><strong>Fórmula:</strong> {{ indicador.formula_expressao }}</p>
+          <p><strong>Valor atual:</strong> {{ indicador.valor_atual|default:'-' }} {{ indicador.meta_unidade_medida }}</p>
+        {% endif %}
+        <p><strong>Prazo:</strong> {{ indicador.texto_prazo }}</p>
+        {% include "sala_situacao/_progresso_duplo.html" with item=indicador show_delta_tooltip=True %}
+        <p><strong>Processos vinculados:</strong> {{ indicador.processos.count }}</p>
+        <div class="detail-actions">
+          <a class="btn btn-light" href="{% url 'sala_fluxo_processos' indicador.pk %}">Processos</a>
+          {% if can_edit %}<a class="btn" href="{% url 'sala_indicador_tatico_update' indicador.pk %}">Editar</a>{% endif %}
+          {% if can_delete %}<a class="btn btn-secondary" href="{% url 'sala_indicador_tatico_delete' indicador.pk %}">Excluir</a>{% endif %}
+          <a class="btn btn-light" href="{% url 'sala_indicador_tatico_list' %}">Voltar</a>
+        </div>
+      </div>
+      {% include "sala_situacao/_relacionamentos_hierarquicos.html" %}
+    </div>
+    <aside>
+      {% if indicador.eh_indicador_matematico %}
+        <section class="page-header"><h2>Monitoramento das variáveis</h2></section>
+        <div class="detail sala-detail-panel">
+          <p><strong>Variáveis concluídas:</strong> {{ monitoramento_resumo.percentual_variaveis_concluidas }}%</p>
+          <p><strong>Última atualização:</strong> {{ monitoramento_resumo.ultima_atualizacao|date:"d/m/Y H:i"|default:"-" }}</p>
+          <h3 class="sala-side-title">Variáveis</h3>
+          {% if indicador_variaveis %}
+            <ul class="sala-relacionados-lista">
+              {% for variavel in indicador_variaveis %}
+                <li>
+                  <strong>{{ variavel.nome }}</strong> - {{ variavel.descricao|default:"Sem descrição" }} ({{ variavel.unidade_medida }})
+                  | Periodicidade: {{ variavel.get_periodicidade_monitoramento_display }}
+                  {% if variavel.periodicidade_monitoramento == "TRIMESTRAL" or variavel.periodicidade_monitoramento == "SEMESTRAL" or variavel.periodicidade_monitoramento == "ANUAL" %}
+                    | <strong>Ciclo inicial obrigatório</strong>
+                  {% endif %}
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p>Nenhuma variável cadastrada.</p>
+          {% endif %}
+
+          <h3 class="sala-side-title">Ciclos por variável</h3>
+          {% if variaveis_monitoramento %}
+            {% for bloco in variaveis_monitoramento %}
+              <p><strong>{{ bloco.variavel.nome }}</strong></p>
+              <ul class="sala-relacionados-lista">
+                {% for ciclo in bloco.ciclos %}
+                  <li>
+                    {{ ciclo.titulo }}
+                    <span class="monitoramento-status {{ ciclo.monitoramento_status_classe }}">
+                      {{ ciclo.monitoramento_status_texto }}
+                      {% if ciclo.monitoramento_status_texto == "Concluido" and ciclo.monitoramento_valor is not None %}
+                        - {{ ciclo.monitoramento_valor|floatformat:"-4" }} {{ bloco.variavel.unidade_medida }}
+                      {% endif %}
+                    </span>
+                  </li>
+                {% empty %}
+                  <li>Sem ciclos gerados.</li>
+                {% endfor %}
+              </ul>
+            {% endfor %}
+          {% else %}
+            <p>Nenhum ciclo de monitoramento por variável gerado.</p>
+          {% endif %}
+        </div>
+      {% endif %}
+    </aside>
+  </section>
+  <section class="page-header"><h2>Notas e histórico</h2></section>
+  <div class="detail sala-detail-panel">
+    {% include "sala_situacao/_notas_item.html" %}
+    <h3 class="sala-side-title">Histórico de evoluções</h3>
+    {% include "sala_situacao/_historico_alteracoes.html" %}
+  </div>
+{% endblock %}

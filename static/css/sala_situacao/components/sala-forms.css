@@ -1,0 +1,215 @@
+/* Formulários e builders da Sala */
+
+.form-status-hint {
+  margin: 0 0 12px;
+  background: #f6f1e7;
+  border: 1px solid #e3d7be;
+  border-radius: 10px;
+  color: #3f3a2d;
+  font-size: 0.84rem;
+  font-weight: 600;
+  padding: 10px 12px;
+}
+
+.formula-builder {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.sala-form-fields {
+  display: block;
+}
+
+.sala-form-field {
+  margin: 0 0 16px;
+}
+
+.sala-form-field small {
+  display: block;
+  margin-top: 6px;
+}
+
+.sala-indicador-form .sala-form-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 18px;
+}
+
+.sala-indicador-form .sala-form-field {
+  margin: 0;
+}
+
+.sala-indicador-form .sala-form-field--wide {
+  grid-column: 1 / -1;
+}
+
+.sala-indicador-form .sala-form-field[data-field-name="objetivos_estrategicos"],
+.sala-indicador-form .sala-form-field[data-field-name="objetivos_taticos"] {
+  order: 1;
+}
+
+.sala-indicador-form .sala-form-field[data-field-name="tipo_indicador"] {
+  order: 2;
+}
+
+.sala-indicador-form .sala-form-field[data-field-name="nome"] {
+  order: 3;
+}
+
+.sala-indicador-form .sala-form-field[data-field-name="descricao"] {
+  order: 4;
+}
+
+.sala-indicador-form .sala-form-field[data-field-name="formula_expressao"] {
+  order: 5;
+}
+
+.sala-indicador-form .sala-form-field[data-field-name="variaveis_reuso_map"] {
+  order: 6;
+}
+
+.sala-indicador-form .sala-form-field[data-field-name="periodicidade_monitoramento"] {
+  order: 7;
+}
+
+.sala-indicador-form .sala-form-field[data-field-name="meta_valor"] {
+  order: 8;
+}
+
+.sala-indicador-form .sala-form-field[data-field-name="meta_unidade_medida"] {
+  order: 9;
+}
+
+.sala-indicador-form .sala-form-field[data-field-name="data_entrega_estipulada"] {
+  order: 10;
+}
+
+.sala-indicador-form .sala-form-field[data-field-name="evolucao_manual"] {
+  order: 11;
+}
+
+.sala-indicador-form [data-math-only-field] {
+  display: none;
+}
+
+.sala-indicador-form.is-matematico [data-math-only-field] {
+  display: block;
+}
+
+.sala-variavel-reuso-editor {
+  border: 1px solid #d9d5cb;
+  border-radius: 10px;
+  background: #fbfaf7;
+  padding: 10px;
+}
+
+.sala-variavel-reuso-hint {
+  margin: 0 0 10px;
+  color: #5f6677;
+  font-size: 0.8rem;
+}
+
+.sala-variavel-reuso-lista {
+  display: grid;
+  gap: 10px;
+}
+
+.sala-variavel-reuso-item {
+  border: 1px solid #e2ded3;
+  border-radius: 8px;
+  background: #fff;
+  padding: 8px;
+  display: grid;
+  gap: 8px;
+}
+
+.sala-variavel-reuso-modos {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 0.82rem;
+}
+
+.sala-variavel-reuso-origem {
+  display: grid;
+  gap: 8px;
+}
+
+.sala-variavel-reuso-vazio {
+  margin: 0;
+  color: #6b7488;
+  font-size: 0.82rem;
+}
+
+.participants-select-hidden {
+  display: none;
+}
+
+.participants-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-top: 10px;
+}
+
+.participants-column {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.participants-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.participants-list {
+  min-height: 120px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.participants-list.is-selected {
+  background: #fbfaf7;
+}
+
+.participants-item {
+  border: 1px solid rgba(31, 42, 68, 0.12);
+  border-radius: 10px;
+  padding: 6px 10px;
+  text-align: left;
+  background: #ffffff;
+  color: var(--text);
+  cursor: pointer;
+  transition: border 0.2s ease, background 0.2s ease;
+  font-size: 0.9rem;
+}
+
+.participants-item:hover {
+  background: rgba(31, 42, 68, 0.05);
+  border-color: rgba(31, 42, 68, 0.25);
+}
+
+.participants-item.is-selected {
+  background: rgba(217, 79, 4, 0.12);
+  border-color: rgba(217, 79, 4, 0.5);
+  font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .sala-indicador-form .sala-form-fields {
+    grid-template-columns: 1fr;
+  }
+}

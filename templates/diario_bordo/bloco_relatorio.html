@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/diario_bordo/diario_bordo.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <div class="diario-report {% if relatorio_tipo == 'executivo' %}diario-report-executivo{% else %}diario-report-completo{% endif %}">
+    <section class="page-header">
+      <h2>Relatório - Diário de Bordo (Ativos e concluídos)</h2>
+      <p>Blocos com seus incrementos, conforme filtros aplicados.</p>
+    </section>
+    <div class="card-actions">
+      <button class="btn" type="button" onclick="window.print()">Imprimir</button>
+      <a class="btn btn-light" href="{% url 'diario_bordo_list' %}">Voltar</a>
+    </div>
+
+    {% if blocos %}
+      <ol class="report-list">
+      {% for bloco in blocos %}
+        <li class="report-item">
+          <h3 class="card-title">{{ bloco.nome }}</h3>
+          <p class="card-meta">Dias sem atualização: {{ bloco.dias_desde }}</p>
+          {% if relatorio_tipo == "executivo" %}
+            {% if bloco.ultimo_incremento %}
+              <table class="report-table">
+                <thead>
+                  <tr>
+                    <th>Data</th>
+                    <th>Incremento</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="report-date">{{ bloco.ultimo_incremento.criado_em|date:"d/m/Y H:i" }}</td>
+                    <td class="report-text">{{ bloco.ultimo_incremento.texto|urlize|linebreaksbr }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            {% else %}
+              <p>Sem atualizações.</p>
+            {% endif %}
+          {% elif bloco.incrementos.all %}
+            <table class="report-table">
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Incremento</th>
+                </tr>
+              </thead>
+              <tbody>
+              {% for incremento in bloco.incrementos.all %}
+                <tr>
+                  <td class="report-date">{{ incremento.criado_em|date:"d/m/Y H:i" }}</td>
+                  <td class="report-text">{{ incremento.texto|urlize|linebreaksbr }}</td>
+                </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          {% else %}
+            <p>Sem atualizações.</p>
+          {% endif %}
+        </li>
+      {% endfor %}
+      </ol>
+    {% else %}
+      <p>Nenhum bloco encontrado.</p>
+    {% endif %}
+  </div>
+{% endblock %}

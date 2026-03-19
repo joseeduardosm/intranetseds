@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/sala_situacao/sala_situacao.css' %}" />
+{% endblock %}
+
+
+{% block content %}
+  <section class="sala-detail-layout sala-detail-layout--wide">
+    <div>
+      <section class="page-header"><h2>Detalhes do item</h2></section>
+      <div class="detail sala-detail-panel">
+        <p><strong>Nome:</strong> {{ processo.nome }}</p>
+        <p>
+          <strong>Indicadores:</strong>
+          {% for indicador in processo.indicadores_estrategicos.all %}
+            <a href="{% url 'sala_indicador_estrategico_detail' indicador.pk %}">{{ indicador.nome }}</a>{% if not forloop.last %}, {% endif %}
+          {% empty %}
+            -
+          {% endfor %}
+        </p>
+        <p><strong>Descrição:</strong> {{ processo.descricao|default:'-' }}</p>
+        <p>
+          <strong>Marcadores:</strong>
+          {% for marcador in processo.marcadores_efetivos %}
+            <span class="sala-marcador-chip" style="--marcador-cor: {{ marcador.cor }};">{{ marcador.nome }}</span>
+          {% empty %}
+            -
+          {% endfor %}
+        </p>
+        <p><strong>Data de lançamento:</strong> {{ processo.data_lancamento|date:'d/m/Y'|default:'-' }}</p>
+        <p><strong>Data de entrega estipulada:</strong> {{ processo.data_entrega_estipulada|date:'d/m/Y'|default:'-' }}</p>
+        <p><strong>Prazo:</strong> {{ processo.texto_prazo }}</p>
+        {% include "sala_situacao/_progresso_duplo.html" with item=processo show_delta_tooltip=True %}
+        <p><strong>Entregas vinculadas:</strong> {{ processo.entregas.count }}</p>
+        <div class="detail-actions">
+          <a class="btn btn-light" href="{% url 'sala_fluxo_entregas' processo.pk %}">Entregas</a>
+          {% if can_edit %}<a class="btn" href="{% url 'sala_processo_update' processo.pk %}">Editar</a>{% endif %}
+          {% if can_delete %}<a class="btn btn-secondary" href="{% url 'sala_processo_delete' processo.pk %}">Excluir</a>{% endif %}
+          <a class="btn btn-light" href="{% url 'sala_processo_list' %}">Voltar</a>
+        </div>
+      </div>
+      {% include "sala_situacao/_relacionamentos_hierarquicos.html" %}
+    </div>
+    <aside>
+      <section class="page-header"><h2>Notas e histórico</h2></section>
+      <div class="detail sala-detail-panel">
+        {% include "sala_situacao/_notas_item.html" %}
+        <h3 class="sala-side-title">Histórico de evoluções</h3>
+        {% include "sala_situacao/_historico_alteracoes.html" %}
+      </div>
+    </aside>
+  </section>
+{% endblock %}

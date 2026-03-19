@@ -1,0 +1,75 @@
+/* Picker de participantes no formulário de grupo */
+
+.participants-select-hidden {
+  display: none;
+}
+
+.participants-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-top: 10px;
+}
+
+.participants-picker--compact {
+  gap: 12px;
+}
+
+.participants-column {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.participants-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.participants-list {
+  min-height: 120px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.participants-list--compact {
+  min-height: 92px;
+  max-height: 180px;
+}
+
+.participants-list.is-selected {
+  background: #fbfaf7;
+}
+
+.participants-item {
+  border: 1px solid rgba(31, 42, 68, 0.12);
+  border-radius: 10px;
+  padding: 6px 10px;
+  text-align: left;
+  background: #ffffff;
+  color: var(--text);
+  cursor: pointer;
+  transition: border 0.2s ease, background 0.2s ease;
+  font-size: 0.9rem;
+}
+
+.participants-item:hover {
+  background: rgba(31, 42, 68, 0.05);
+  border-color: rgba(31, 42, 68, 0.25);
+}
+
+.participants-item.is-selected {
+  background: rgba(217, 79, 4, 0.12);
+  border-color: rgba(217, 79, 4, 0.5);
+  font-weight: 600;
+}

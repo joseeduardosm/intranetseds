@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/licitacoes/licitacoes.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>ETP TIC</h2>
+  </section>
+
+  <div class="card-actions">
+    <a class="btn" href="{% url 'licitacoes_etp_tic_create' %}">Novo ETP TIC</a>
+    <a class="btn btn-light" href="{% url 'licitacoes_home' %}">Voltar</a>
+  </div>
+
+  {% if etps %}
+    <div class="table-wrapper">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Numero processo</th>
+            <th>Titulo</th>
+            <th>Status</th>
+            <th>Secao atual</th>
+            <th>Atualizado em</th>
+            <th>Acoes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for etp in etps %}
+            <tr>
+              <td>{{ etp.numero_processo_servico }}</td>
+              <td>{{ etp.titulo|default:'-' }}</td>
+              <td>{{ etp.get_status_display }}</td>
+              <td>{{ etp.secao_atual }}</td>
+              <td>{{ etp.atualizado_em|date:"d/m/Y H:i" }}</td>
+              <td>
+                <a class="btn btn-small" href="{% url 'licitacoes_etp_tic_edit' etp.pk %}?secao={{ etp.secao_atual }}">Continuar</a>
+                <a class="btn btn-small btn-light" href="{% url 'licitacoes_etp_tic_preview' etp.pk %}">Preview</a>
+                <a class="btn btn-small btn-light" href="{% url 'licitacoes_etp_tic_export_docx' etp.pk %}">Exportar DOCX</a>
+                <a class="btn btn-small btn-danger" href="{% url 'licitacoes_etp_tic_delete' etp.pk %}">Excluir</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p>Nenhum ETP TIC cadastrado.</p>
+  {% endif %}
+{% endblock %}

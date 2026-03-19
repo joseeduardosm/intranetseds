@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <!-- Título e controle do organograma -->
+  <section class="page-header">
+    <h2>Organograma</h2>
+  </section>
+
+  {% if org_tree %}
+    <!-- Ação para expandir/contrair todos os níveis -->
+    <div class="org-actions">
+      <button class="btn btn-secondary btn-ghost" type="button" id="org-toggle-all" data-open="false">Expandir tudo</button>
+    </div>
+    <div class="org-chart">
+      {% for node in org_tree %}
+        <!-- Renderização recursiva de cada nó -->
+        {% include 'ramais/organograma_node.html' with node=node %}
+      {% endfor %}
+    </div>
+  {% else %}
+    <!-- Mensagem quando não há pessoas para o organograma -->
+    <p>Nenhuma pessoa cadastrada para montar o organograma.</p>
+  {% endif %}
+
+  <script>
+    // Abre/fecha o bloco de subordinados ao clicar no card.
+    document.querySelectorAll(".org-card").forEach((card) => {
+      card.addEventListener("click", () => {
+        const container = card.closest(".org-node");
+        if (!container) return;
+        const children = container.querySelector(":scope > .org-children");
+        if (!children) return;
+        children.classList.toggle("is-open");
+      });
+    });
+
+    // Botão para expandir/recolher todos os níveis.
+    const toggleAll = document.getElementById("org-toggle-all");
+    if (toggleAll) {
+      toggleAll.addEventListener("click", () => {
+        const open = toggleAll.getAttribute("data-open") !== "true";
+        document.querySelectorAll(".org-children").forEach((group) => {
+          group.classList.toggle("is-open", open);
+        });
+        toggleAll.textContent = open ? "Recolher tudo" : "Expandir tudo";
+        toggleAll.setAttribute("data-open", open ? "true" : "false");
+      });
+    }
+  </script>
+{% endblock %}

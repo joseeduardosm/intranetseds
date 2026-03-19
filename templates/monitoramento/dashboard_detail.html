@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% load static %}
+{% load monitoramento_extras %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/monitoramento/monitoramento.css' %}" />
+{% endblock %}
+
+{% block container_class %}container-wide{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>{{ dashboard.titulo }}</h2>
+  </section>
+
+  <div class="card-actions">
+    <a class="btn btn-light" href="{% url 'monitoramento_dashboard_list' dashboard.projeto.pk %}">Voltar</a>
+    <a class="btn" href="{% url 'monitoramento_dashboard_update' dashboard.pk %}">Editar dashboard</a>
+    <form method="post" action="{% url 'monitoramento_dashboard_delete' dashboard.pk %}" onsubmit="return confirm('Excluir este dashboard por completo?');">
+      {% csrf_token %}
+      <button class="btn btn-light" type="submit">Excluir dashboard</button>
+    </form>
+  </div>
+
+  {% if dashboard.descricao %}
+    <article class="card monitor-summary-card">
+      <div class="card-body">
+        <p class="card-text">{{ dashboard.descricao }}</p>
+      </div>
+    </article>
+  {% endif %}
+
+  {% if parameter_definitions %}
+    <article class="card form-card">
+      <form method="get" class="monitor-inline-form">
+        {% for item in parameter_definitions %}
+          <label for="id_param_{{ item.name }}">{{ item.label }}</label>
+          {% if item.options %}
+            <select id="id_param_{{ item.name }}" name="{{ item.name }}">
+              {% for option in item.options %}
+                <option
+                  value="{{ option.value }}"
+                  {% if parameter_values|get_item:item.name == option.value %}selected{% endif %}
+                >
+                  {{ option.label }}
+                </option>
+              {% endfor %}
+            </select>
+          {% else %}
+            <input
+              id="id_param_{{ item.name }}"
+              type="{% if item.type == 'date' %}date{% elif item.type == 'datetime' %}datetime-local{% else %}text{% endif %}"
+              name="{{ item.name }}"
+              value="{{ parameter_values|get_item:item.name }}"
+            />
+          {% endif %}
+        {% endfor %}
+        <button class="btn" type="submit">Aplicar filtros</button>
+      </form>
+    </article>
+  {% endif %}
+
+  {% if metric_cards %}
+    <section class="monitor-kpi-grid">
+      {% for item in metric_cards %}
+        <article class="card monitor-kpi-card">
+          <div class="monitor-kpi-accent"></div>
+          <div class="card-body">
+            <p class="monitor-kpi-label">{{ item.display_title }}</p>
+            {% if item.warning %}
+              <p class="monitor-warning">{{ item.warning }}</p>
+            {% else %}
+              <p class="monitor-kpi-value">{{ item.metric_value }}</p>
+              <p class="monitor-kpi-meta">{{ item.metric_column|cut:"_"|title }}</p>
+            {% endif %}
+          </div>
+        </article>
+      {% endfor %}
+    </section>
+  {% endif %}
+
+  <section class="monitor-dashboard-grid">
+    {% for item in graficos_payload %}
+      <article class="card monitor-chart-card{% if item.payload.kind == "table" %} monitor-chart-card--full{% endif %}">
+        <div class="card-body">
+          <div class="monitor-card-actions">
+            <div class="monitor-card-heading">
+              <h3 class="card-title">{{ item.display_title }}</h3>
+              {% if item.subtitle %}
+                <p class="monitor-chart-subtitle">{{ item.subtitle }}</p>
+              {% endif %}
+            </div>
+          </div>
+          {% if item.warning %}
+            <p class="monitor-warning">{{ item.warning }}</p>
+          {% endif %}
+          {% if item.payload.kind == "plotly" %}
+            <div id="chart-{{ item.obj.pk }}" class="monitor-chart"></div>
+            {% with script_id='chart-data-'|concat:item.obj.pk %}
+              {{ item.payload|json_script:script_id }}
+            {% endwith %}
+          {% else %}
+            <div class="table-wrapper">
+              <table class="table">
+                <thead>
+                  <tr>
+                    {% for column in item.payload.columns %}
+                      <th>{{ column }}</th>
+                    {% endfor %}
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in item.payload.rows %}
+                    <tr>
+                      {% for column in item.payload.columns %}
+                        <td>{{ row|get_item:column }}</td>
+                      {% endfor %}
+                    </tr>
+                  {% empty %}
+                    <tr>
+                      <td colspan="{{ item.payload.columns|length|default:1 }}">Nenhum dado disponível.</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% endif %}
+          <div class="monitor-dashboard-meta">
+            <span>{{ item.created_label }}</span>
+            <span>Última atualização em {{ item.updated_label }}</span>
+          </div>
+          {% if item.table_rows and item.payload.kind == "plotly" %}
+            <div class="table-wrapper">
+              <table class="table">
+                <thead>
+                  <tr>
+                    {% for column in item.table_columns %}
+                      <th>{{ column }}</th>
+                    {% endfor %}
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in item.table_rows %}
+                    <tr>
+                      {% for column in item.table_columns %}
+                        <td>{{ row|get_item:column }}</td>
+                      {% endfor %}
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% endif %}
+        </div>
+      </article>
+    {% endfor %}
+  </section>
+
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <script>
+    const currentQuery = new URLSearchParams(window.location.search);
+    {% for item in graficos_payload %}
+      {% if item.payload.kind == "plotly" %}
+        const chartData{{ item.obj.pk }} = JSON.parse(document.getElementById("chart-data-{{ item.obj.pk }}")?.textContent || "{}");
+        Plotly.newPlot(
+          "chart-{{ item.obj.pk }}",
+          chartData{{ item.obj.pk }}.traces || [],
+          chartData{{ item.obj.pk }}.layout || {},
+          chartData{{ item.obj.pk }}.config || { responsive: true, displaylogo: false }
+        ).then((chart) => {
+          chart.on("plotly_click", (eventData) => {
+            const point = eventData?.points?.[0];
+            if (!point) return;
+            const params = new URLSearchParams(currentQuery.toString());
+            if (point.x !== undefined) params.set("clicked_x", point.x);
+            if (point.y !== undefined) params.set("clicked_y", point.y);
+            if (point.label !== undefined) params.set("clicked_label", point.label);
+            if (point.data?.name) params.set("clicked_series", point.data.name);
+            window.location.href = "{% url 'monitoramento_grafico_exportar' item.obj.pk %}?" + params.toString();
+          });
+        });
+      {% endif %}
+    {% endfor %}
+  </script>
+{% endblock %}

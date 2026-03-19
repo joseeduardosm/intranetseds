@@ -1,0 +1,169 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/reserva_salas/reserva_salas.css' %}" />
+{% endblock %}
+
+{% block container_class %}container-wide{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Dashboard de Reservas</h2>
+  </section>
+
+  <div class="card-actions">
+    <a class="btn btn-light" href="{% url 'salas_list' %}">Voltar ao calendário</a>
+    <a class="btn btn-light" href="{% url 'reservas_list' %}">Ver reservas</a>
+  </div>
+
+  <section class="reserva-dashboard">
+    <div class="reserva-dashboard-kpis">
+      <article class="card reserva-kpi-card">
+        <p class="reserva-kpi-label">Total de reuniões no mês</p>
+        <p class="reserva-kpi-value">{{ total_reunioes_mes }}</p>
+        <p class="reserva-kpi-meta">Referência: {{ mes_referencia }}</p>
+      </article>
+      <article class="card reserva-kpi-card">
+        <p class="reserva-kpi-label">Salas ativas no mês</p>
+        <p class="reserva-kpi-value">{{ salas_ativas_mes }}</p>
+        <p class="reserva-kpi-meta">Com ao menos uma reserva</p>
+      </article>
+      <article class="card reserva-kpi-card">
+        <p class="reserva-kpi-label">Média de reuniões por dia</p>
+        <p class="reserva-kpi-value">{{ media_reunioes_por_dia }}</p>
+        <p class="reserva-kpi-meta">Dias com reserva no mês</p>
+      </article>
+    </div>
+
+    <div class="reserva-dashboard-grid">
+      <article class="card reserva-chart-card">
+        <h3 class="reserva-chart-title">Reuniões por mês</h3>
+        <p class="reserva-kpi-meta">Clique em um ponto para baixar o detalhe em XLSX.</p>
+        <div id="chart-reunioes-mes" class="reserva-chart"></div>
+      </article>
+      <article class="card reserva-chart-card">
+        <h3 class="reserva-chart-title">Salas mais utilizadas (eventos)</h3>
+        <p class="reserva-kpi-meta">Clique em uma barra para baixar o detalhe em XLSX.</p>
+        <div id="chart-salas-top" class="reserva-chart"></div>
+      </article>
+    </div>
+
+    <article class="card reserva-table-card">
+      <h3 class="reserva-chart-title">Pessoas que mais reservam salas.</h3>
+      {% if ranking_pessoas %}
+        <div class="table-wrapper">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Pessoa</th>
+                <th>Ramal</th>
+                <th>E-mail</th>
+                <th>Quantidade de reservas</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in ranking_pessoas %}
+                <tr>
+                  <td>{{ item.nome }}</td>
+                  <td>{{ item.ramal }}</td>
+                  <td>{{ item.email }}</td>
+                  <td>{{ item.total }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p>Nenhuma reserva registrada até o momento.</p>
+      {% endif %}
+    </article>
+
+  </section>
+
+  {{ grafico_reunioes_meses|json_script:"grafico-reunioes-meses" }}
+  {{ grafico_salas_top|json_script:"grafico-salas-top" }}
+
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <script>
+    const reunioesMeses = JSON.parse(
+      document.getElementById("grafico-reunioes-meses")?.textContent || "{}"
+    );
+    const salasTop = JSON.parse(
+      document.getElementById("grafico-salas-top")?.textContent || "{}"
+    );
+    const exportarUrl = "{% url 'reservas_dashboard_exportar' %}";
+    const plotlyConfig = {
+      responsive: true,
+      displaylogo: false,
+      toImageButtonOptions: {
+        format: "jpeg",
+        filename: "dashboard-reservas",
+        scale: 2,
+      },
+    };
+    const baixarXlsx = (filtros) => {
+      const query = new URLSearchParams(filtros).toString();
+      const url = query ? `${exportarUrl}?${query}` : exportarUrl;
+      window.location.href = url;
+    };
+
+    Plotly.newPlot(
+      "chart-reunioes-mes",
+      [
+        {
+          x: reunioesMeses.labels || [],
+          y: reunioesMeses.values || [],
+          type: "scatter",
+          mode: "lines+markers",
+          line: { color: "#1f6feb", width: 3 },
+          marker: { size: 8 },
+          hovertemplate: "%{x}<br>%{y} reunião(ões)<extra></extra>",
+        },
+      ],
+      {
+        margin: { l: 40, r: 20, t: 20, b: 40 },
+        xaxis: { title: "Mês" },
+        yaxis: { title: "Reuniões", rangemode: "tozero" },
+        paper_bgcolor: "#ffffff",
+        plot_bgcolor: "#ffffff",
+      },
+      plotlyConfig
+    ).then((chart) => {
+      chart.on("plotly_click", (eventData) => {
+        const mesRef = eventData?.points?.[0]?.x;
+        if (!mesRef) return;
+        baixarXlsx({ mes_ref: mesRef });
+      });
+    });
+
+    Plotly.newPlot(
+      "chart-salas-top",
+      [
+        {
+          x: salasTop.values || [],
+          y: salasTop.labels || [],
+          type: "bar",
+          orientation: "h",
+          marker: { color: "#0f766e" },
+          hovertemplate: "%{y}<br>%{x} evento(s)<extra></extra>",
+        },
+      ],
+      {
+        margin: { l: 120, r: 20, t: 20, b: 40 },
+        xaxis: { title: "Quantidade de eventos", rangemode: "tozero" },
+        yaxis: { automargin: true },
+        paper_bgcolor: "#ffffff",
+        plot_bgcolor: "#ffffff",
+      },
+      plotlyConfig
+    ).then((chart) => {
+      chart.on("plotly_click", (eventData) => {
+        const salaNome = eventData?.points?.[0]?.y;
+        if (!salaNome) return;
+        baixarXlsx({ sala_nome: salaNome });
+      });
+    });
+  </script>
+{% endblock %}

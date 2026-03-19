@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/lousa_digital/lousa_digital.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Excluir processo</h2>
+  </section>
+
+  <div class="form">
+    <p>Tem certeza que deseja excluir o processo <strong>{{ object.numero_sei }}</strong>?</p>
+    <p>Esta ação removerá também os encaminhamentos e eventos da timeline relacionados.</p>
+
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-actions">
+        <button class="btn btn-secondary" type="submit">Confirmar exclusão</button>
+        <a class="btn btn-light" href="{% url 'lousa_digital_detail' object.pk %}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}

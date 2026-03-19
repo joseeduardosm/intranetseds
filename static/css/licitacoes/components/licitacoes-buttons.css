@@ -1,0 +1,77 @@
+/* Botões usados no módulo */
+
+.btn {
+  display: inline-block;
+  background: var(--accent);
+  color: #ffffff;
+  text-decoration: none;
+  padding: 10px 18px;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn-light {
+  background: #ffffff;
+  color: var(--primary);
+  border: 1px solid var(--border);
+}
+
+.btn-secondary {
+  background: #9aa1ab;
+}
+
+.btn-small {
+  padding: 6px 12px;
+  font-size: 0.85rem;
+}
+
+.btn-danger {
+  background: #b3261e;
+}
+
+.licitacoes-btn-up {
+  background: var(--primary);
+  color: #fff;
+}
+
+.licitacoes-btn-down {
+  background: #5b6980;
+  color: #fff;
+}
+
+.licitacoes-btn-export {
+  background: #2f4b66;
+  color: #fff;
+}
+
+.licitacoes-btn-duplicate {
+  background: #8b5e34;
+  color: #fff;
+}
+
+.licitacoes-btn-back {
+  background: #6a727e;
+  color: #fff;
+}
+
+.licitacoes-btn-subsessao {
+  background: #0a61d0;
+  color: #fff;
+}
+
+.licitacoes-btn-item {
+  background: #8f4f00;
+  color: #fff;
+}
+
+.licitacoes-btn-subitem {
+  background: #7b3fb2;
+  color: #fff;
+}
+
+.licitacoes-btn-table {
+  background: #3b5d1a;
+  color: #fff;
+}

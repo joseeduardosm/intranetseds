@@ -1,0 +1,23 @@
+/* Página de formulário */
+
+.sala-marcador-admin-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.sala-marcador-admin-modal-card {
+  width: min(420px, calc(100vw - 32px));
+  background: #fff;
+  border-radius: 10px;
+  padding: 16px;
+  box-shadow: 0 14px 35px rgba(0, 0, 0, 0.2);
+}
+
+.sala-marcador-admin-modal-card h4 {
+  margin: 0 0 12px;
+}

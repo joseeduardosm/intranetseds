@@ -1,0 +1,224 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load lousa_tags %}
+
+{% block container_class %}container-wide{% endblock %}
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/lousa_digital/lousa_digital.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>{{ processo.numero_sei }}</h2>
+  </section>
+
+  <div class="card-actions">
+    <a class="btn" href="{% url 'lousa_digital_update' processo.pk %}">Editar processo</a>
+    <a class="btn btn-light" href="{% url 'lousa_digital_list' %}">Voltar</a>
+  </div>
+
+  <div class="lousa-detail-grid">
+    <section class="detail-card">
+      <h3>Dados do processo</h3>
+      <p><strong>Assunto:</strong> {{ processo.assunto }}</p>
+      <p><strong>Numero SEI:</strong> {{ processo.numero_sei }}</p>
+      <p>
+        <strong>Link SEI:</strong>
+        {% if processo.link_sei %}
+          <a href="{{ processo.link_sei }}" target="_blank" rel="noopener">Abrir processo</a>
+        {% else %}
+          -
+        {% endif %}
+      </p>
+      <p><strong>Caixa de origem:</strong> {{ processo.caixa_origem }}</p>
+      <p><strong>Status:</strong> {{ processo.get_status_display }}</p>
+      <p><strong>Arquivo morto:</strong> {% if processo_arquivo_morto %}Sim{% else %}Não{% endif %}</p>
+
+      <div class="lousa-section-divider"></div>
+      <h3>Novo encaminhamento</h3>
+      {% if processo_arquivo_morto %}
+        <p class="detail-meta">Processo marcado como arquivo morto. Novos encaminhamentos estão bloqueados.</p>
+      {% endif %}
+      <form method="post" action="{% url 'lousa_digital_encaminhar' processo.pk %}" class="lousa-form">
+        {% csrf_token %}
+        {{ encaminhamento_form.non_field_errors }}
+        <p>
+          <label for="{{ encaminhamento_form.destino.id_for_label }}">{{ encaminhamento_form.destino.label }}</label>
+          <input
+            type="text"
+            name="destino"
+            id="{{ encaminhamento_form.destino.id_for_label }}"
+            class="form-control"
+            maxlength="180"
+            style="text-transform: uppercase;"
+            oninput="this.value = this.value.toUpperCase();"
+            {% if processo_arquivo_morto %}disabled{% endif %}
+          />
+        </p>
+        <p>
+          <label for="{{ encaminhamento_form.prazo_data.id_for_label }}">{{ encaminhamento_form.prazo_data.label }}</label>
+          <input
+            type="date"
+            name="prazo_data"
+            id="{{ encaminhamento_form.prazo_data.id_for_label }}"
+            class="form-control"
+            {% if processo_arquivo_morto %}disabled{% endif %}
+          />
+        </p>
+        <p>
+          <label for="{{ encaminhamento_form.email_notificacao.id_for_label }}">{{ encaminhamento_form.email_notificacao.label }}</label>
+          <input
+            type="email"
+            name="email_notificacao"
+            id="{{ encaminhamento_form.email_notificacao.id_for_label }}"
+            class="form-control"
+            placeholder="exemplo@dominio.gov.br"
+            list="email-notificacao-opcoes"
+            maxlength="254"
+            {% if processo_arquivo_morto %}disabled{% endif %}
+          />
+          <datalist id="email-notificacao-opcoes">
+            {% for email in emails_notificacao_sugeridos %}
+              <option value="{{ email }}"></option>
+            {% endfor %}
+          </datalist>
+          <small class="detail-meta">Opcional. Sem e-mail, este encaminhamento não receberá alerta automático de 72h.</small>
+        </p>
+        <div class="form-actions">
+          <button class="btn" type="submit" {% if processo_arquivo_morto %}disabled{% endif %}>Encaminhar</button>
+        </div>
+      </form>
+
+      <div class="lousa-section-divider"></div>
+      <h3>Encaminhamentos</h3>
+      {% if encaminhamentos %}
+        <div class="lousa-enc-list">
+          {% for enc in encaminhamentos %}
+            <article class="lousa-enc-item {% if enc.esta_ativo %}is-active{% else %}is-closed{% endif %}">
+              <p><strong>Destino:</strong> {{ enc.destino }}</p>
+              <p><strong>Inicio:</strong> {{ enc.data_inicio|date:"d/m/Y H:i" }}</p>
+              <p><strong>Prazo:</strong> {{ enc.prazo_data|date:"d/m/Y" }}</p>
+              {% if enc.email_notificacao %}
+                <p><strong>E-mail aviso:</strong> {{ enc.email_notificacao }}</p>
+              {% endif %}
+              <p>
+                <strong>Status:</strong>
+                {% if enc.esta_ativo %}
+                  {% if enc.prazo.atrasado %}Atrasado{% else %}Ativo{% endif %}
+                {% else %}
+                  Devolvido em {{ enc.data_conclusao|date:"d/m/Y H:i" }}
+                {% endif %}
+              </p>
+              {% if enc.esta_ativo %}
+                <button
+                  type="button"
+                  class="sala-marcador-chip lousa-marcador-acao"
+                  style="--marcador-cor: {{ enc.destino|marcador_cor }};"
+                  title="processo devolvido"
+                  data-devolver-open
+                  data-devolver-url="{% url 'lousa_digital_devolver' processo.pk enc.pk %}"
+                >
+                  {{ enc.destino }}
+                </button>
+              {% endif %}
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p>Sem encaminhamentos cadastrados.</p>
+      {% endif %}
+    </section>
+
+    <section class="detail-card detail-card-tall">
+      <h3>Timeline</h3>
+      <form method="post" action="{% url 'lousa_digital_nota' processo.pk %}" class="lousa-note-form lousa-form">
+        {% csrf_token %}
+        {{ nota_form.non_field_errors }}
+        <p>
+          <label for="{{ nota_form.descricao.id_for_label }}">{{ nota_form.descricao.label }}</label>
+          {{ nota_form.descricao }}
+        </p>
+        <div class="form-actions">
+          <button class="btn" type="submit">Inserir nota</button>
+        </div>
+      </form>
+
+      {% if eventos %}
+        <ul class="incrementos-timeline">
+          {% for evento in eventos %}
+            <li class="incremento-item">
+              <div class="incremento-meta">
+                <span>{{ evento.get_tipo_display }}</span>
+                <span>{{ evento.criado_em|date:"d/m/Y H:i" }}</span>
+                <span>
+                  {% if evento.usuario %}
+                    {% if evento.usuario.get_full_name %}
+                      {{ evento.usuario.get_full_name }}
+                    {% else %}
+                      {{ evento.usuario.username }}
+                    {% endif %}
+                  {% else %}
+                    Sistema
+                  {% endif %}
+                </span>
+              </div>
+              <div class="incremento-text">{{ evento.descricao|linebreaksbr }}</div>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>Nenhum evento registrado.</p>
+      {% endif %}
+    </section>
+  </div>
+
+  <div class="profile-alert-backdrop auth-required-hidden" id="lousa-devolver-backdrop" aria-hidden="true"></div>
+  <div class="profile-alert-modal auth-required-hidden" id="lousa-devolver-modal" role="dialog" aria-modal="true" aria-label="Confirmar devolução">
+    <h3>Confirmar devolução</h3>
+    <p>Deseja marcar este encaminhamento como devolvido?</p>
+    <div class="profile-alert-actions">
+      <form method="post" id="lousa-devolver-form">
+        {% csrf_token %}
+        <button class="btn btn-secondary" type="submit">devolvido</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const devolverBackdrop = document.getElementById("lousa-devolver-backdrop");
+    const devolverModal = document.getElementById("lousa-devolver-modal");
+    const devolverForm = document.getElementById("lousa-devolver-form");
+
+    const closeDevolverModal = () => {
+      if (!devolverBackdrop || !devolverModal) return;
+      devolverBackdrop.classList.add("auth-required-hidden");
+      devolverModal.classList.add("auth-required-hidden");
+      devolverBackdrop.setAttribute("aria-hidden", "true");
+    };
+
+    const openDevolverModal = (url) => {
+      if (!devolverBackdrop || !devolverModal || !devolverForm || !url) return;
+      devolverForm.setAttribute("action", url);
+      devolverBackdrop.classList.remove("auth-required-hidden");
+      devolverModal.classList.remove("auth-required-hidden");
+      devolverBackdrop.setAttribute("aria-hidden", "false");
+    };
+
+    document.querySelectorAll("[data-devolver-open]").forEach((btn) => {
+      btn.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        openDevolverModal(btn.dataset.devolverUrl || "");
+      });
+    });
+
+    if (devolverBackdrop) {
+      devolverBackdrop.addEventListener("click", closeDevolverModal);
+    }
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        closeDevolverModal();
+      }
+    });
+  </script>
+{% endblock %}

@@ -1,0 +1,104 @@
+/* Itens de timeline da lateral de detalhe da sala */
+
+.sala-timeline-list {
+  flex: 1;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  border-left: 2px solid rgba(31, 42, 68, 0.12);
+}
+
+.sala-timeline-item {
+  position: relative;
+  padding: 12px 14px 12px 22px;
+}
+
+.sala-timeline-item::before {
+  content: "";
+  position: absolute;
+  left: -6px;
+  top: 16px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--primary);
+  box-shadow: 0 0 0 3px #fff;
+}
+
+.sala-timeline-item + .sala-timeline-item {
+  border-top: 1px solid rgba(31, 42, 68, 0.08);
+}
+
+.sala-timeline-time {
+  font-size: 0.82rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.sala-timeline-title {
+  margin-top: 4px;
+  color: var(--text);
+  font-weight: 700;
+}
+
+.sala-timeline-meta {
+  margin-top: 2px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+/* Dashboard de reservas */
+
+.reserva-dashboard {
+  display: grid;
+  gap: 16px;
+}
+
+.reserva-dashboard-kpis {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+.reserva-kpi-card {
+  padding: 16px;
+}
+
+.reserva-kpi-label {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.reserva-kpi-value {
+  margin: 8px 0 4px;
+  font-size: 1.9rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.reserva-kpi-meta {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.reserva-dashboard-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.reserva-chart-card,
+.reserva-table-card {
+  padding: 14px;
+}
+
+.reserva-chart-title {
+  margin: 0 0 10px;
+  font-size: 1rem;
+}
+
+.reserva-chart {
+  min-height: 320px;
+}

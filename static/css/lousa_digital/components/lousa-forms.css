@@ -1,0 +1,73 @@
+/* Formulários */
+
+.lousa-note-form {
+  margin-bottom: 16px;
+}
+
+.lousa-form p {
+  margin: 0 0 16px;
+}
+
+.lousa-form label {
+  display: block;
+  font-weight: 600;
+}
+
+.lousa-form input,
+.lousa-form textarea,
+.lousa-form select {
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 1px solid #d7d4cc;
+  border-radius: 10px;
+  background: #fff;
+  font-size: 1rem;
+  margin-top: 6px;
+}
+
+.lousa-form textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.lousa-form-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.lousa-form-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.lousa-checkbox-row {
+  display: flex;
+  justify-content: flex-end;
+  margin: 4px 0 14px;
+}
+
+.lousa-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.lousa-form .lousa-checkbox-label input[type="checkbox"] {
+  width: 18px;
+  min-height: 18px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+}
+
+@media (max-width: 1000px) {
+  .lousa-form-grid-2,
+  .lousa-form-grid-3 {
+    grid-template-columns: 1fr;
+  }
+}

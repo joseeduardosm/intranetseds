@@ -1,0 +1,9 @@
+/* Base do módulo Reserva de Salas */
+
+.reserva-salas-page {
+  --reserva-surface: var(--card);
+  --reserva-border: var(--border);
+  --reserva-primary: var(--primary);
+  --reserva-text: var(--text);
+  --reserva-muted: var(--muted);
+}

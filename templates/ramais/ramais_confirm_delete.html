@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <!-- Confirmação de exclusão de ramal -->
+  <section class="page-header">
+    <h2>Excluir ramal</h2>
+  </section>
+
+  <!-- Formulário de confirmação (POST) -->
+  <form class="form" method="post">
+    {% csrf_token %}
+    <p>Tem certeza que deseja excluir "{{ object.nome_display }}"?</p>
+    <div class="form-actions">
+      <button class="btn btn-danger" type="submit">Excluir</button>
+      <a class="btn btn-secondary" href="{% url 'ramais_detail' object.pk %}">Cancelar</a>
+    </div>
+  </form>
+{% endblock %}
+

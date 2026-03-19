@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/usuarios/usuarios.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Auditoria de Permissoes</h2>
+  </section>
+
+  {% include 'usuarios/_tabs.html' with usuarios_tab='setores' %}
+
+  <form method="get" class="form form--ramais">
+    <div class="form-grid form-grid--ramais">
+      <div class="form-field">
+        <label for="audit-user">Usuario</label>
+        <select id="audit-user" name="user" class="form-control">
+          <option value="">Todos</option>
+          {% for usuario in users %}
+            <option value="{{ usuario.id }}" {% if selected_user == usuario.id|stringformat:"s" %}selected{% endif %}>{{ usuario.get_full_name|default:usuario.username }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-field">
+        <label for="audit-permission">Permissao</label>
+        <input id="audit-permission" name="permission" value="{{ selected_permission }}" class="form-control" placeholder="app.codename" />
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn" type="submit">Filtrar</button>
+      <a class="btn btn-light" href="{% url 'setores_permissions_audit' %}">Limpar</a>
+    </div>
+  </form>
+
+  <div class="table-wrapper">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Data</th>
+          <th>Usuario</th>
+          <th>Permissao</th>
+          <th>Decisao</th>
+          <th>Origem</th>
+          <th>Setor</th>
+          <th>Caminho</th>
+          <th>Motivo</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for audit in audits %}
+          <tr>
+            <td>{{ audit.created_at|date:"d/m/Y H:i:s" }}</td>
+            <td>{% if audit.user %}{{ audit.user.get_full_name|default:audit.user.username }}{% else %}-{% endif %}</td>
+            <td>{{ audit.permission_code }}</td>
+            <td>{{ audit.effect }}</td>
+            <td>{{ audit.get_source_display }}</td>
+            <td>{% if audit.source_setor %}{{ audit.source_setor.group.name }}{% else %}-{% endif %}</td>
+            <td>{{ audit.ancestry_path|default:"-" }}</td>
+            <td>{{ audit.reason|default:"-" }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="8">Sem registros para os filtros informados.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if is_paginated %}
+    <nav class="pagination">
+      {% if page_obj.has_previous %}
+        <a class="btn btn-light" href="?page={{ page_obj.previous_page_number }}{% if selected_user %}&user={{ selected_user }}{% endif %}{% if selected_permission %}&permission={{ selected_permission }}{% endif %}">Anterior</a>
+      {% endif %}
+      <span class="pagination-meta">Pagina {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+      {% if page_obj.has_next %}
+        <a class="btn btn-light" href="?page={{ page_obj.next_page_number }}{% if selected_user %}&user={{ selected_user }}{% endif %}{% if selected_permission %}&permission={{ selected_permission }}{% endif %}">Proxima</a>
+      {% endif %}
+    </nav>
+  {% endif %}
+{% endblock %}

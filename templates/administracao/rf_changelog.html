@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>RFs e Changelog</h2>
+    <p>Painel de consulta e edicao continua: requisitos funcionais e historico de alteracoes.</p>
+  </section>
+
+  <section class="form-card">
+    <h3>Novo registro de alteracao</h3>
+    <form method="post" class="form-grid">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="new_entry">
+      <p>
+        <label for="{{ entry_form.sistema.id_for_label }}">{{ entry_form.sistema.label }}</label>
+        {{ entry_form.sistema }}
+      </p>
+      <p>
+        <label for="{{ entry_form.titulo.id_for_label }}">{{ entry_form.titulo.label }}</label>
+        {{ entry_form.titulo }}
+      </p>
+      <p class="field-full">
+        <label for="{{ entry_form.descricao.id_for_label }}">{{ entry_form.descricao.label }}</label>
+        {{ entry_form.descricao }}
+      </p>
+      <div class="form-actions field-full">
+        <button class="btn" type="submit">Registrar no changelog</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="card-grid card-grid-2col">
+    <article class="form-card">
+      <h3>Changelog</h3>
+      <p><strong>Origem:</strong> <code>{{ changelog_path }}</code></p>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="save_changelog">
+        {{ changelog_form.conteudo }}
+        <div class="form-actions" style="margin-top: 8px;">
+          <button class="btn" type="submit">Salvar changelog</button>
+        </div>
+      </form>
+      <hr>
+      {% if changelog_text %}
+        <div class="rf-markdown">{{ changelog_html }}</div>
+      {% else %}
+        <p>Nenhuma alteracao registrada ainda em <code>{{ changelog_path }}</code>.</p>
+      {% endif %}
+    </article>
+    <article class="form-card">
+      <h3>RFs</h3>
+      <p><strong>Origem:</strong> <code>{{ rf_path }}</code></p>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="save_rf">
+        {{ rf_form.conteudo }}
+        <div class="form-actions" style="margin-top: 8px;">
+          <button class="btn" type="submit">Salvar RFs</button>
+        </div>
+      </form>
+      <hr>
+      {% if rf_text %}
+        <div class="rf-markdown rf-markdown-rf">{{ rf_html }}</div>
+      {% else %}
+        <p>Nenhum RF registrado ainda em <code>{{ rf_path }}</code>.</p>
+      {% endif %}
+    </article>
+  </section>
+
+  <section class="form-card">
+    <h3>Ultimos registros estruturados</h3>
+    <table class="table-list">
+      <thead>
+        <tr>
+          <th>Data</th>
+          <th>Modulo</th>
+          <th>Titulo</th>
+          <th>Descricao</th>
+          <th>Autor</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in entries %}
+          <tr>
+            <td>{{ item.criado_em|date:"d/m/Y H:i" }}</td>
+            <td>{{ item.get_sistema_display }}</td>
+            <td>{{ item.titulo }}</td>
+            <td>{{ item.descricao }}</td>
+            <td>{% if item.criado_por %}{{ item.criado_por.get_full_name|default:item.criado_por.username }}{% else %}-{% endif %}</td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="5">Nenhum registro estruturado ainda.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  <div class="form-actions">
+    <a class="btn btn-secondary" href="{% url 'administracao_configuracoes' %}">Voltar</a>
+  </div>
+{% endblock %}

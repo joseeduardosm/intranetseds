@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/reserva_salas/reserva_salas.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Excluir reserva</h2>
+  </section>
+
+  <div class="detail">
+    <p>Tem certeza que deseja excluir <strong>{{ object.nome_evento }}</strong>?</p>
+    <form method="post">
+      {% csrf_token %}
+      {% if object.serie_id and serie_count|default:0 > 1 %}
+        <fieldset class="form-fieldset">
+          <legend>Excluir</legend>
+          <label class="checkbox-item">
+            <input type="radio" name="apply_scope" value="single" checked />
+            Somente este evento
+          </label>
+          <label class="checkbox-item">
+            <input type="radio" name="apply_scope" value="all" />
+            Todos os eventos recorrentes
+          </label>
+        </fieldset>
+      {% endif %}
+      <div class="detail-actions">
+        <button type="submit" class="btn btn-danger">Confirmar exclusao</button>
+        <a class="btn btn-light" href="{% url 'reservas_detail' object.pk %}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}

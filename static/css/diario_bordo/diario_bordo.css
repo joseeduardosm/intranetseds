@@ -1,0 +1,8 @@
+@import url("base/diario-base.css");
+@import url("layout/diario-layout.css");
+@import url("components/diario-filters.css");
+@import url("components/diario-cards.css");
+@import url("components/diario-feed.css");
+@import url("components/diario-alerts.css");
+@import url("pages/diario-reports.css");
+@import url("utilities/diario-utilities.css");

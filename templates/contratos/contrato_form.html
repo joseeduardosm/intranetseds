@@ -1,0 +1,160 @@
+﻿{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/contratos/contratos.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>{% if object %}Editar contrato{% else %}Novo contrato{% endif %}</h2>
+  </section>
+
+  <div class="form">
+    <form method="post">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      <p>
+        <label for="{{ form.nro_sei.id_for_label }}">{{ form.nro_sei.label }}</label>
+        {{ form.nro_sei }}
+        {{ form.nro_sei.errors }}
+      </p>
+      <p>
+        <label for="{{ form.link_processo.id_for_label }}">{{ form.link_processo.label }}</label>
+        {{ form.link_processo }}
+        {{ form.link_processo.errors }}
+      </p>
+      <p>
+        <label for="{{ form.nro_contrato.id_for_label }}">{{ form.nro_contrato.label }}</label>
+        {{ form.nro_contrato }}
+        {{ form.nro_contrato.errors }}
+      </p>
+      <p>
+        <label for="{{ form.empresa.id_for_label }}">{{ form.empresa.label }}</label>
+        {{ form.empresa }}
+        {{ form.empresa.errors }}
+      </p>
+      <p>
+        <label for="{{ form.objeto.id_for_label }}">{{ form.objeto.label }}</label>
+        {{ form.objeto }}
+        {{ form.objeto.errors }}
+      </p>
+      <p>
+        <label for="{{ form.status.id_for_label }}">{{ form.status.label }}</label>
+        {{ form.status }}
+        {{ form.status.errors }}
+      </p>
+      <p>
+        <label for="{{ form.valor_total.id_for_label }}">{{ form.valor_total.label }}</label>
+        {{ form.valor_total }}
+        {{ form.valor_total.errors }}
+      </p>
+      <p>
+        <label for="{{ form.valor_mensal.id_for_label }}">{{ form.valor_mensal.label }}</label>
+        {{ form.valor_mensal }}
+        {{ form.valor_mensal.errors }}
+      </p>
+      <p>
+        <label for="{{ form.data_inicial.id_for_label }}">{{ form.data_inicial.label }}</label>
+        {{ form.data_inicial }}
+        {{ form.data_inicial.errors }}
+      </p>
+      <p>
+        <label for="{{ form.vigencia_meses.id_for_label }}">{{ form.vigencia_meses.label }}</label>
+        {{ form.vigencia_meses }}
+        {{ form.vigencia_meses.errors }}
+      </p>
+      <p>
+        <label for="{{ form.data_fim.id_for_label }}">{{ form.data_fim.label }}</label>
+        {{ form.data_fim }}
+        {{ form.data_fim.errors }}
+      </p>
+      <p>
+        <label for="{{ form.prorrogacao_maxima_meses.id_for_label }}">{{ form.prorrogacao_maxima_meses.label }}</label>
+        {{ form.prorrogacao_maxima_meses }}
+        {{ form.prorrogacao_maxima_meses.errors }}
+      </p>
+      <div class="form-actions">
+        <button type="submit" class="btn">Salvar</button>
+        <a class="btn btn-light" href="{% url 'contratos_list' %}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    const dataInicialInput = document.getElementById("{{ form.data_inicial.id_for_label }}");
+    const vigenciaInput = document.getElementById("{{ form.vigencia_meses.id_for_label }}");
+    const dataFimInput = document.getElementById("{{ form.data_fim.id_for_label }}");
+
+    const addMonths = (date, months) => {
+      const year = date.getFullYear() + Math.floor((date.getMonth() + months) / 12);
+      const month = (date.getMonth() + months) % 12;
+      const day = Math.min(
+        date.getDate(),
+        new Date(year, month + 1, 0).getDate()
+      );
+      return new Date(year, month, day);
+    };
+
+    const toInputValue = (date) => {
+      const yyyy = date.getFullYear();
+      const mm = String(date.getMonth() + 1).padStart(2, "0");
+      const dd = String(date.getDate()).padStart(2, "0");
+      return `${yyyy}-${mm}-${dd}`;
+    };
+
+    const recalcDataFim = () => {
+      if (!dataInicialInput || !vigenciaInput || !dataFimInput) return;
+      const dataInicialValue = dataInicialInput.value;
+      const vigenciaValue = parseInt(vigenciaInput.value, 10);
+      if (!dataInicialValue || Number.isNaN(vigenciaValue)) return;
+      const [year, month, day] = dataInicialValue.split("-").map(Number);
+      const dateObj = new Date(year, month - 1, day);
+      const novaDataFim = addMonths(dateObj, vigenciaValue);
+      dataFimInput.value = toInputValue(novaDataFim);
+    };
+
+    if (dataInicialInput) {
+      dataInicialInput.addEventListener("change", recalcDataFim);
+    }
+    if (vigenciaInput) {
+      vigenciaInput.addEventListener("change", recalcDataFim);
+    }
+
+    const valorTotalInput = document.getElementById("{{ form.valor_total.id_for_label }}");
+    const valorMensalInput = document.getElementById("{{ form.valor_mensal.id_for_label }}");
+
+    const parseValor = (value) => {
+      if (!value) return null;
+      const normalized = value.replace(/\./g, "").replace(",", ".").replace(/[^\d.-]/g, "");
+      const parsed = parseFloat(normalized);
+      return Number.isNaN(parsed) ? null : parsed;
+    };
+
+    const formatValor = (value) => {
+      return value.toFixed(2);
+    };
+
+    const recalcValorMensal = () => {
+      if (!valorTotalInput || !valorMensalInput || !vigenciaInput) return;
+      const total = parseValor(valorTotalInput.value);
+      const vigencia = parseInt(vigenciaInput.value, 10);
+      if (total === null || Number.isNaN(vigencia) || vigencia <= 0) return;
+      const mensal = total / vigencia;
+      valorMensalInput.value = formatValor(mensal);
+    };
+
+    if (vigenciaInput) {
+      vigenciaInput.addEventListener("change", () => {
+        recalcDataFim();
+        recalcValorMensal();
+      });
+    }
+    if (valorTotalInput) {
+      valorTotalInput.addEventListener("change", recalcValorMensal);
+      valorTotalInput.addEventListener("input", recalcValorMensal);
+    }
+
+    recalcValorMensal();
+  </script>
+{% endblock %}

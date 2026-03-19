@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Configuracoes</h2>
+  </section>
+
+  <section class="card-grid config-grid">
+    {% if show_card_noticias %}
+      <article class="card card-square">
+        <a class="card-link card-square-link" href="{% url 'noticia_create' %}">
+          <div class="card-body">
+            <h3 class="card-title">Nova noticia</h3>
+            <p class="card-text">Criar uma nova noticia para a intranet.</p>
+          </div>
+        </a>
+      </article>
+    {% endif %}
+    {% if show_card_ad %}
+      <article class="card card-square">
+        <a class="card-link card-square-link" href="{% url 'administracao_ad_config' %}">
+          <div class="card-body">
+            <h3 class="card-title">Configurar servidor AD</h3>
+            <p class="card-text">Definir servidor, base DN e credenciais de bind.</p>
+          </div>
+        </a>
+      </article>
+    {% endif %}
+    {% if show_card_smtp %}
+      <article class="card card-square">
+        <a class="card-link card-square-link" href="{% url 'administracao_smtp_config' %}">
+          <div class="card-body">
+            <h3 class="card-title">Configurar servidor SMTP</h3>
+            <p class="card-text">Definir e testar conexão para envio de e-mails automáticos.</p>
+          </div>
+        </a>
+      </article>
+    {% endif %}
+    {% if show_card_atalhos %}
+      <article class="card card-square">
+        <a class="card-link card-square-link" href="{% url 'administracao_atalho_list' %}">
+          <div class="card-body">
+            <h3 class="card-title">Atalhos</h3>
+            <p class="card-text">Gerenciar atalhos exibidos na Home.</p>
+          </div>
+        </a>
+      </article>
+    {% endif %}
+    {% if show_card_rh %}
+      <article class="card card-square">
+        <a class="card-link card-square-link" href="{% url 'administracao_rh' %}">
+          <div class="card-body">
+            <h3 class="card-title">RH</h3>
+            <p class="card-text">Folha de ponto, feriados e ferias.</p>
+          </div>
+        </a>
+      </article>
+    {% endif %}
+    {% if show_card_rfs %}
+      <article class="card card-square">
+        <a class="card-link card-square-link" href="{% url 'administracao_rfs' %}">
+          <div class="card-body">
+            <h3 class="card-title">RFs</h3>
+            <p class="card-text">Historico de alteracoes por data e hora.</p>
+          </div>
+        </a>
+      </article>
+    {% endif %}
+    {% if show_card_identidade_visual %}
+      <article class="card card-square">
+        <a class="card-link card-square-link" href="{% url 'administracao_identidade_visual' %}">
+          <div class="card-body">
+            <h3 class="card-title">Identidade visual</h3>
+            <p class="card-text">Personalizar cores da barra, fundo e nome do sistema.</p>
+          </div>
+        </a>
+      </article>
+    {% endif %}
+    {% if show_card_backup_sistema %}
+      <article class="card card-square">
+        <a class="card-link card-square-link" href="{% url 'administracao_backup_sistema' %}">
+          <div class="card-body">
+            <h3 class="card-title">Backup do sistema</h3>
+            <p class="card-text">Baixar um ZIP com os apps, arquivos essenciais e um dump SQL gerado no momento.</p>
+          </div>
+        </a>
+      </article>
+    {% endif %}
+  </section>
+{% endblock %}

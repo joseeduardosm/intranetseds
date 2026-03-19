@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/monitoramento/monitoramento.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Novo projeto de monitoramento</h2>
+  </section>
+
+  <article class="card form-card">
+    <form method="post" class="monitor-form">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <div class="form-actions">
+        <button class="btn" type="submit">Salvar projeto</button>
+        <a class="btn btn-light" href="{% url 'monitoramento_home' %}">Cancelar</a>
+      </div>
+    </form>
+  </article>
+{% endblock %}

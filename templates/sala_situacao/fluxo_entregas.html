@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/sala_situacao/sala_situacao.css' %}" />
+{% endblock %}
+
+
+{% block content %}
+  <section class="page-header">
+    <h2>{{ processo.nome }} - <span data-search-heading-count="fluxo-entregas">{{ entregas|length }}</span> entregas relacionadas</h2>
+    <p>Entregas do processo selecionado.</p>
+  </section>
+
+  <div class="card-actions">
+    {% if indicador_estrategico_retorno %}
+      <a class="btn btn-light" href="{% url 'sala_fluxo_processos' indicador_estrategico_retorno.pk %}">Voltar para processos</a>
+    {% else %}
+      <a class="btn btn-light" href="{% url 'sala_processo_list' %}">Voltar para processos</a>
+    {% endif %}
+    {% if perms.sala_situacao.add_entrega %}
+      <a class="btn" href="{% url 'sala_entrega_create' %}">Nova entrega</a>
+    {% endif %}
+  </div>
+
+  {% include "sala_situacao/_card_search.html" with search_id="fluxo-entregas" target_selector=".card-grid" item_selector=".card" placeholder="Pesquisar entregas..." aria_label="Pesquisar entregas" %}
+  <div class="card-grid card-grid-fixed">
+    {% for entrega in entregas %}
+      <article
+        class="card card-bloco"
+        data-search-text="{{ entrega.nome }} {{ entrega.descricao }} {% for marcador in entrega.marcadores_efetivos %}{{ marcador.nome }} {% endfor %}"
+      >
+        <a class="card-link" href="{% url 'sala_entrega_detail' entrega.pk %}">
+          <div class="card-body">
+            <h3 class="card-title">{{ entrega.nome }}</h3>
+            {% if entrega.marcadores_efetivos %}
+              <div class="sala-marcadores-wrap">
+                {% for marcador in entrega.marcadores_efetivos %}
+                  <span class="sala-marcador-chip" style="--marcador-cor: {{ marcador.cor }};">{{ marcador.nome }}</span>
+                {% endfor %}
+              </div>
+            {% endif %}
+            {% include "sala_situacao/_progresso_duplo.html" with item=entrega %}
+          </div>
+        </a>
+      </article>
+    {% empty %}
+      <p>Nenhuma entrega vinculada a este processo.</p>
+    {% endfor %}
+  </div>
+{% endblock %}

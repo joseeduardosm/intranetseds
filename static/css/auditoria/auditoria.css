@@ -1,0 +1,7 @@
+@import url("base/auditoria-base.css");
+@import url("layout/auditoria-layout.css");
+@import url("components/auditoria-forms.css");
+@import url("components/auditoria-table.css");
+@import url("components/auditoria-alerts.css");
+@import url("pages/auditoria-log-list.css");
+@import url("utilities/auditoria-utilities.css");

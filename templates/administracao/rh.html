@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>RH</h2>
+  </section>
+
+  <section class="card-grid config-grid">
+    <article class="card card-square">
+      <a class="card-link card-square-link" href="{% url 'folha_ponto_home' %}">
+        <div class="card-body">
+          <h3 class="card-title">Folha de Ponto</h3>
+          <p class="card-text">Abrir folhas de ponto para impressao/PDF.</p>
+        </div>
+      </a>
+    </article>
+
+    {% if user.is_superuser or perms.folha_ponto.add_feriado or perms.folha_ponto.change_feriado or perms.folha_ponto.delete_feriado %}
+      <article class="card card-square">
+        <a class="card-link card-square-link" href="{% url 'folha_ponto_feriado_list' %}">
+          <div class="card-body">
+            <h3 class="card-title">Feriados</h3>
+            <p class="card-text">Cadastrar feriados que refletem na folha de todos.</p>
+          </div>
+        </a>
+      </article>
+    {% endif %}
+
+    {% if user.is_superuser or perms.folha_ponto.add_feriasservidor or perms.folha_ponto.change_feriasservidor or perms.folha_ponto.delete_feriasservidor %}
+      <article class="card card-square">
+        <a class="card-link card-square-link" href="{% url 'folha_ponto_ferias_list' %}">
+          <div class="card-body">
+            <h3 class="card-title">Ferias</h3>
+            <p class="card-text">Lancar ferias por servidor (inicio e fim).</p>
+          </div>
+        </a>
+      </article>
+    {% endif %}
+
+    {% if perms.folha_ponto.change_configuracaorh or user.is_superuser %}
+      <article class="card card-square">
+        <a class="card-link card-square-link" href="{% url 'folha_ponto_brasao' %}">
+          <div class="card-body">
+            <h3 class="card-title">Brasao</h3>
+            <p class="card-text">Configurar o brasao exibido na folha de ponto.</p>
+          </div>
+        </a>
+      </article>
+    {% endif %}
+  </section>
+{% endblock %}

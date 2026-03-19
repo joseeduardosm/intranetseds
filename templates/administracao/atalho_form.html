@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>{% if object %}Editar atalho{% else %}Novo atalho{% endif %}</h2>
+  </section>
+
+  <form class="form" method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <div class="form-actions">
+      <button class="btn" type="submit">Salvar</button>
+      <a class="btn btn-secondary" href="{% url 'administracao_atalho_list' %}">Cancelar</a>
+    </div>
+  </form>
+{% endblock %}

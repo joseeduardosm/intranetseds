@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/folha_ponto/folha_ponto.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Folha de Ponto</h2>
+  </section>
+
+  <div class="card folha-home-card">
+    <div class="card-body">
+      <h3 class="card-title">Selecione o mes</h3>
+      <p class="card-text">Sera aberta uma nova aba com a folha pronta para impressao/exportacao em PDF.</p>
+      <div class="card-actions">
+        {% for opt in month_options %}
+          <a
+            class="btn"
+            href="{% url 'folha_ponto_print' %}?mes={{ opt.mes }}&ano={{ opt.ano }}"
+            target="_blank"
+            rel="noopener"
+          >
+            {{ opt.label }}
+          </a>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  {% if can_manage_rh %}
+    <div class="card-actions">
+      <a class="btn btn-light" href="{% url 'folha_ponto_feriado_list' %}">Gerenciar feriados</a>
+      <a class="btn btn-light" href="{% url 'folha_ponto_ferias_list' %}">Gerenciar ferias</a>
+      <a class="btn btn-secondary" href="{% url 'administracao_rh' %}">Voltar para RH</a>
+    </div>
+  {% endif %}
+{% endblock %}

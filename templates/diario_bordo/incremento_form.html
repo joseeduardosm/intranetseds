@@ -1,0 +1,53 @@
+﻿{% extends 'base.html' %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>{% if object %}Editar incremento{% else %}Novo incremento{% endif %}</h2>
+  </section>
+
+  <div class="form">
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      <p>
+        <label for="{{ form.texto.id_for_label }}">{{ form.texto.label }}</label>
+        {{ form.texto }}
+        {{ form.texto.errors }}
+      </p>
+      <p>
+        <label for="{{ form.anexos.id_for_label }}">{{ form.anexos.label }}</label>
+        {{ form.anexos }}
+        {{ form.anexos.errors }}
+      </p>
+      <div class="form-actions">
+        <button type="submit" class="btn">Salvar</button>
+        <a class="btn btn-light" href="{% url 'diario_bordo_detail' bloco.pk %}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    (function () {
+      const texto = document.getElementById("{{ form.texto.id_for_label }}");
+      const anexos = document.getElementById("{{ form.anexos.id_for_label }}");
+      if (!texto || !anexos) return;
+
+      texto.addEventListener("paste", (event) => {
+        if (!event.clipboardData || typeof DataTransfer === "undefined") return;
+        const itens = Array.from(event.clipboardData.items || []);
+        const imagens = itens
+          .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
+          .map((item) => item.getAsFile())
+          .filter(Boolean);
+        if (!imagens.length) return;
+
+        const dataTransfer = new DataTransfer();
+        const existentes = anexos.files ? Array.from(anexos.files) : [];
+        [...existentes, ...imagens].forEach((arquivo) => dataTransfer.items.add(arquivo));
+        anexos.files = dataTransfer.files;
+        anexos.dispatchEvent(new Event("change", { bubbles: true }));
+        event.preventDefault();
+      });
+    })();
+  </script>
+{% endblock %}

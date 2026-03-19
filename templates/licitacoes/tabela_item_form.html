@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% load static %}
+{% block container_class %}container-wide{% endblock %}
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/licitacoes/licitacoes.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>{% if object %}Editar linha da tabela{% else %}Nova linha da tabela{% endif %}</h2>
+    <p>{{ termo.apelido }} - Item {{ item_indice }}.</p>
+  </section>
+
+  <div class="form">
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ next_url }}" />
+      {{ form.non_field_errors }}
+      <p>
+        <label for="{{ form.descricao.id_for_label }}">{{ form.descricao.label }}</label>
+        {{ form.descricao }}
+        {{ form.descricao.errors }}
+      </p>
+      <p>
+        <label for="{{ form.catmat_catser.id_for_label }}">{{ form.catmat_catser.label }}</label>
+        {{ form.catmat_catser }}
+        {{ form.catmat_catser.errors }}
+      </p>
+      <p>
+        <label for="{{ form.siafisico.id_for_label }}">{{ form.siafisico.label }}</label>
+        {{ form.siafisico }}
+        {{ form.siafisico.errors }}
+      </p>
+      <p>
+        <label for="{{ form.unidade_fornecimento.id_for_label }}">{{ form.unidade_fornecimento.label }}</label>
+        {{ form.unidade_fornecimento }}
+        {{ form.unidade_fornecimento.errors }}
+      </p>
+      <p>
+        <label for="{{ form.quantidade.id_for_label }}">{{ form.quantidade.label }}</label>
+        {{ form.quantidade }}
+        {{ form.quantidade.errors }}
+      </p>
+      <div class="form-actions">
+        <button class="btn" type="submit">Salvar</button>
+        <a class="btn btn-light" href="{{ next_url }}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}

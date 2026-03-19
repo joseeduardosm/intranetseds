@@ -1,0 +1,937 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/sala_situacao/sala_situacao.css' %}" />
+{% endblock %}
+
+
+{% block content %}
+  <section class="page-header">
+    <h2>{{ titulo }}</h2>
+  </section>
+
+  <div class="form">
+    <p class="form-status-hint">{{ assistencia_evolucao }}</p>
+    <form
+      method="post"
+      data-marcador-sugestoes-url="{{ marcador_sugestoes_url }}"
+      data-marcador-criar-url="{{ marcador_criar_url }}"
+      data-marcador-cor-url-template="{{ marcador_cor_url_template }}"
+      data-marcador-excluir-url-template="{{ marcador_excluir_url_template }}"
+      data-marcador-item-url-template="{{ marcador_item_url_template }}"
+      data-marcador-item-tipo="{{ marcador_item_tipo }}"
+      data-marcador-item-id="{{ marcador_item_id }}"
+      data-variavel-sugestoes-url="{{ variavel_sugestoes_url }}"
+    >
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      <div class="sala-form-fields">
+      {% for field in form %}
+        <div
+          class="sala-form-field{% if field.field.widget.allow_multiple_selected or field.name == 'descricao' or field.name == 'formula_expressao' or field.name == 'variaveis_reuso_map' or field.name == 'marcadores_ids' %} sala-form-field--wide{% endif %}"
+          data-field-name="{{ field.name }}"
+          {% if field.name == "formula_expressao" or field.name == "variaveis_reuso_map" %}data-math-only-field{% endif %}
+          {% if field.name == "formula_expressao" %}data-formula-field{% endif %}
+        >
+          {% if field.name == "variaveis_reuso_map" %}
+            <label for="{{ field.id_for_label }}">{{ field.label|default:"Mapeamento das variáveis" }}</label>
+            {{ field }}
+            <div class="sala-variavel-reuso-editor" data-variavel-reuso-editor>
+              <p class="sala-variavel-reuso-hint">
+                Para cada variável da fórmula, escolha se será local ou reaproveitada e defina a periodicidade.
+                Variáveis trimestrais, semestrais e anuais terão um ciclo inicial obrigatório.
+              </p>
+              <div class="sala-variavel-reuso-lista" data-variavel-reuso-lista></div>
+            </div>
+          {% elif field.name == "marcadores_ids" %}
+            <label for="{{ field.id_for_label }}-input">{{ field.label }}</label>
+            <div class="sala-marcador-editor" data-marcador-editor>
+              {{ field }}
+              <div class="sala-marcador-editor-selecionados" data-marcador-selecionados></div>
+              <input
+                type="text"
+                id="{{ field.id_for_label }}-input"
+                class="form-control"
+                placeholder="Clique para listar marcadores ou digite para buscar/criar..."
+                autocomplete="off"
+                data-marcador-input
+              />
+              <div class="sala-marcador-editor-dropdown sala-hidden" data-marcador-dropdown></div>
+              <div class="sala-marcador-editor-dropdown sala-hidden" data-marcador-actions-menu></div>
+              <div class="sala-marcador-editor-popover sala-hidden" data-marcador-popover>
+                <div class="sala-marcador-editor-paleta" data-marcador-paleta></div>
+                <small>Cor global do marcador</small>
+              </div>
+              <div class="sala-marcador-admin-modal sala-hidden" data-marcador-admin-modal>
+                <div class="sala-marcador-admin-modal-card">
+                  <h4>Inativar marcador no sistema</h4>
+                  <div class="sala-form-field">
+                    <label>Usuário admin</label>
+                    <input type="text" class="form-control" data-admin-username />
+                  </div>
+                  <div class="sala-form-field">
+                    <label>Senha admin</label>
+                    <input type="password" class="form-control" data-admin-password />
+                  </div>
+                  <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" data-admin-cancelar>Cancelar</button>
+                    <button type="button" class="btn" data-admin-confirmar>Confirmar</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          {% elif field.field.widget.allow_multiple_selected %}
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            <input
+              type="text"
+              class="form-control"
+              id="{{ field.id_for_label }}-search"
+              placeholder="Buscar..."
+              data-multi-picker-search="{{ field.id_for_label }}"
+            />
+            {{ field }}
+            <div class="participants-picker" data-multi-picker="{{ field.id_for_label }}">
+              <div class="participants-column">
+                <div class="participants-label">Disponíveis</div>
+                <div class="participants-list" id="{{ field.id_for_label }}-available"></div>
+              </div>
+              <div class="participants-column">
+                <div class="participants-label">Incluídos</div>
+                <div class="participants-list is-selected" id="{{ field.id_for_label }}-selected"></div>
+              </div>
+            </div>
+          {% else %}
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.name == "formula_expressao" %}
+              <div class="formula-builder" data-formula-builder="{{ field.id_for_label }}">
+                <button type="button" class="btn btn-light btn-small" data-formula-token="+">+</button>
+                <button type="button" class="btn btn-light btn-small" data-formula-token="-">-</button>
+                <button type="button" class="btn btn-light btn-small" data-formula-token="*">*</button>
+                <button type="button" class="btn btn-light btn-small" data-formula-token="/">/</button>
+                <button type="button" class="btn btn-light btn-small" data-formula-token="(">(</button>
+                <button type="button" class="btn btn-light btn-small" data-formula-token=")">)</button>
+              </div>
+            {% endif %}
+          {% endif %}
+          {{ field.errors }}
+          {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+        </div>
+      {% endfor %}
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn">Salvar</button>
+        {% if delete_url and can_delete %}
+          <a class="btn btn-secondary" href="{{ delete_url }}">Excluir</a>
+        {% endif %}
+        <a class="btn btn-light" href="{{ cancel_url }}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+  {% if form.errors %}
+    <div class="profile-alert-backdrop" id="sala-form-errors-backdrop" aria-hidden="false"></div>
+    <div
+      class="profile-alert-modal"
+      id="sala-form-errors-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Avisos de validação"
+    >
+      <h3>Atenção</h3>
+      <p>Não foi possível salvar. Corrija os itens abaixo:</p>
+      <ul>
+        {% for error in form.non_field_errors %}
+          <li>{{ error }}</li>
+        {% endfor %}
+        {% for field in form %}
+          {% for error in field.errors %}
+            <li>{{ field.label }}: {{ error }}</li>
+          {% endfor %}
+        {% endfor %}
+      </ul>
+      <div class="profile-alert-actions">
+        <button class="btn" type="button" id="sala-form-errors-close">Fechar</button>
+      </div>
+    </div>
+  {% endif %}
+  {{ monitoramento_grupos|json_script:"monitoramento-grupos-data" }}
+
+  <script>
+    document.querySelectorAll("[data-multi-picker]").forEach((picker) => {
+      const baseId = picker.getAttribute("data-multi-picker");
+      const select = document.getElementById(baseId);
+      const search = document.querySelector(`[data-multi-picker-search="${baseId}"]`);
+      const available = document.getElementById(`${baseId}-available`);
+      const selected = document.getElementById(`${baseId}-selected`);
+
+      if (!select || !search || !available || !selected) {
+        return;
+      }
+
+      select.classList.add("participants-select-hidden");
+
+      const render = (filterText = "") => {
+        available.innerHTML = "";
+        selected.innerHTML = "";
+        const filter = filterText.trim().toLowerCase();
+
+        Array.from(select.options).forEach((option) => {
+          const label = (option.textContent || "").trim();
+          const item = document.createElement("button");
+          item.type = "button";
+          item.className = "participants-item";
+          item.textContent = label || option.value;
+
+          if (option.selected) {
+            item.classList.add("is-selected");
+            item.addEventListener("click", () => {
+              option.selected = false;
+              render(search.value);
+            });
+            selected.appendChild(item);
+            return;
+          }
+
+          if (filter && !label.toLowerCase().includes(filter)) {
+            return;
+          }
+
+          item.addEventListener("click", () => {
+            option.selected = true;
+            render(search.value);
+          });
+          available.appendChild(item);
+        });
+      };
+
+      search.addEventListener("input", () => render(search.value));
+      render("");
+    });
+
+    document.querySelectorAll("[data-formula-builder]").forEach((builder) => {
+      const fieldId = builder.getAttribute("data-formula-builder");
+      const input = document.getElementById(fieldId);
+      if (!input) return;
+      builder.querySelectorAll("[data-formula-token]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const token = btn.getAttribute("data-formula-token");
+          const start = input.selectionStart ?? input.value.length;
+          const end = input.selectionEnd ?? input.value.length;
+          const before = input.value.slice(0, start);
+          const after = input.value.slice(end);
+          input.value = `${before} ${token} ${after}`.replace(/\s+/g, " ").trim();
+          input.focus();
+        });
+      });
+    });
+
+    document.querySelectorAll(".form form").forEach((formEl) => {
+      const tipoIndicador = formEl.querySelector('select[name="tipo_indicador"]');
+      const formulaRow = formEl.querySelector("[data-formula-field]");
+      if (!tipoIndicador) return;
+
+      formEl.classList.add("sala-indicador-form");
+
+      const formulaInput = formulaRow ? formulaRow.querySelector("textarea, input") : null;
+      const formulaBuilder = formulaRow ? formulaRow.querySelector("[data-formula-builder]") : null;
+
+      const syncFormulaVisibility = () => {
+        const isMatematico = ["MATEMATICO", "MATEMATICO_ACUMULATIVO"].includes(tipoIndicador.value);
+        formEl.classList.toggle("is-matematico", isMatematico);
+        if (formulaInput) {
+          formulaInput.disabled = !isMatematico;
+        }
+        if (formulaBuilder) {
+          formulaBuilder.querySelectorAll("button").forEach((btn) => {
+            btn.disabled = !isMatematico;
+          });
+        }
+      };
+
+      tipoIndicador.addEventListener("change", syncFormulaVisibility);
+      syncFormulaVisibility();
+    });
+
+    (function () {
+      const normalize = (value) =>
+        (value || "")
+          .toString()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toLowerCase()
+          .trim();
+
+      const extrairVariaveisFormula = (formula) => {
+        if (!formula) return [];
+        const tokens = formula.match(/[A-Za-z_][A-Za-z0-9_]*/g) || [];
+        return Array.from(new Set(tokens)).sort((a, b) => a.localeCompare(b, "pt-BR"));
+      };
+      const gruposDataEl = document.getElementById("monitoramento-grupos-data");
+      const gruposMonitoramento = gruposDataEl ? JSON.parse(gruposDataEl.textContent || "[]") : [];
+
+      document.querySelectorAll(".form form").forEach((formEl) => {
+        const formulaField = formEl.querySelector('[name="formula_expressao"]');
+        const hiddenMapField = formEl.querySelector('[name="variaveis_reuso_map"]');
+        const editor = formEl.querySelector("[data-variavel-reuso-editor]");
+        const listWrap = formEl.querySelector("[data-variavel-reuso-lista]");
+        const sugestoesUrl = formEl.dataset.variavelSugestoesUrl || "";
+
+        if (!formulaField || !hiddenMapField || !editor || !listWrap || !sugestoesUrl) return;
+
+        let mapa = {};
+        let cacheSugestoes = [];
+
+        try {
+          mapa = JSON.parse(hiddenMapField.value || "{}");
+        } catch (e) {
+          mapa = {};
+        }
+
+        const atualizarHidden = () => {
+          hiddenMapField.value = JSON.stringify(mapa);
+        };
+
+        const periodicidadeOptionsHtml = `
+          <option value="">Selecione...</option>
+          <option value="SEMANAL">Semanal</option>
+          <option value="QUINZENAL">Quinzenal</option>
+          <option value="MENSAL">Mensal</option>
+          <option value="TRIMESTRAL">Trimestral</option>
+          <option value="SEMESTRAL">Semestral</option>
+          <option value="ANUAL">Anual</option>
+        `;
+
+        const fetchSugestoes = async (query) => {
+          const response = await fetch(`${sugestoesUrl}?q=${encodeURIComponent(query || "")}`, {
+            headers: { "X-Requested-With": "XMLHttpRequest" },
+          });
+          if (!response.ok) return [];
+          const data = await response.json();
+          return Array.isArray(data.results) ? data.results : [];
+        };
+
+        const preencherSelect = async (selectEl, query, selectedId) => {
+          if (!cacheSugestoes.length || query) {
+            cacheSugestoes = await fetchSugestoes(query);
+          }
+          const termo = normalize(query);
+          const itens = cacheSugestoes.filter((item) => {
+            if (!termo) return true;
+            const label = `${item.nome} ${item.indicador_label} ${item.unidade_medida}`.toLowerCase();
+            return normalize(label).includes(termo);
+          });
+          selectEl.innerHTML = '<option value="">Selecione uma variável de origem...</option>';
+          itens.forEach((item) => {
+            const option = document.createElement("option");
+            option.value = String(item.id);
+            option.textContent = `${item.nome} - ${item.indicador_label} (${item.unidade_medida} / ${item.tipo_numerico})`;
+            if (String(item.id) === String(selectedId || "")) {
+              option.selected = true;
+            }
+            selectEl.appendChild(option);
+          });
+        };
+
+        const criarLinha = (nomeVariavel) => {
+          const row = document.createElement("div");
+          row.className = "sala-variavel-reuso-item";
+          const configAtual = mapa[nomeVariavel] || {
+            modo: "local",
+            periodicidade_monitoramento: "",
+            grupos_monitoramento_ids: [],
+          };
+          const reusoAtivo = configAtual.modo === "reuso";
+          const periodicidadeAtual = (configAtual.periodicidade_monitoramento || "").toUpperCase();
+          const gruposSelecionados = Array.isArray(configAtual.grupos_monitoramento_ids)
+            ? configAtual.grupos_monitoramento_ids.map((id) => Number(id)).filter((id) => !Number.isNaN(id))
+            : [];
+
+          row.innerHTML = `
+            <div class="sala-variavel-reuso-head">
+              <strong>${nomeVariavel}</strong>
+            </div>
+            <div class="sala-variavel-reuso-modos">
+              <label><input type="radio" name="modo_${nomeVariavel}" value="local" ${reusoAtivo ? "" : "checked"}> Local</label>
+              <label><input type="radio" name="modo_${nomeVariavel}" value="reuso" ${reusoAtivo ? "checked" : ""}> Reaproveitar</label>
+            </div>
+            <div class="sala-variavel-reuso-origem ${reusoAtivo ? "" : "sala-hidden"}">
+              <input type="text" class="form-control sala-variavel-reuso-busca" placeholder="Buscar variável...">
+              <select class="form-select sala-variavel-reuso-select"></select>
+            </div>
+            <div class="sala-variavel-reuso-periodicidade">
+              <label>Periodicidade da variável</label>
+              <select class="form-select sala-variavel-periodicidade-select">${periodicidadeOptionsHtml}</select>
+            </div>
+            <div class="sala-variavel-reuso-grupos">
+              <label>Setores responsáveis pelo monitoramento</label>
+              <input type="text" class="form-control sala-variavel-grupos-busca" placeholder="Buscar setor...">
+              <select class="form-select sala-variavel-grupos-select" multiple size="6"></select>
+            </div>
+          `;
+
+          const radios = row.querySelectorAll(`input[name="modo_${nomeVariavel}"]`);
+          const origemWrap = row.querySelector(".sala-variavel-reuso-origem");
+          const buscaInput = row.querySelector(".sala-variavel-reuso-busca");
+          const selectEl = row.querySelector(".sala-variavel-reuso-select");
+          const periodicidadeSelect = row.querySelector(".sala-variavel-periodicidade-select");
+          const gruposBuscaInput = row.querySelector(".sala-variavel-grupos-busca");
+          const gruposSelect = row.querySelector(".sala-variavel-grupos-select");
+
+          const selectedGroupIds = new Set(gruposSelecionados);
+          const renderGrupos = (queryText = "") => {
+            const termo = normalize(queryText);
+            gruposSelect.innerHTML = "";
+            gruposMonitoramento
+              .filter((grupo) => !termo || normalize(grupo.nome).includes(termo))
+              .forEach((grupo) => {
+                const option = document.createElement("option");
+                option.value = String(grupo.id);
+                option.textContent = grupo.nome;
+                if (selectedGroupIds.has(Number(grupo.id))) {
+                  option.selected = true;
+                }
+                gruposSelect.appendChild(option);
+              });
+          };
+
+          const idsGruposOrdenados = () => Array.from(selectedGroupIds).sort((a, b) => a - b);
+
+          if (periodicidadeSelect) {
+            periodicidadeSelect.value = periodicidadeAtual;
+          }
+          preencherSelect(selectEl, "", configAtual.variavel_origem_id || "");
+          renderGrupos();
+
+          radios.forEach((radio) => {
+            radio.addEventListener("change", () => {
+              const modo = radio.value;
+              if (modo === "reuso") {
+                origemWrap.classList.remove("sala-hidden");
+                mapa[nomeVariavel] = {
+                  modo: "reuso",
+                  variavel_origem_id: Number(selectEl.value) || null,
+                  periodicidade_monitoramento: periodicidadeSelect ? (periodicidadeSelect.value || "") : "",
+                  grupos_monitoramento_ids: idsGruposOrdenados(),
+                };
+              } else {
+                origemWrap.classList.add("sala-hidden");
+                mapa[nomeVariavel] = {
+                  modo: "local",
+                  periodicidade_monitoramento: periodicidadeSelect ? (periodicidadeSelect.value || "") : "",
+                  grupos_monitoramento_ids: idsGruposOrdenados(),
+                };
+              }
+              atualizarHidden();
+            });
+          });
+
+          buscaInput.addEventListener("input", () => {
+            preencherSelect(selectEl, buscaInput.value || "", selectEl.value);
+          });
+
+          selectEl.addEventListener("change", () => {
+            mapa[nomeVariavel] = {
+              modo: "reuso",
+              variavel_origem_id: Number(selectEl.value) || null,
+              periodicidade_monitoramento: periodicidadeSelect ? (periodicidadeSelect.value || "") : "",
+              grupos_monitoramento_ids: idsGruposOrdenados(),
+            };
+            atualizarHidden();
+          });
+
+          periodicidadeSelect.addEventListener("change", () => {
+            const atual = mapa[nomeVariavel] || { modo: "local" };
+            mapa[nomeVariavel] = {
+              ...atual,
+              periodicidade_monitoramento: periodicidadeSelect.value || "",
+              grupos_monitoramento_ids: idsGruposOrdenados(),
+            };
+            atualizarHidden();
+          });
+
+          gruposBuscaInput.addEventListener("input", () => {
+            renderGrupos(gruposBuscaInput.value || "");
+          });
+
+          gruposSelect.addEventListener("change", () => {
+            const visibles = Array.from(gruposSelect.options).map((opt) => Number(opt.value));
+            visibles.forEach((groupId) => selectedGroupIds.delete(groupId));
+            Array.from(gruposSelect.selectedOptions).forEach((opt) => {
+              selectedGroupIds.add(Number(opt.value));
+            });
+            const atual = mapa[nomeVariavel] || { modo: reusoAtivo ? "reuso" : "local" };
+            mapa[nomeVariavel] = {
+              ...atual,
+              grupos_monitoramento_ids: idsGruposOrdenados(),
+            };
+            atualizarHidden();
+          });
+
+          const atualInicial = mapa[nomeVariavel] || { modo: reusoAtivo ? "reuso" : "local" };
+          mapa[nomeVariavel] = {
+            ...atualInicial,
+            grupos_monitoramento_ids: idsGruposOrdenados(),
+          };
+          atualizarHidden();
+
+          return row;
+        };
+
+        const render = () => {
+          const variaveis = extrairVariaveisFormula(formulaField.value || "");
+          const proximoMapa = {};
+          variaveis.forEach((nome) => {
+            proximoMapa[nome] = mapa[nome] || {
+              modo: "local",
+              periodicidade_monitoramento: "",
+              grupos_monitoramento_ids: [],
+            };
+          });
+          mapa = proximoMapa;
+          atualizarHidden();
+
+          listWrap.innerHTML = "";
+          if (!variaveis.length) {
+            listWrap.innerHTML = "<p class='sala-variavel-reuso-vazio'>Sem variáveis detectadas na fórmula.</p>";
+            return;
+          }
+          variaveis.forEach((nomeVariavel) => listWrap.appendChild(criarLinha(nomeVariavel)));
+        };
+
+        formulaField.addEventListener("input", render);
+        render();
+      });
+    })();
+
+    (function () {
+      const palette = [
+        "#1f77b4",
+        "#ff7f0e",
+        "#2ca02c",
+        "#d62728",
+        "#9467bd",
+        "#8c564b",
+        "#e377c2",
+        "#17becf",
+        "#bcbd22",
+        "#7f7f7f",
+        "#5da5da",
+        "#60bd68"
+      ];
+
+      const getCsrf = () => {
+        const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+        return csrfInput ? csrfInput.value : "";
+      };
+
+      document.querySelectorAll("[data-marcador-editor]").forEach((editor) => {
+        const form = editor.closest("form");
+        if (!form) return;
+        const hidden = editor.querySelector('input[type="hidden"]');
+        const input = editor.querySelector("[data-marcador-input]");
+        const dropdown = editor.querySelector("[data-marcador-dropdown]");
+        const actionsMenu = editor.querySelector("[data-marcador-actions-menu]");
+        const selectedWrap = editor.querySelector("[data-marcador-selecionados]");
+        const popover = editor.querySelector("[data-marcador-popover]");
+        const paletaEl = editor.querySelector("[data-marcador-paleta]");
+        const adminModal = editor.querySelector("[data-marcador-admin-modal]");
+        const adminUsername = editor.querySelector("[data-admin-username]");
+        const adminPassword = editor.querySelector("[data-admin-password]");
+        const adminCancelar = editor.querySelector("[data-admin-cancelar]");
+        const adminConfirmar = editor.querySelector("[data-admin-confirmar]");
+        if (
+          !hidden ||
+          !input ||
+          !dropdown ||
+          !actionsMenu ||
+          !selectedWrap ||
+          !popover ||
+          !paletaEl ||
+          !adminModal ||
+          !adminUsername ||
+          !adminPassword ||
+          !adminCancelar ||
+          !adminConfirmar
+        ) {
+          return;
+        }
+
+        const sugestoesUrl = form.dataset.marcadorSugestoesUrl || "";
+        const criarUrl = form.dataset.marcadorCriarUrl || "";
+        const corUrlTemplate = form.dataset.marcadorCorUrlTemplate || "";
+        const excluirUrlTemplate = form.dataset.marcadorExcluirUrlTemplate || "";
+        const itemUrlTemplate = form.dataset.marcadorItemUrlTemplate || "";
+        const itemTipo = form.dataset.marcadorItemTipo || "";
+        const itemId = form.dataset.marcadorItemId || "";
+
+        const selectedMap = new Map();
+        let suggestions = [];
+        let highlighted = -1;
+        let currentColorTargetId = null;
+        let actionTargetItem = null;
+
+        const normalize = (value) =>
+          (value || "")
+            .toString()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toLowerCase()
+            .trim();
+
+        const syncHidden = () => {
+          hidden.value = Array.from(selectedMap.keys()).join(",");
+        };
+
+        const chipFor = (item) => {
+          const chip = document.createElement("button");
+          chip.type = "button";
+          chip.className = "sala-marcador-chip sala-marcador-chip--editor";
+          chip.style.setProperty("--marcador-cor", item.cor || "#5b7db1");
+          chip.dataset.marcadorId = String(item.id);
+          chip.innerHTML = `<span>${item.nome}</span><span class="sala-marcador-chip-close" aria-hidden="true">&times;</span>`;
+          chip.addEventListener("click", (event) => {
+            closeActionsMenu();
+            const rect = chip.getBoundingClientRect();
+            currentColorTargetId = item.id;
+            popover.style.left = `${Math.max(8, rect.left)}px`;
+            popover.style.top = `${rect.bottom + 6}px`;
+            popover.classList.remove("sala-hidden");
+            event.stopPropagation();
+          });
+          chip.querySelector(".sala-marcador-chip-close").addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            actionTargetItem = item;
+            actionsMenu.innerHTML = "";
+            const desvincularBtn = document.createElement("button");
+            desvincularBtn.type = "button";
+            desvincularBtn.className = "sala-marcador-opcao";
+            desvincularBtn.textContent = "Desvincular deste item";
+            desvincularBtn.addEventListener("click", async () => {
+              closeActionsMenu(false);
+              const confirmar = window.confirm("Remover marcador deste item?");
+              if (!confirmar) return;
+              const endpoint = endpointDesvinculo(item.id);
+              if (!endpoint) {
+                removeMarkerLocally(item.id);
+                actionTargetItem = null;
+                return;
+              }
+              const response = await fetch(endpoint, {
+                method: "DELETE",
+                headers: {
+                  "X-CSRFToken": getCsrf(),
+                  "X-Requested-With": "XMLHttpRequest",
+                },
+              });
+              if (!response.ok) {
+                window.alert("Não foi possível desvincular o marcador deste item.");
+                return;
+              }
+              removeMarkerLocally(item.id);
+              actionTargetItem = null;
+            });
+
+            const excluirBtn = document.createElement("button");
+            excluirBtn.type = "button";
+            excluirBtn.className = "sala-marcador-opcao sala-marcador-opcao--criar";
+            excluirBtn.textContent = "Excluir do sistema";
+            excluirBtn.addEventListener("click", () => {
+              closeActionsMenu(false);
+              adminModal.classList.remove("sala-hidden");
+              adminUsername.focus();
+            });
+
+            actionsMenu.appendChild(desvincularBtn);
+            actionsMenu.appendChild(excluirBtn);
+            const closeRect = event.currentTarget.getBoundingClientRect();
+            actionsMenu.style.position = "fixed";
+            actionsMenu.style.left = `${Math.max(8, closeRect.left)}px`;
+            actionsMenu.style.top = `${closeRect.bottom + 6}px`;
+            actionsMenu.classList.remove("sala-hidden");
+          });
+          return chip;
+        };
+
+        const renderSelected = () => {
+          selectedWrap.innerHTML = "";
+          Array.from(selectedMap.values())
+            .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+            .forEach((item) => selectedWrap.appendChild(chipFor(item)));
+          syncHidden();
+        };
+
+        const closeDropdown = () => {
+          dropdown.classList.add("sala-hidden");
+          highlighted = -1;
+        };
+
+        const closeActionsMenu = (clearTarget = true) => {
+          actionsMenu.classList.add("sala-hidden");
+          if (clearTarget) actionTargetItem = null;
+        };
+
+        const closePopover = () => {
+          popover.classList.add("sala-hidden");
+          currentColorTargetId = null;
+        };
+
+        const closeAdminModal = () => {
+          adminModal.classList.add("sala-hidden");
+          adminUsername.value = "";
+          adminPassword.value = "";
+          actionTargetItem = null;
+        };
+
+        const removeMarkerLocally = (marcadorId) => {
+          selectedMap.delete(marcadorId);
+          suggestions = suggestions.filter((candidate) => candidate.id !== marcadorId);
+          renderSelected();
+        };
+
+        const endpointDesvinculo = (marcadorId) => {
+          if (!itemTipo || !itemId) return "";
+          const base = itemUrlTemplate
+            .replace("/__tipo__/", `/${itemTipo}/`)
+            .replace("/0/", `/${itemId}/`);
+          return `${base}${marcadorId}/`;
+        };
+
+        const renderDropdown = (queryText) => {
+          const queryNorm = normalize(queryText);
+          const filtered = suggestions.filter((item) => {
+            if (selectedMap.has(item.id)) return false;
+            return !queryNorm || normalize(item.nome).includes(queryNorm);
+          });
+
+          const exactMatch = suggestions.some((item) => normalize(item.nome) === queryNorm);
+          dropdown.innerHTML = "";
+
+          filtered.forEach((item, index) => {
+            const option = document.createElement("button");
+            option.type = "button";
+            option.className = "sala-marcador-opcao";
+            if (index === highlighted) option.classList.add("is-highlighted");
+            option.innerHTML = `<span class="sala-marcador-opcao-dot" style="background:${item.cor};"></span>${item.nome}`;
+            option.addEventListener("click", () => {
+              selectedMap.set(item.id, item);
+              renderSelected();
+              input.value = "";
+              closeDropdown();
+            });
+            dropdown.appendChild(option);
+          });
+
+          if (queryNorm && !exactMatch) {
+            const createOption = document.createElement("button");
+            createOption.type = "button";
+            createOption.className = "sala-marcador-opcao sala-marcador-opcao--criar";
+            createOption.textContent = `Criar "${queryText.trim()}"`;
+            createOption.addEventListener("click", async () => {
+              const response = await fetch(criarUrl, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "X-CSRFToken": getCsrf(),
+                },
+                body: JSON.stringify({ nome: queryText.trim() }),
+              });
+              if (!response.ok) return;
+              const created = await response.json();
+              const novo = { id: created.id, nome: created.nome, cor: created.cor };
+              suggestions = [novo, ...suggestions.filter((item) => item.id !== novo.id)];
+              selectedMap.set(novo.id, novo);
+              renderSelected();
+              input.value = "";
+              closeDropdown();
+            });
+            dropdown.appendChild(createOption);
+          }
+
+          if (!dropdown.children.length) {
+            closeDropdown();
+            return;
+          }
+          dropdown.classList.remove("sala-hidden");
+        };
+
+        const fetchSuggestions = async (queryText) => {
+          const url = `${sugestoesUrl}?q=${encodeURIComponent(queryText || "")}`;
+          const response = await fetch(url, { headers: { "X-Requested-With": "XMLHttpRequest" } });
+          if (!response.ok) return;
+          const data = await response.json();
+          suggestions = Array.isArray(data.results) ? data.results : [];
+          renderDropdown(queryText);
+        };
+
+        const renderPaleta = () => {
+          paletaEl.innerHTML = "";
+          palette.forEach((color) => {
+            const swatch = document.createElement("button");
+            swatch.type = "button";
+            swatch.className = "sala-marcador-cor";
+            swatch.style.background = color;
+            swatch.addEventListener("click", async () => {
+              if (!currentColorTargetId) return;
+              const endpoint = corUrlTemplate.replace(/0\/cor\/$/, `${currentColorTargetId}/cor/`);
+              const response = await fetch(endpoint, {
+                method: "PATCH",
+                headers: {
+                  "Content-Type": "application/json",
+                  "X-CSRFToken": getCsrf(),
+                },
+                body: JSON.stringify({ cor: color }),
+              });
+              if (!response.ok) return;
+              const data = await response.json();
+              const updated = { id: data.id, nome: data.nome, cor: data.cor };
+              if (selectedMap.has(updated.id)) {
+                selectedMap.set(updated.id, updated);
+                renderSelected();
+              }
+              suggestions = suggestions.map((item) => (item.id === updated.id ? updated : item));
+              closePopover();
+            });
+            paletaEl.appendChild(swatch);
+          });
+        };
+
+        adminCancelar.addEventListener("click", () => closeAdminModal());
+        adminConfirmar.addEventListener("click", async () => {
+          if (!actionTargetItem) {
+            closeAdminModal();
+            return;
+          }
+          const username = adminUsername.value.trim();
+          const password = adminPassword.value;
+          if (!username || !password) {
+            window.alert("Informe usuário e senha de admin.");
+            return;
+          }
+          const confirmar = window.confirm("Inativar marcador no sistema inteiro?");
+          if (!confirmar) return;
+          const endpoint = excluirUrlTemplate.replace(/0\/excluir\/$/, `${actionTargetItem.id}/excluir/`);
+          const response = await fetch(endpoint, {
+            method: "DELETE",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": getCsrf(),
+              "X-Requested-With": "XMLHttpRequest",
+            },
+            body: JSON.stringify({
+              admin_username: username,
+              admin_password: password,
+            }),
+          });
+          if (!response.ok) {
+            let detail = "Não foi possível inativar o marcador no sistema.";
+            try {
+              const payload = await response.json();
+              if (payload && payload.detail) detail = payload.detail;
+            } catch (e) {
+              detail = "Não foi possível inativar o marcador no sistema.";
+            }
+            window.alert(detail);
+            return;
+          }
+          removeMarkerLocally(actionTargetItem.id);
+          closeAdminModal();
+          closePopover();
+          window.alert("Marcador inativado no sistema.");
+        });
+
+        renderPaleta();
+        if (itemTipo && itemId) {
+          const itemUrl = itemUrlTemplate
+            .replace("/__tipo__/", `/${itemTipo}/`)
+            .replace("/0/", `/${itemId}/`);
+          fetch(itemUrl, { headers: { "X-Requested-With": "XMLHttpRequest" } })
+            .then((response) => (response.ok ? response.json() : null))
+            .then((payload) => {
+              const locais = (payload && payload.locais) || [];
+              locais.forEach((item) => selectedMap.set(item.id, item));
+              renderSelected();
+            })
+            .catch(() => renderSelected());
+        } else {
+          const initialIds = (hidden.value || "")
+            .split(",")
+            .map((item) => item.trim())
+            .filter((item) => item);
+          if (initialIds.length) {
+            fetchSuggestions("").then(() => {
+              suggestions.forEach((item) => {
+                if (initialIds.includes(String(item.id))) {
+                  selectedMap.set(item.id, item);
+                }
+              });
+              renderSelected();
+            });
+          } else {
+            renderSelected();
+          }
+        }
+
+        input.addEventListener("focus", () => fetchSuggestions(input.value));
+        input.addEventListener("input", () => fetchSuggestions(input.value));
+        input.addEventListener("keydown", (event) => {
+          if (dropdown.classList.contains("sala-hidden")) return;
+          const options = Array.from(dropdown.querySelectorAll(".sala-marcador-opcao"));
+          if (!options.length) return;
+          if (event.key === "ArrowDown") {
+            event.preventDefault();
+            highlighted = Math.min(highlighted + 1, options.length - 1);
+            renderDropdown(input.value);
+          } else if (event.key === "ArrowUp") {
+            event.preventDefault();
+            highlighted = Math.max(highlighted - 1, 0);
+            renderDropdown(input.value);
+          } else if (event.key === "Enter") {
+            event.preventDefault();
+            const target = options[highlighted] || options[0];
+            target.click();
+          } else if (event.key === "Escape") {
+            event.preventDefault();
+            closeDropdown();
+            closeActionsMenu();
+            closePopover();
+            closeAdminModal();
+          }
+        });
+
+        document.addEventListener("click", (event) => {
+          if (
+            !editor.contains(event.target) &&
+            !popover.contains(event.target) &&
+            !adminModal.contains(event.target)
+          ) {
+            closeDropdown();
+            closeActionsMenu();
+            closePopover();
+          }
+        });
+      });
+    })();
+
+    (function () {
+      const modal = document.getElementById("sala-form-errors-modal");
+      const backdrop = document.getElementById("sala-form-errors-backdrop");
+      const closeBtn = document.getElementById("sala-form-errors-close");
+      if (!modal || !backdrop || !closeBtn) return;
+
+      const closeModal = () => {
+        modal.style.display = "none";
+        backdrop.style.display = "none";
+        backdrop.setAttribute("aria-hidden", "true");
+      };
+
+      closeBtn.addEventListener("click", closeModal);
+      backdrop.addEventListener("click", closeModal);
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          closeModal();
+        }
+      });
+    })();
+  </script>
+{% endblock %}

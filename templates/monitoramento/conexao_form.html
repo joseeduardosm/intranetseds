@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/monitoramento/monitoramento.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Conexão do projeto {{ projeto.nome }}</h2>
+  </section>
+
+  <article class="card form-card">
+    <form method="post" class="monitor-form">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <div class="form-actions">
+        <button class="btn" type="submit" name="salvar" value="1">Salvar conexão</button>
+        <button class="btn btn-light" type="submit" name="testar" value="1">Testar conexão</button>
+        <a class="btn btn-light" href="{% url 'monitoramento_projeto_detail' projeto.pk %}">Voltar</a>
+      </div>
+    </form>
+  </article>
+{% endblock %}

@@ -1,0 +1,21 @@
+.form-row input,
+.form-row select,
+.form-row textarea,
+.selector-chosen,
+.selector-available {
+  border: 1px solid #d7d4cc;
+  border-radius: 10px;
+}
+
+.submit-row {
+  background: transparent;
+  border: none;
+  padding: 16px 0 0;
+}
+
+.submit-row a.deletelink {
+  background: transparent;
+  color: #b3261e;
+  border: 1px solid #f1c3bf;
+  border-radius: 999px;
+}

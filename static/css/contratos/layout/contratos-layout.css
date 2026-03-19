@@ -1,0 +1,78 @@
+/* Layout da página de listagem de contratos */
+
+.diario-layout.is-collapsed {
+  grid-template-columns: 1fr 320px;
+}
+
+.diario-layout.is-collapsed .diario-aside-left {
+  display: none;
+}
+
+.diario-layout {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr) 320px;
+  gap: 32px;
+  align-items: start;
+  margin-bottom: 48px;
+}
+
+.diario-main {
+  min-width: 0;
+}
+
+.diario-aside {
+  position: sticky;
+  top: 8px;
+}
+
+.diario-aside-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 20px 22px;
+  box-shadow: 0 10px 22px rgba(31, 42, 68, 0.08);
+}
+
+.diario-aside-card h3 {
+  margin-top: 0;
+  color: var(--primary);
+}
+
+.diario-aside-card p {
+  margin: 0 0 12px;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.diario-aside-tip {
+  margin: 0;
+  padding: 10px 12px;
+  background: #f6f1e7;
+  border-radius: 12px;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+@media (max-width: 1100px) {
+  .diario-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .diario-aside {
+    position: static;
+  }
+
+  .diario-layout.is-collapsed {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .diario-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .diario-aside {
+    position: static;
+  }
+}

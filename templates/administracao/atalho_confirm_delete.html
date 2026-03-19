@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="detail">
+    <div class="detail-header">
+      <h2>Excluir atalho</h2>
+    </div>
+    <p>Tem certeza que deseja excluir "{{ object.titulo }}"?</p>
+    <form method="post" class="form-actions">
+      {% csrf_token %}
+      <button class="btn btn-danger" type="submit">Excluir</button>
+      <a class="btn btn-secondary" href="{% url 'administracao_atalho_list' %}">Cancelar</a>
+    </form>
+  </section>
+{% endblock %}

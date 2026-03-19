@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <!-- Cabeçalho da página (novo ou edição) -->
+  <section class="page-header">
+    {% if object %}
+      <h2>Editar Informações</h2>
+    {% else %}
+      <h2>Novo ramal</h2>
+    {% endif %}
+  </section>
+
+  <!-- Formulário de criação/edição de ramal -->
+  <form class="form form--ramais" method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    <div class="form-grid form-grid--ramais">
+      {% for field in form %}
+        <div class="form-field {% if field.name == 'bio' or field.name == 'foto' %}form-field--wide{% endif %}">
+          {% if field.field.widget.input_type == "checkbox" %}
+            <div class="form-field-checkbox">
+              {{ field }}
+              <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            </div>
+          {% else %}
+            {{ field.label_tag }}
+            {{ field }}
+          {% endif %}
+          {{ field.errors }}
+        </div>
+      {% endfor %}
+    </div>
+    <div class="form-actions">
+      <button class="btn" type="submit">Salvar</button>
+      <a class="btn btn-secondary" href="{% url 'ramais_list' %}">Cancelar</a>
+    </div>
+  </form>
+{% endblock %}

@@ -1,0 +1,38 @@
+{% with s=item.progresso_snapshot %}
+<div class="progresso-duplo">
+  <div class="progresso-linha progresso-linha--prazo">
+    <div class="progresso-linha-topo">
+      <span class="progresso-titulo">Prazo</span>
+      <span class="progresso-valor">{{ s.prazo_percentual|floatformat:2 }}%</span>
+    </div>
+    <div class="progresso-barra-bg">
+      <div class="progresso-barra-fill {{ s.prazo_classe }}" style="width: {{ s.prazo_percentual|floatformat:'2u' }}%;"></div>
+    </div>
+  </div>
+
+  <div class="progresso-linha progresso-linha--conclusao">
+    <div class="progresso-linha-topo">
+      <span class="progresso-titulo">{{ s.titulo_conclusao }}</span>
+      <span class="progresso-valor">{{ s.conclusao_percentual|floatformat:2 }}%</span>
+    </div>
+    <div class="progresso-barra-bg">
+      <div class="progresso-barra-fill {{ s.conclusao_classe }}" style="width: {{ s.conclusao_percentual|floatformat:'2u' }}%;"></div>
+    </div>
+  </div>
+
+  <div
+    class="progresso-delta {{ s.delta_classe }}{% if show_delta_tooltip %} progresso-delta--tooltip{% endif %}"
+    {% if show_delta_tooltip %}title="Delta = Conclusão (%) - Prazo (%). Positivo: adiantado. Negativo: atrasado."{% endif %}
+  >
+    Conclusão - Prazo: {{ s.delta_texto }}
+    {% if show_delta_tooltip %}
+      <span class="progresso-delta-help" aria-hidden="true">?</span>
+      <span class="progresso-delta-tooltip">
+        Delta = Conclusão (%) - Prazo (%).<br />
+        Positivo: adiantado.<br />
+        Negativo: atrasado.
+      </span>
+    {% endif %}
+  </div>
+</div>
+{% endwith %}

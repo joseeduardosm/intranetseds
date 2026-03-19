@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Configurar servidor SMTP</h2>
+  </section>
+
+  {% if feedback %}
+    <div class="alert alert-{{ feedback.level }}">
+      {{ feedback.message }}
+    </div>
+  {% endif %}
+
+  <form class="form" method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <div class="form-actions">
+      <button class="btn" type="submit" name="save" value="1">Salvar</button>
+      <button class="btn btn-secondary" type="submit" name="test" value="1">Testar conexão SMTP</button>
+      <a class="btn btn-light" href="{% url 'administracao_configuracoes' %}">Voltar</a>
+    </div>
+  </form>
+{% endblock %}

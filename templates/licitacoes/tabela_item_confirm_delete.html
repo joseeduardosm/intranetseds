@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/licitacoes/licitacoes.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Excluir linha da tabela</h2>
+  </section>
+
+  <div class="form">
+    <p>Tem certeza que deseja excluir esta linha da tabela?</p>
+    <p><strong>{{ object.descricao|truncatechars:180 }}</strong></p>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ next_url }}" />
+      <div class="form-actions">
+        <button class="btn btn-danger" type="submit">Excluir</button>
+        <a class="btn btn-light" href="{{ next_url }}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}

@@ -1,0 +1,203 @@
+/* Cards da Lousa redesenhados com base estrutural da Sala de Situacao */
+
+.lousa-card-grid-container.card-grid-fixed {
+  grid-template-columns: repeat(auto-fill, minmax(280px, 360px));
+  justify-content: center;
+}
+
+.lousa-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 10px 22px rgba(31, 42, 68, 0.08);
+  min-height: 250px;
+  display: flex;
+  flex-direction: column;
+}
+
+.lousa-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 28px rgba(31, 42, 68, 0.14);
+}
+
+.lousa-card .card-body {
+  padding: 12px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  height: 100%;
+}
+
+.lousa-card-head-link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+.lousa-card-title {
+  margin: 0 0 2px;
+  color: var(--primary);
+  font-size: clamp(0.94rem, 0.95vw, 1.02rem);
+  line-height: 1.22;
+  min-height: 0;
+  max-height: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lousa-card-subtitle {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.25;
+}
+
+.lousa-card-progress-list {
+  margin-top: auto;
+  display: grid;
+  gap: 6px;
+  align-content: end;
+}
+
+.lousa-progress-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 6px;
+}
+
+.lousa-progress {
+  display: flex;
+  align-items: center;
+  min-height: 21px;
+  margin-top: 0;
+  padding-top: 0;
+}
+
+.lousa-progress-track {
+  margin-top: 0;
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  background: #e7e3db;
+  overflow: hidden;
+  border: 1px solid #d7d2c8;
+}
+
+.lousa-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  transition: width 0.25s ease;
+}
+
+.lousa-progress-fill.is-safe {
+  background: #2e9d44;
+}
+
+.lousa-progress-fill.is-warning {
+  background: #d9a400;
+}
+
+.lousa-progress-fill.is-danger {
+  background: #c73b2e;
+}
+
+.lousa-progress-fill.is-complete {
+  background: #72808e;
+}
+
+.lousa-progress-end {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.lousa-progress-end-main {
+  display: inline-flex;
+  align-items: center;
+  min-height: 21px;
+  gap: 6px;
+}
+
+.lousa-marcador-acao {
+  appearance: none;
+  border: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.lousa-progress-date {
+  font-size: 0.56rem;
+  font-weight: 700;
+  color: var(--primary);
+  white-space: nowrap;
+}
+
+.lousa-progress-note {
+  display: block;
+  max-width: 12.5rem;
+  margin-top: -2px;
+  color: var(--muted);
+  font-size: 0.53rem;
+  line-height: 1.2;
+  text-align: right;
+  white-space: normal;
+}
+
+.lousa-progress-note--is-safe {
+  color: #446b4e;
+}
+
+.lousa-progress-note--is-warning {
+  color: #7a653d;
+}
+
+.lousa-progress-note--is-danger {
+  color: #8f5148;
+}
+
+.lousa-card-progress-list--compact {
+  gap: 4px;
+}
+
+.lousa-card-progress-list--compact .lousa-progress-track {
+  height: 8px;
+}
+
+.lousa-card-progress-list--compact .lousa-progress {
+  min-height: 19px;
+  padding-top: 0;
+}
+
+.lousa-card-progress-list--compact .sala-marcador-chip {
+  min-height: 19px;
+  padding: 3px 8px;
+  font-size: 0.56rem;
+}
+
+.lousa-card-progress-list--compact .lousa-progress-date {
+  font-size: 0.5rem;
+}
+
+.lousa-card-progress-list--compact .lousa-progress-note {
+  max-width: 10rem;
+  font-size: 0.48rem;
+}
+
+.lousa-empty-state {
+  margin-top: auto;
+}
+
+.lousa-card-footer {
+  padding: 3px 12px;
+  border-top: 1px solid var(--border);
+  background: #fbfaf7;
+  color: #1a1a1a;
+  font-size: 0.58rem;
+  line-height: 1.05;
+  font-weight: 400;
+  text-align: center;
+}

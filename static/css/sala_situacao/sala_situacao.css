@@ -1,0 +1,11 @@
+@import url("base/sala-base.css");
+@import url("layout/sala-layout.css");
+@import url("components/sala-cards.css");
+@import url("components/sala-search.css");
+@import url("components/sala-progress.css");
+@import url("components/sala-markers.css");
+@import url("components/sala-notes-history.css");
+@import url("components/sala-forms.css");
+@import url("components/sala-calendar.css");
+@import url("pages/sala-form.css");
+@import url("utilities/sala-utilities.css");

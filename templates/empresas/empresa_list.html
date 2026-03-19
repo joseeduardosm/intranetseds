@@ -1,0 +1,44 @@
+﻿{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/empresas/empresas.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Empresas</h2>
+  </section>
+
+  <div class="card-actions">
+    <a class="btn" href="{% url 'empresas_create' %}">Nova empresa</a>
+    <a class="btn btn-light" href="{% url 'contratos_list' %}">Contratos</a>
+    <a class="btn btn-light" href="{% url 'prepostos_list' %}">Prepostos</a>
+  </div>
+
+  {% if empresas %}
+    <div class="card-grid">
+      {% for empresa in empresas %}
+        <article class="card">
+          <a class="card-link" href="{% url 'empresas_detail' empresa.pk %}">
+            <div class="card-body">
+              <h3 class="card-title">{{ empresa.nome }}</h3>
+              <p class="card-meta">CNPJ: {{ empresa.cnpj|default:"Sem CNPJ" }}</p>
+              {% if empresa.prepostos.all|length %}
+                <p class="card-text">
+                  {% for preposto in empresa.prepostos.all %}
+                    Preposto {{ forloop.counter }}: {{ preposto.nome }}{% if not forloop.last %}<br />{% endif %}
+                  {% endfor %}
+                </p>
+              {% else %}
+                <p class="card-text">Sem prepostos cadastrados.</p>
+              {% endif %}
+            </div>
+          </a>
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p>Nenhuma empresa cadastrada.</p>
+  {% endif %}
+{% endblock %}

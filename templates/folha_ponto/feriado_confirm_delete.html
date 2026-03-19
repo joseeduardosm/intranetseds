@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/folha_ponto/folha_ponto.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Excluir feriado</h2>
+  </section>
+
+  <form class="form" method="post">
+    {% csrf_token %}
+    <p>Confirma a exclusao de <strong>{{ object.descricao }}</strong> ({{ object.data|date:"d/m/Y" }})?</p>
+    <div class="form-actions">
+      <button class="btn btn-danger" type="submit">Excluir</button>
+      <a class="btn btn-secondary" href="{% url 'folha_ponto_feriado_list' %}">Cancelar</a>
+    </div>
+  </form>
+{% endblock %}

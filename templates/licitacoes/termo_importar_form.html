@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/licitacoes/licitacoes.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Importar termo</h2>
+  </section>
+
+  <div class="form">
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      <p>
+        <label for="{{ form.apelido.id_for_label }}">{{ form.apelido.label }}</label>
+        {{ form.apelido }}
+        {{ form.apelido.errors }}
+      </p>
+      <p>
+        <label for="{{ form.arquivo.id_for_label }}">{{ form.arquivo.label }}</label>
+        {{ form.arquivo }}
+        {{ form.arquivo.errors }}
+      </p>
+      <p>
+        <label for="{{ form.texto.id_for_label }}">{{ form.texto.label }}</label>
+        {{ form.texto }}
+        {{ form.texto.errors }}
+      </p>
+      <p>Preencha o arquivo DOCX ou cole o conteudo na textarea. Se ambos forem informados, o texto colado sera priorizado.</p>
+      <div class="form-actions">
+        <button class="btn" type="submit">Importar</button>
+        <a class="btn btn-light" href="{% url 'licitacoes_termo_list' %}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}

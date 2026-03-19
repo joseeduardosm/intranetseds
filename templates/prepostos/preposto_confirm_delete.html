@@ -1,0 +1,23 @@
+﻿{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/prepostos/prepostos.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Excluir preposto</h2>
+  </section>
+
+  <div class="detail">
+    <p>Tem certeza que deseja excluir <strong>{{ object.nome }}</strong>?</p>
+    <form method="post">
+      {% csrf_token %}
+      <div class="detail-actions">
+        <button type="submit" class="btn btn-danger">Confirmar exclusão</button>
+        <a class="btn btn-light" href="{% url 'prepostos_detail' object.pk %}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}

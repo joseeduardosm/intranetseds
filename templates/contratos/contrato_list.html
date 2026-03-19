@@ -1,0 +1,246 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load contratos_extras %}
+
+{% block container_class %}container-wide{% endblock %}
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/contratos/contratos.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Contratos - {{ contratos|length }} contratos cadastrados - {{ total_valor|moeda_br }} reais</h2>
+  </section>
+
+  <div class="card-actions">
+    {% if perms.contratos.add_contrato %}
+      <a class="btn" href="{% url 'contratos_create' %}">Novo contrato</a>
+    {% endif %}
+    <a class="btn btn-light" href="{% url 'empresas_list' %}">Empresas</a>
+    <a class="btn btn-light" href="{% url 'prepostos_list' %}">Prepostos</a>
+    <button class="btn btn-light info-toggle" type="button" data-layout="contratos-layout" data-aside="contratos-aside">Mostrar explicacao</button>
+  </div>
+
+  <div class="diario-layout is-collapsed" id="contratos-layout">
+    <div class="diario-main">
+      <div class="table-legend">
+        <span class="legend-label">Vencimentos em:</span>
+        <button class="legend-item linha-alerta-amarelo" type="button" data-legenda="linha-alerta-amarelo">6 meses</button>
+        <button class="legend-item linha-alerta-laranja" type="button" data-legenda="linha-alerta-laranja">5 meses</button>
+        <button class="legend-item linha-alerta-vermelho" type="button" data-legenda="linha-alerta-vermelho">4 meses</button>
+        <button class="legend-item linha-alerta-roxo" type="button" data-legenda="linha-alerta-roxo">3 meses</button>
+        <button class="legend-item linha-alerta-preto" type="button" data-legenda="linha-alerta-preto">2-1 meses</button>
+        <button class="legend-item legend-clear" type="button" data-legenda="all">Todos</button>
+      </div>
+      <div class="table-legend">
+        <span class="legend-label">Status:</span>
+        <button class="legend-item" type="button" data-status="Vigente">Vigente</button>
+        <button class="legend-item" type="button" data-status="Em Contratacao">Em contratação</button>
+        <button class="legend-item" type="button" data-status="Encerrado">Encerrado</button>
+        <button class="legend-item legend-clear" type="button" data-status="all">Todos</button>
+      </div>
+
+      {% if contratos %}
+        <div class="table-toolbar">
+          <div class="table-search">
+            <span class="table-search-icon">&#128269;</span>
+            <input type="search" id="contratos-search" placeholder="Pesquisar em todas as colunas..." />
+          </div>
+        </div>
+        <div class="table-wrapper">
+          <table class="table table-sortable table-contratos" id="contratos-table">
+            <thead>
+              <tr>
+                <th class="sortable">Nº SEI</th>
+                <th class="sortable">Nº Contrato</th>
+                <th class="sortable">Empresa</th>
+                <th class="sortable">Objeto</th>
+                <th class="sortable">Status</th>
+                <th class="sortable">Valor Total</th>
+                <th class="sortable">Data Fim</th>
+                <th class="sortable">Meses p/ fim</th>
+              </tr>
+              <tr>
+                <th><input type="search" class="table-filter" data-col="0" placeholder="Filtrar..." /></th>
+                <th><input type="search" class="table-filter" data-col="1" placeholder="Filtrar..." /></th>
+                <th><input type="search" class="table-filter" data-col="2" placeholder="Filtrar..." /></th>
+                <th><input type="search" class="table-filter" data-col="3" placeholder="Filtrar..." /></th>
+                <th><input type="search" class="table-filter" data-col="4" placeholder="Filtrar..." /></th>
+                <th><input type="search" class="table-filter" data-col="5" placeholder="Filtrar..." /></th>
+                <th><input type="search" class="table-filter" data-col="6" placeholder="Filtrar..." /></th>
+                <th><input type="search" class="table-filter" data-col="7" placeholder="Filtrar..." /></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for contrato in contratos %}
+                <tr class="{{ contrato.classe_alerta }}">
+                  <td><a href="{% url 'contratos_detail' contrato.pk %}">{{ contrato.nro_sei }}</a></td>
+                  <td>{{ contrato.nro_contrato }}</td>
+                  <td>{{ contrato.empresa }}</td>
+                  <td>{{ contrato.objeto|urlize }}</td>
+                  <td>{{ contrato.get_status_display }}</td>
+                  <td>{{ contrato.valor_total|moeda_br }}</td>
+                  <td>{{ contrato.data_fim|date:"d/m/Y" }}</td>
+                  <td>{{ contrato.prazo_restante }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <script>
+          const table = document.getElementById("contratos-table");
+          const searchInput = document.getElementById("contratos-search");
+          const getCellValue = (row, index) =>
+            (row.children[index]?.textContent || "").trim().toLowerCase();
+          const legendButtons = document.querySelectorAll(".legend-item[data-legenda]");
+          const statusButtons = document.querySelectorAll(".legend-item[data-status]");
+          const columnFilters = document.querySelectorAll(".table-filter");
+          const statusColumnIndex = 4;
+          let activeLegend = "all";
+          let activeStatus = "all";
+
+          const parseDateBr = (value) => {
+            const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+            if (!match) return null;
+            const [, dd, mm, yyyy] = match;
+            const date = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
+            return Number.isNaN(date.getTime()) ? null : date.getTime();
+          };
+          const parseNumberBr = (value) => {
+            if (!value) return null;
+            const cleaned = value
+              .replace(/\s/g, "")
+              .replace(/\./g, "")
+              .replace(",", ".")
+              .replace(/[^\d.-]/g, "");
+            const num = parseFloat(cleaned);
+            return Number.isNaN(num) ? null : num;
+          };
+
+          const sortTable = (index, direction) => {
+            const rows = Array.from(table.tBodies[0].rows);
+            rows.sort((a, b) => {
+              const aText = getCellValue(a, index);
+              const bText = getCellValue(b, index);
+              if (index === 6) {
+                const aDate = parseDateBr(aText);
+                const bDate = parseDateBr(bText);
+                if (aDate !== null && bDate !== null) {
+                  if (aDate < bDate) return direction === "asc" ? -1 : 1;
+                  if (aDate > bDate) return direction === "asc" ? 1 : -1;
+                  return 0;
+                }
+              }
+              if (index === 5 || index === 7) {
+                const aNum = parseNumberBr(aText);
+                const bNum = parseNumberBr(bText);
+                if (aNum !== null && bNum !== null) {
+                  if (aNum < bNum) return direction === "asc" ? -1 : 1;
+                  if (aNum > bNum) return direction === "asc" ? 1 : -1;
+                  return 0;
+                }
+              }
+              const aNum = parseNumberBr(aText);
+              const bNum = parseNumberBr(bText);
+              const aVal = Number.isNaN(aNum) ? aText : aNum;
+              const bVal = Number.isNaN(bNum) ? bText : bNum;
+              if (aVal < bVal) return direction === "asc" ? -1 : 1;
+              if (aVal > bVal) return direction === "asc" ? 1 : -1;
+              return 0;
+            });
+            rows.forEach((row) => table.tBodies[0].appendChild(row));
+          };
+
+          table.querySelectorAll("th.sortable").forEach((th, index) => {
+            th.addEventListener("click", () => {
+              const current = th.getAttribute("data-direction") || "desc";
+              const next = current === "asc" ? "desc" : "asc";
+              table.querySelectorAll("th.sortable").forEach((header) => header.removeAttribute("data-direction"));
+              th.setAttribute("data-direction", next);
+              sortTable(index, next);
+            });
+          });
+
+          const applyFilters = () => {
+            const term = searchInput.value.trim().toLowerCase();
+            Array.from(table.tBodies[0].rows).forEach((row) => {
+              const rowText = Array.from(row.cells)
+                .map((cell) => cell.textContent.toLowerCase())
+                .join(" ");
+              const matchesTerm = !term || rowText.includes(term);
+              let matchesColumns = true;
+              columnFilters.forEach((input) => {
+                const colIndex = parseInt(input.getAttribute("data-col"), 10);
+                const colTerm = (input.value || "").trim().toLowerCase();
+                if (!colTerm) return;
+                const cellText = (row.cells[colIndex]?.textContent || "").trim().toLowerCase();
+                if (!cellText.includes(colTerm)) matchesColumns = false;
+              });
+              const matchesLegend =
+                activeLegend === "all" || row.classList.contains(activeLegend);
+              const statusText = (row.cells[statusColumnIndex]?.textContent || "").trim();
+              const matchesStatus =
+                activeStatus === "all" || statusText.toLowerCase() === activeStatus.toLowerCase();
+              row.style.display =
+                matchesTerm && matchesLegend && matchesStatus && matchesColumns ? "" : "none";
+            });
+          };
+
+          searchInput.addEventListener("input", applyFilters);
+          columnFilters.forEach((input) => input.addEventListener("input", applyFilters));
+
+          legendButtons.forEach((button) => {
+            button.addEventListener("click", () => {
+              activeLegend = button.getAttribute("data-legenda") || "all";
+              legendButtons.forEach((btn) => btn.classList.remove("legend-active"));
+              button.classList.add("legend-active");
+              applyFilters();
+            });
+          });
+
+          statusButtons.forEach((button) => {
+            button.addEventListener("click", () => {
+              activeStatus = button.getAttribute("data-status") || "all";
+              statusButtons.forEach((btn) => btn.classList.remove("legend-active"));
+              button.classList.add("legend-active");
+              applyFilters();
+            });
+          });
+        </script>
+      {% else %}
+        <p>Nenhum contrato cadastrado.</p>
+      {% endif %}
+    </div>
+    <aside class="diario-aside" id="contratos-aside">
+      <div class="diario-aside-card">
+        <h3>O que e o modulo de Contratos?</h3>
+        <p>
+          Este app centraliza os contratos da area, reunindo numero, empresa, objeto, valores e vigencia
+          em um unico lugar para consulta rapida.
+        </p>
+        <p>
+          As cores indicam o tempo restante para vencimento. Quanto mais escura a linha, mais proximo
+          do fim. Use os filtros por status e vencimento para priorizar renovacoes e acoes.
+        </p>
+        <p class="diario-aside-tip">
+          Dica: mantenha datas e valores atualizados para gerar relatorios confiaveis.
+        </p>
+      </div>
+    </aside>
+  </div>
+
+  <script>
+    const toggleButtons = document.querySelectorAll(".info-toggle");
+    toggleButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const layoutId = button.getAttribute("data-layout");
+        const asideId = button.getAttribute("data-aside");
+        const layout = document.getElementById(layoutId);
+        const aside = document.getElementById(asideId);
+        if (!layout || !aside) return;
+        const isCollapsed = layout.classList.toggle("is-collapsed");
+        button.textContent = isCollapsed ? "Mostrar explicacao" : "Mostrar explicacao";
+      });
+    });
+  </script>
+{% endblock %}

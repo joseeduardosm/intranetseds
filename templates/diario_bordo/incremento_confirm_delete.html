@@ -1,0 +1,18 @@
+﻿{% extends 'base.html' %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Excluir incremento</h2>
+  </section>
+
+  <div class="detail">
+    <p>Tem certeza que deseja excluir este incremento?</p>
+    <form method="post">
+      {% csrf_token %}
+      <div class="detail-actions">
+        <button type="submit" class="btn btn-danger">Confirmar exclusão</button>
+        <a class="btn btn-light" href="{% url 'diario_bordo_detail' object.bloco.pk %}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}

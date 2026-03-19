@@ -1,0 +1,198 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/diario_bordo/diario_bordo.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="db-detail-layout">
+    <section class="db-detail-panel">
+      <section class="page-header db-page-header"><h2>Detalhes do bloco</h2></section>
+      <div class="detail db-detail-card">
+        <p><strong>Título:</strong> {{ bloco.nome }}</p>
+        <p><strong>Status:</strong> {{ bloco.get_status_display }}</p>
+        <p><strong>Criação:</strong> {{ bloco.criado_em|date:"d/m/Y H:i" }}</p>
+        <p><strong>Última atualização:</strong> {{ bloco.ultima_atualizacao|date:"d/m/Y H:i" }}</p>
+        {% if bloco.contrato %}
+          <p><strong>Contrato:</strong> <a href="{% url 'contratos_detail' bloco.contrato.pk %}">{{ bloco.contrato.nro_sei }}</a></p>
+        {% endif %}
+        <p>
+          <strong>Marcadores:</strong>
+          {% for marcador in bloco.marcadores_efetivos %}
+            <span class="db-marcador-chip" style="--marcador-cor: {{ marcador.cor }};" title="Marcador: {{ marcador.nome }}">{{ marcador.nome }}</span>
+          {% empty %}
+            -
+          {% endfor %}
+        </p>
+        {% if bloco.participantes.count %}
+          <p><strong>Pessoas:</strong></p>
+          <ul>
+            {% for usuario in bloco.participantes.all %}
+              <li>{% if usuario.get_full_name %}{{ usuario.get_full_name }}{% else %}{{ usuario.username }}{% endif %}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+        <p><strong>Descrição:</strong></p>
+        <p class="db-detail-text">{{ bloco.descricao|default:"Sem descrição"|urlize|linebreaksbr }}</p>
+
+        <div class="detail-actions db-detail-actions">
+          {% if bloco_anterior %}
+            <a class="btn btn-light" href="{% url 'diario_bordo_detail' bloco_anterior.pk %}{{ filtro_querystring }}">&larr; Anterior</a>
+          {% endif %}
+          {% if bloco_proximo %}
+            <a class="btn btn-light" href="{% url 'diario_bordo_detail' bloco_proximo.pk %}{{ filtro_querystring }}">Próximo &rarr;</a>
+          {% endif %}
+          {% if perms.diario_bordo.change_blocotrabalho %}
+            <a class="btn" href="{% url 'diario_bordo_update' bloco.pk %}">Editar</a>
+          {% endif %}
+          {% if perms.diario_bordo.delete_blocotrabalho %}
+            <a class="btn btn-secondary" href="{% url 'diario_bordo_delete' bloco.pk %}">Excluir</a>
+          {% endif %}
+          <a class="btn btn-light" href="{% url 'diario_bordo_relatorio_detalhe' bloco.pk %}" target="_blank" rel="noopener">Extrair relatório</a>
+          <a class="btn btn-light" href="{{ voltar_url }}">Voltar</a>
+        </div>
+      </div>
+    </section>
+
+    <aside class="db-detail-side">
+      <section class="page-header db-page-header"><h2>Incrementos</h2></section>
+      <div class="detail db-detail-card db-detail-card-tall">
+        {% if perms.diario_bordo.add_incremento %}
+          <div class="form db-inline-form">
+            <form id="incremento-form" method="post" enctype="multipart/form-data" action="{% url 'diario_bordo_incremento_create' bloco.pk %}">
+              {% csrf_token %}
+              {{ incremento_form.non_field_errors }}
+              <p>
+                <label for="{{ incremento_form.texto.id_for_label }}">{{ incremento_form.texto.label }}</label>
+                {{ incremento_form.texto }}
+                {{ incremento_form.texto.errors }}
+              </p>
+              <p>
+                <label for="{{ incremento_form.anexos.id_for_label }}">{{ incremento_form.anexos.label }}</label>
+                {{ incremento_form.anexos }}
+                {{ incremento_form.anexos.errors }}
+              </p>
+              <div class="form-actions">
+                <button type="submit" class="btn">Adicionar incremento</button>
+              </div>
+            </form>
+          </div>
+        {% endif %}
+
+        <div class="timeline-header db-timeline-header">
+          <h3>Histórico</h3>
+          <div class="timeline-sort">
+            {% if ordem_data == "asc" %}
+              <a class="btn btn-light btn-small" href="{{ ordem_desc_url }}">Mais recentes</a>
+            {% else %}
+              <a class="btn btn-light btn-small" href="{{ ordem_asc_url }}">Mais antigos</a>
+            {% endif %}
+          </div>
+        </div>
+
+        {% if incrementos %}
+          <ul class="incrementos-timeline db-incrementos-timeline">
+            {% for incremento in incrementos %}
+              <li class="incremento-item db-incremento-item">
+                <div class="incremento-meta">
+                  <span>{{ incremento.criado_em|date:"d/m/Y H:i" }}</span>
+                  <span>
+                    {% if incremento.criado_por %}
+                      {% if incremento.criado_por.get_full_name %}
+                        {{ incremento.criado_por.get_full_name }}
+                      {% else %}
+                        {{ incremento.criado_por.username }}
+                      {% endif %}
+                    {% else %}
+                      -
+                    {% endif %}
+                  </span>
+                </div>
+                <div class="incremento-text">{{ incremento.texto|urlize|linebreaksbr }}</div>
+                {% if incremento.ciencias.all %}
+                  <div class="incremento-anexo">
+                    {% for ciencia in incremento.ciencias.all %}
+                      <div class="incremento-ciente-item">
+                        <small>{{ ciencia.criado_em|date:"d/m/Y H:i" }} - {{ ciencia.texto }}</small>
+                      </div>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+                {% if perms.diario_bordo.add_incremento %}
+                  <div class="incremento-anexo">
+                    <form method="post" action="{% url 'diario_bordo_incremento_ciente' incremento.pk %}">
+                      {% csrf_token %}
+                      <input type="hidden" name="next" value="{{ request.get_full_path }}" />
+                      <button type="submit" class="btn btn-light btn-small" title="Ciente">&#128077; Ciente</button>
+                    </form>
+                  </div>
+                {% endif %}
+                {% if incremento.anexo %}
+                  <div class="incremento-anexo"><a href="{{ incremento.anexo.url }}" target="_blank" rel="noopener">{{ incremento.anexo_nome }}</a></div>
+                {% endif %}
+                {% for anexo in incremento.anexos.all %}
+                  <div class="incremento-anexo"><a href="{{ anexo.arquivo.url }}" target="_blank" rel="noopener">{{ anexo.nome_arquivo }}</a></div>
+                {% endfor %}
+              </li>
+            {% endfor %}
+          </ul>
+          {% if incrementos_page %}
+            <div class="timeline-pagination">
+              {% if incrementos_page.has_previous %}
+                <a class="btn btn-light btn-small" href="{{ incrementos_page_base }}{{ incrementos_page.previous_page_number }}">Anterior</a>
+              {% endif %}
+              <span class="timeline-page-info">Página {{ incrementos_page.number }} de {{ incrementos_paginator.num_pages }}</span>
+              {% if incrementos_page.has_next %}
+                <a class="btn btn-light btn-small" href="{{ incrementos_page_base }}{{ incrementos_page.next_page_number }}">Próxima</a>
+              {% endif %}
+            </div>
+          {% endif %}
+        {% else %}
+          <p>Sem incrementos registrados.</p>
+        {% endif %}
+      </div>
+    </aside>
+  </section>
+
+  <script>
+    (function () {
+      const form = document.getElementById("incremento-form");
+      const texto = document.getElementById("{{ incremento_form.texto.id_for_label }}");
+      const anexos = document.getElementById("{{ incremento_form.anexos.id_for_label }}");
+      if (!form || !texto) return;
+
+      const adicionarArquivosAoInput = (input, arquivos) => {
+        if (!input || !arquivos.length || typeof DataTransfer === "undefined") return false;
+        const dataTransfer = new DataTransfer();
+        const existentes = input.files ? Array.from(input.files) : [];
+        [...existentes, ...arquivos].forEach((arquivo) => dataTransfer.items.add(arquivo));
+        input.files = dataTransfer.files;
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+        return true;
+      };
+
+      texto.addEventListener("keydown", (event) => {
+        if (event.isComposing) return;
+        if (event.key === "Enter" && event.ctrlKey) {
+          event.preventDefault();
+          form.requestSubmit();
+        }
+      });
+
+      texto.addEventListener("paste", (event) => {
+        if (!anexos || !event.clipboardData) return;
+        const itens = Array.from(event.clipboardData.items || []);
+        const imagens = itens
+          .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
+          .map((item) => item.getAsFile())
+          .filter(Boolean);
+        if (!imagens.length) return;
+
+        const adicionou = adicionarArquivosAoInput(anexos, imagens);
+        if (!adicionou) return;
+        event.preventDefault();
+      });
+    })();
+  </script>
+{% endblock %}

@@ -1,0 +1,273 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/usuarios/usuarios.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>{% if object %}Editar Informações{% else %}Novo usuário{% endif %}</h2>
+  </section>
+
+  {% include 'usuarios/_tabs.html' with usuarios_tab='usuarios' %}
+
+  <form class="form form--ramais" method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    <div class="form-grid form-grid--ramais">
+      <div class="form-field">
+        <label for="{{ form.first_name.id_for_label }}">{{ form.first_name.label }}</label>
+        {{ form.first_name }}
+        {{ form.first_name.errors }}
+      </div>
+      <div class="form-field">
+        <label for="{{ form.username.id_for_label }}">{{ form.username.label }}</label>
+        {{ form.username }}
+        {{ form.username.errors }}
+      </div>
+      <div class="form-field">
+        <label for="{{ form.email.id_for_label }}">{{ form.email.label }}</label>
+        {{ form.email }}
+        {{ form.email.errors }}
+      </div>
+      <div class="form-field">
+        <label for="{{ form.ramal.id_for_label }}">{{ form.ramal.label }}</label>
+        {{ form.ramal }}
+        {{ form.ramal.errors }}
+      </div>
+      <div class="form-field">
+        <label for="{{ form.cargo.id_for_label }}">{{ form.cargo.label }}</label>
+        {{ form.cargo }}
+        {{ form.cargo.errors }}
+      </div>
+      <div class="form-field form-field--wide">
+        <label for="{{ form.setor.id_for_label }}">{{ form.setor.label }}</label>
+        <input type="text" class="form-control" id="setor-principal-search" placeholder="Buscar setor..." />
+        {{ form.setor }}
+        <div class="participants-picker participants-picker--compact">
+          <div class="participants-column">
+            <div class="participants-label">Disponiveis</div>
+            <div class="participants-list participants-list--compact" id="setor-principal-available"></div>
+          </div>
+          <div class="participants-column">
+            <div class="participants-label">Selecionado</div>
+            <div class="participants-list participants-list--compact is-selected" id="setor-principal-selected"></div>
+          </div>
+        </div>
+        {{ form.setor.errors }}
+      </div>
+      <div class="form-field form-field--wide">
+        <label for="{{ form.setores_acesso.id_for_label }}">{{ form.setores_acesso.label }}</label>
+        <input type="text" class="form-control" id="setores-acesso-search" placeholder="Buscar setor..." />
+        {{ form.setores_acesso }}
+        <div class="participants-picker">
+          <div class="participants-column">
+            <div class="participants-label">Disponiveis</div>
+            <div class="participants-list" id="setores-acesso-available"></div>
+          </div>
+          <div class="participants-column">
+            <div class="participants-label">Selecionados</div>
+            <div class="participants-list is-selected" id="setores-acesso-selected"></div>
+          </div>
+        </div>
+        {{ form.setores_acesso.errors }}
+      </div>
+      <div class="form-field">
+        <label for="{{ form.superior_usuario.id_for_label }}">{{ form.superior_usuario.label }}</label>
+        {{ form.superior_usuario }}
+        {{ form.superior_usuario.errors }}
+      </div>
+      <div class="form-field">
+        <label for="{{ form.password.id_for_label }}">{{ form.password.label }}</label>
+        {{ form.password }}
+        {{ form.password.errors }}
+      </div>
+      <div class="form-field form-field--wide">
+        <label for="{{ form.bio.id_for_label }}">{{ form.bio.label }}</label>
+        {{ form.bio }}
+        {{ form.bio.errors }}
+      </div>
+      <div class="form-field form-field--wide">
+        <label for="{{ form.foto.id_for_label }}">{{ form.foto.label }}</label>
+        {{ form.foto }}
+        {{ form.foto.errors }}
+      </div>
+      <div class="form-field">
+        <label for="{{ form.jornada_horas_semanais.id_for_label }}">{{ form.jornada_horas_semanais.label }}</label>
+        {{ form.jornada_horas_semanais }}
+        {{ form.jornada_horas_semanais.errors }}
+      </div>
+      <div class="form-field">
+        <label for="{{ form.horario_trabalho_inicio.id_for_label }}">{{ form.horario_trabalho_inicio.label }}</label>
+        {{ form.horario_trabalho_inicio }}
+        {{ form.horario_trabalho_inicio.errors }}
+      </div>
+      <div class="form-field">
+        <label for="{{ form.horario_trabalho_fim.id_for_label }}">{{ form.horario_trabalho_fim.label }}</label>
+        {{ form.horario_trabalho_fim }}
+        {{ form.horario_trabalho_fim.errors }}
+      </div>
+      <div class="form-field">
+        <label for="{{ form.intervalo_inicio.id_for_label }}">{{ form.intervalo_inicio.label }}</label>
+        {{ form.intervalo_inicio }}
+        {{ form.intervalo_inicio.errors }}
+      </div>
+      <div class="form-field">
+        <label for="{{ form.intervalo_fim.id_for_label }}">{{ form.intervalo_fim.label }}</label>
+        {{ form.intervalo_fim }}
+        {{ form.intervalo_fim.errors }}
+      </div>
+      <div class="form-field">
+        <label for="{{ form.rg.id_for_label }}">{{ form.rg.label }}</label>
+        {{ form.rg }}
+        {{ form.rg.errors }}
+      </div>
+      <div class="form-field">
+        <label for="{{ form.regime_plantao.id_for_label }}">{{ form.regime_plantao.label }}</label>
+        {{ form.regime_plantao }}
+        {{ form.regime_plantao.errors }}
+      </div>
+      <div class="form-field">
+        <label for="{{ form.horario_estudante.id_for_label }}">{{ form.horario_estudante.label }}</label>
+        {{ form.horario_estudante }}
+        {{ form.horario_estudante.errors }}
+      </div>
+      <div class="form-field form-field--wide">
+        <div class="form-field-checkbox">
+          {{ form.admin }}
+          <label for="{{ form.admin.id_for_label }}">{{ form.admin.label }}</label>
+        </div>
+        {{ form.admin.errors }}
+      </div>
+      <div class="form-field form-field--wide">
+        <label>{{ form.perfis.label }}</label>
+        <div class="table-wrapper">
+          <table class="table">
+            <thead>
+              <tr>
+                <th></th>
+                <th>Leitura</th>
+                <th>Criar/Editar</th>
+                <th>Excluir</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in perfil_matrix %}
+                <tr>
+                  <td>{{ row.label }}</td>
+                  {% for cell in row.cells %}
+                    <td>{{ cell|safe }}</td>
+                  {% endfor %}
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {{ form.perfis.errors }}
+      </div>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn">Salvar</button>
+      <a class="btn btn-light" href="{% url 'usuarios_list' %}">Cancelar</a>
+    </div>
+  </form>
+  <script>
+    const setorPrincipalSelect = document.getElementById("{{ form.setor.id_for_label }}");
+    const setorPrincipalSearch = document.getElementById("setor-principal-search");
+    const setorPrincipalAvailable = document.getElementById("setor-principal-available");
+    const setorPrincipalSelected = document.getElementById("setor-principal-selected");
+
+    if (setorPrincipalSelect && setorPrincipalSearch && setorPrincipalAvailable && setorPrincipalSelected) {
+      setorPrincipalSelect.classList.add("participants-select-hidden");
+
+      const renderSetorPrincipal = (filterText = "") => {
+        setorPrincipalAvailable.innerHTML = "";
+        setorPrincipalSelected.innerHTML = "";
+        const filter = filterText.trim().toLowerCase();
+        const selectedValue = setorPrincipalSelect.value || "";
+
+        Array.from(setorPrincipalSelect.options).forEach((option) => {
+          const label = (option.textContent || "").trim();
+          const value = option.value;
+          const item = document.createElement("button");
+          item.type = "button";
+          item.className = "participants-item";
+          item.textContent = label || value;
+
+          if (value === selectedValue) {
+            item.classList.add("is-selected");
+            item.addEventListener("click", () => {
+              setorPrincipalSelect.value = "";
+              renderSetorPrincipal(setorPrincipalSearch.value);
+            });
+            setorPrincipalSelected.appendChild(item);
+            return;
+          }
+
+          if (filter && !label.toLowerCase().includes(filter)) {
+            return;
+          }
+          item.addEventListener("click", () => {
+            setorPrincipalSelect.value = value;
+            renderSetorPrincipal(setorPrincipalSearch.value);
+          });
+          setorPrincipalAvailable.appendChild(item);
+        });
+      };
+
+      setorPrincipalSearch.addEventListener("input", () => {
+        renderSetorPrincipal(setorPrincipalSearch.value);
+      });
+
+      renderSetorPrincipal("");
+    }
+
+    const setoresSelect = document.getElementById("{{ form.setores_acesso.id_for_label }}");
+    const setoresSearch = document.getElementById("setores-acesso-search");
+    const setoresAvailable = document.getElementById("setores-acesso-available");
+    const setoresSelected = document.getElementById("setores-acesso-selected");
+
+    if (setoresSelect && setoresSearch && setoresAvailable && setoresSelected) {
+      setoresSelect.classList.add("participants-select-hidden");
+
+      const renderSetores = (filterText = "") => {
+        setoresAvailable.innerHTML = "";
+        setoresSelected.innerHTML = "";
+        const filter = filterText.trim().toLowerCase();
+
+        Array.from(setoresSelect.options).forEach((option) => {
+          const label = (option.textContent || "").trim();
+          const item = document.createElement("button");
+          item.type = "button";
+          item.className = "participants-item";
+          item.textContent = label || option.value;
+
+          if (option.selected) {
+            item.classList.add("is-selected");
+            item.addEventListener("click", () => {
+              option.selected = false;
+              renderSetores(setoresSearch.value);
+            });
+            setoresSelected.appendChild(item);
+          } else {
+            if (filter && !label.toLowerCase().includes(filter)) {
+              return;
+            }
+            item.addEventListener("click", () => {
+              option.selected = true;
+              renderSetores(setoresSearch.value);
+            });
+            setoresAvailable.appendChild(item);
+          }
+        });
+      };
+
+      setoresSearch.addEventListener("input", () => {
+        renderSetores(setoresSearch.value);
+      });
+
+      renderSetores("");
+    }
+  </script>
+{% endblock %}

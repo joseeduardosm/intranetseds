@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/monitoramento/monitoramento.css' %}" />
+{% endblock %}
+
+{% block container_class %}container-wide{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Esquema do projeto {{ projeto.nome }}</h2>
+  </section>
+
+  <div class="card-actions">
+    <a class="btn" href="?refresh=1">Atualizar esquema</a>
+    <a class="btn btn-light" href="{% url 'monitoramento_projeto_detail' projeto.pk %}">Voltar</a>
+  </div>
+
+  {% if snapshot %}
+    <section class="monitor-schema-grid">
+      <article class="card monitor-schema-card">
+        <div class="card-body">
+          <h3 class="card-title">Diagrama visual</h3>
+          <div id="schema-graph" class="monitor-schema-graph"></div>
+        </div>
+      </article>
+      <article class="card monitor-schema-card">
+        <div class="card-body">
+          <h3 class="card-title">Tabelas e relacionamentos</h3>
+          <div class="monitor-schema-list">
+            {% for table in snapshot.estrutura_json.tables %}
+              <div class="monitor-schema-table">
+                <h4>{{ table.name }}</h4>
+                <ul>
+                  {% for column in table.columns %}
+                    <li>{{ column.name }} · {{ column.type }}{% if column.is_primary_key %} · PK{% endif %}</li>
+                  {% endfor %}
+                </ul>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      </article>
+    </section>
+    {{ schema_graph|json_script:"schema-graph-data" }}
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <script>
+      const schemaGraphData = JSON.parse(document.getElementById("schema-graph-data")?.textContent || "{}");
+      const nodes = schemaGraphData.nodes || [];
+      const edges = schemaGraphData.edges || [];
+      const nodeTrace = {
+        type: "scatter",
+        mode: "markers+text",
+        x: nodes.map((node) => node.x),
+        y: nodes.map((node) => node.y),
+        text: nodes.map((node) => node.label),
+        textposition: "bottom center",
+        marker: {
+          size: 22,
+          color: "#1f6feb",
+          line: { color: "#ffffff", width: 2 }
+        },
+        hovertemplate: "%{text}<extra></extra>"
+      };
+      const edgeTraces = edges.map((edge) => {
+        const source = nodes.find((node) => node.id === edge.source);
+        const target = nodes.find((node) => node.id === edge.target);
+        if (!source || !target) return null;
+        return {
+          type: "scatter",
+          mode: "lines",
+          x: [source.x, target.x],
+          y: [source.y, target.y],
+          line: { color: "#94a3b8", width: 1.5 },
+          hoverinfo: "skip",
+          showlegend: false
+        };
+      }).filter(Boolean);
+
+      Plotly.newPlot(
+        "schema-graph",
+        [...edgeTraces, nodeTrace],
+        {
+          margin: { l: 20, r: 20, t: 20, b: 20 },
+          xaxis: { visible: false },
+          yaxis: { visible: false },
+          paper_bgcolor: "#ffffff",
+          plot_bgcolor: "#f8fafc"
+        },
+        { responsive: true, displaylogo: false }
+      );
+    </script>
+  {% else %}
+    <article class="card monitor-empty-card">
+      <div class="card-body">
+        <h3 class="card-title">Esquema ainda não gerado</h3>
+        <p class="card-text">Cadastre a conexão do projeto e clique em "Atualizar esquema" para montar o diagrama visual.</p>
+      </div>
+    </article>
+  {% endif %}
+{% endblock %}

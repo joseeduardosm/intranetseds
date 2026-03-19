@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/auditoria/auditoria.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Logs de Auditoria</h2>
+  </section>
+
+  <form class="form form--ramais" method="get">
+    <h3>Você quer analisar o log de qual período?</h3>
+    <div class="form-grid form-grid--ramais">
+      <div class="form-field">
+        <label for="periodo_valor">Período (número)</label>
+        <input
+          id="periodo_valor"
+          type="number"
+          name="periodo_valor"
+          min="1"
+          required
+          value="{{ periodo_valor }}"
+        />
+      </div>
+      <div class="form-field">
+        <label for="periodo_unidade">Unidade</label>
+        <select id="periodo_unidade" name="periodo_unidade" required>
+          {% for unidade_valor, unidade_label in periodo_opcoes %}
+            <option value="{{ unidade_valor }}" {% if periodo_unidade == unidade_valor %}selected{% endif %}>
+              {{ unidade_label }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <input type="hidden" name="auditar" value="1" />
+    <div class="form-actions">
+      <button class="btn" type="submit">Auditar</button>
+    </div>
+  </form>
+
+  {% if audit_error %}
+    <p class="alert alert-error">{{ audit_error }}</p>
+  {% endif %}
+
+  {% if audit_ran %}
+    <form class="search-form" method="get">
+      <input type="hidden" name="periodo_valor" value="{{ periodo_valor }}" />
+      <input type="hidden" name="periodo_unidade" value="{{ periodo_unidade }}" />
+      <input type="hidden" name="auditar" value="1" />
+      <input
+        type="search"
+        name="q"
+        placeholder="Pesquisar em data/hora, usuário e ação"
+        value="{{ q }}"
+      />
+      <input type="hidden" name="sort" value="{{ sort }}" />
+      <input type="hidden" name="dir" value="{{ dir }}" />
+    </form>
+  {% endif %}
+
+  {% if audit_ran and logs %}
+    <div class="table-wrapper">
+      <table class="table">
+        <thead>
+          <tr>
+            <th class="sortable" data-direction="{% if sort == 'data' %}{{ dir }}{% endif %}">
+              <a href="?{{ sort_links.data }}">Data e hora</a>
+            </th>
+            <th class="sortable" data-direction="{% if sort == 'usuario' %}{{ dir }}{% endif %}">
+              <a href="?{{ sort_links.usuario }}">Usuário</a>
+            </th>
+            <th class="sortable" data-direction="{% if sort == 'acao' %}{{ dir }}{% endif %}">
+              <a href="?{{ sort_links.acao }}">Ação</a>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for log in logs %}
+            <tr>
+              <td>{{ log.timestamp|date:"d/m/Y H:i" }}</td>
+              <td>
+                {% if log.user %}
+                  {% if log.user.get_full_name %}{{ log.user.get_full_name }}{% else %}{{ log.user.username }}{% endif %}
+                {% else %}
+                  -
+                {% endif %}
+              </td>
+              <td>{{ log.acao_resumo }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% elif audit_ran %}
+    <p>Nenhum log encontrado para o período selecionado.</p>
+  {% else %}
+    <p>Defina o período e clique em <strong>Auditar</strong> para carregar os registros.</p>
+  {% endif %}
+{% endblock %}

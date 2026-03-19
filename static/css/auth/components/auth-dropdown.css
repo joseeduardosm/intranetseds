@@ -1,0 +1,34 @@
+.login-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(320px, 90vw);
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 12px 24px rgba(31, 42, 68, 0.18);
+  display: none;
+  z-index: 200;
+}
+
+.login-dropdown.is-open {
+  display: block;
+}
+
+.login-dropdown p {
+  margin: 0 0 12px;
+}
+
+.login-dropdown label {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.login-dropdown input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #d7d4cc;
+  margin-top: 6px;
+}

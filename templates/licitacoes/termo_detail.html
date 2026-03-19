@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/licitacoes/licitacoes.css' %}" />
+{% endblock %}
+
+{% block container_class %}container-wide{% endblock %}
+
+{% block content %}
+  {% url 'licitacoes_termo_detail' termo.pk as termo_detail_url %}
+
+  <section class="page-header">
+    <h2>{{ termo.apelido|expand_seds }}</h2>
+    <p><strong>Processo SEI:</strong> {{ termo.processo_sei|expand_seds }}</p>
+    {% if termo.link_processo_sei %}
+      <p><a href="{{ termo.link_processo_sei }}" target="_blank" rel="noopener noreferrer">Abrir processo SEI</a></p>
+    {% endif %}
+  </section>
+
+  <div class="card-actions">
+    <a class="btn" href="{% url 'licitacoes_sessao_create' termo.pk %}?next={{ termo_detail_url }}">+sessao</a>
+    <a class="btn licitacoes-btn-export" href="{% url 'licitacoes_termo_export_docx' termo.pk %}">Exportar DOCX</a>
+    <a class="btn" href="{% url 'licitacoes_termo_update' termo.pk %}">Editar termo</a>
+    <a class="btn licitacoes-btn-duplicate" href="{% url 'licitacoes_termo_duplicate' termo.pk %}">Duplicar termo</a>
+    <a class="btn licitacoes-btn-back" href="{% url 'licitacoes_termo_list' %}">Voltar</a>
+  </div>
+
+  {% if sessoes_data %}
+    <div class="tr-wizard">
+      <aside class="tr-sidebar">
+        <h3>Secoes</h3>
+        <ul>
+          {% for bloco in sessoes_data %}
+            <li><a href="#sessao-{{ bloco.sessao.pk }}">{{ bloco.indice }}. {{ bloco.sessao.titulo|expand_seds }}</a></li>
+          {% endfor %}
+        </ul>
+      </aside>
+
+      <section class="tr-main">
+        <div class="tr-stepper" aria-label="Navegacao por secoes do TR">
+          {% for bloco in sessoes_data %}
+            <a href="#sessao-{{ bloco.sessao.pk }}" class="tr-stepper-item">{{ bloco.indice }}</a>
+          {% endfor %}
+        </div>
+
+        {% for bloco in sessoes_data %}
+          <article class="card licitacoes-sessao-card" id="sessao-{{ bloco.sessao.pk }}">
+            <div class="card-body">
+              <h3 class="card-title">{{ bloco.indice }}. {{ bloco.sessao.titulo|expand_seds }}</h3>
+              <div class="card-actions licitacoes-sessao-actions">
+                <form method="post" action="{% url 'licitacoes_sessao_up' termo.pk bloco.sessao.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ termo_detail_url }}#sessao-{{ bloco.sessao.pk }}" /><button class="btn btn-small licitacoes-btn-up" type="submit">↑</button></form>
+                <form method="post" action="{% url 'licitacoes_sessao_down' termo.pk bloco.sessao.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ termo_detail_url }}#sessao-{{ bloco.sessao.pk }}" /><button class="btn btn-small licitacoes-btn-down" type="submit">↓</button></form>
+                <a class="btn btn-small" href="{% url 'licitacoes_sessao_update' termo.pk bloco.sessao.pk %}?next={{ termo_detail_url }}%23sessao-{{ bloco.sessao.pk }}">Editar sessao</a>
+                <a class="btn btn-small btn-danger" href="{% url 'licitacoes_sessao_delete' termo.pk bloco.sessao.pk %}?next={{ termo_detail_url }}%23sessao-{{ bloco.sessao.pk }}">Excluir sessao</a>
+                <a class="btn btn-small licitacoes-btn-subsessao" href="{% url 'licitacoes_subsessao_create' bloco.sessao.pk %}?next={{ termo_detail_url }}%23sessao-{{ bloco.sessao.pk }}">+subsessao</a>
+                <a class="btn btn-small licitacoes-btn-item" href="{% url 'licitacoes_item_create' bloco.sessao.pk %}?next={{ termo_detail_url }}%23sessao-{{ bloco.sessao.pk }}">+item</a>
+              </div>
+
+              {% if bloco.itens or bloco.subsessoes_sem_itens %}
+                <div class="table-wrapper">
+                  <table class="table licitacoes-itens-table">
+                    <thead>
+                      <tr>
+                        <th>Indice</th>
+                        <th>Item</th>
+                        <th>Acoes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for row in bloco.itens %}
+                        {% if row.subsessao_heading %}
+                          <tr class="licitacoes-subsessao-row">
+                            <td></td>
+                            <td>
+                              <div class="licitacoes-subsessao-title">{{ row.subsessao_heading.titulo|expand_seds }}</div>
+                            </td>
+                            <td>
+                              <div class="licitacoes-acoes">
+                                <form method="post" action="{% url 'licitacoes_subsessao_up' bloco.sessao.pk row.subsessao_heading.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ termo_detail_url }}#sessao-{{ bloco.sessao.pk }}" /><button class="btn btn-small licitacoes-btn-up" type="submit">↑</button></form>
+                                <form method="post" action="{% url 'licitacoes_subsessao_down' bloco.sessao.pk row.subsessao_heading.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ termo_detail_url }}#sessao-{{ bloco.sessao.pk }}" /><button class="btn btn-small licitacoes-btn-down" type="submit">↓</button></form>
+                                <a class="btn btn-small" href="{% url 'licitacoes_item_create_in_subsessao' bloco.sessao.pk row.subsessao_heading.pk %}?next={{ termo_detail_url }}%23sessao-{{ bloco.sessao.pk }}">+item</a>
+                                <a class="btn btn-small" href="{% url 'licitacoes_subsessao_update' bloco.sessao.pk row.subsessao_heading.pk %}?next={{ termo_detail_url }}%23sessao-{{ bloco.sessao.pk }}">Editar subsessao</a>
+                                <a class="btn btn-small btn-danger" href="{% url 'licitacoes_subsessao_delete' bloco.sessao.pk row.subsessao_heading.pk %}?next={{ termo_detail_url }}%23sessao-{{ bloco.sessao.pk }}">Excluir subsessao</a>
+                              </div>
+                            </td>
+                          </tr>
+                        {% endif %}
+                        <tr id="item-{{ row.item.pk }}">
+                          <td>
+                            {% if row.item.enum_tipo == "ALINEA" or row.item.enum_tipo == "INCISO" %}
+                            {% else %}
+                              {{ row.indice }}.
+                            {% endif %}
+                          </td>
+                          <td>
+                            <div class="licitacoes-item-texto" style="padding-left: {{ row.indent_px }}px;">{% if row.enum_prefix %}<strong>{{ row.enum_prefix }}</strong> {% endif %}{{ row.display_text|expand_seds }}</div>
+                          </td>
+                          <td>
+                            <div class="licitacoes-acoes">
+                              <form method="post" action="{% url 'licitacoes_item_up' bloco.sessao.pk row.item.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ termo_detail_url }}#item-{{ row.item.pk }}" /><button class="btn btn-small licitacoes-btn-up" type="submit">↑</button></form>
+                              <form method="post" action="{% url 'licitacoes_item_down' bloco.sessao.pk row.item.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ termo_detail_url }}#item-{{ row.item.pk }}" /><button class="btn btn-small licitacoes-btn-down" type="submit">↓</button></form>
+                              {% if row.pode_tabela_itens %}
+                                <a class="btn btn-small licitacoes-btn-table" href="#tabela-itens-{{ row.item.pk }}">Tabela itens</a>
+                              {% endif %}
+                              <a class="btn btn-small licitacoes-btn-subitem" href="{% url 'licitacoes_item_subitem_create' bloco.sessao.pk row.item.pk %}?enum=inciso&next={{ termo_detail_url }}%23item-{{ row.item.pk }}">+inciso</a>
+                              <a class="btn btn-small licitacoes-btn-subitem" href="{% url 'licitacoes_item_subitem_create' bloco.sessao.pk row.item.pk %}?enum=alinea&next={{ termo_detail_url }}%23item-{{ row.item.pk }}">+alinea</a>
+                              <a class="btn btn-small licitacoes-btn-subitem" href="{% url 'licitacoes_item_subitem_create' bloco.sessao.pk row.item.pk %}?next={{ termo_detail_url }}%23item-{{ row.item.pk }}">+subitem</a>
+                              <a class="btn btn-small" href="{% url 'licitacoes_item_update' bloco.sessao.pk row.item.pk %}?next={{ termo_detail_url }}%23item-{{ row.item.pk }}">Editar</a>
+                              <a class="btn btn-small btn-danger" href="{% url 'licitacoes_item_delete' bloco.sessao.pk row.item.pk %}?next={{ termo_detail_url }}%23sessao-{{ bloco.sessao.pk }}">Excluir</a>
+                            </div>
+                          </td>
+                        </tr>
+                        {% if row.pode_tabela_itens %}
+                          <tr class="licitacoes-tabela-continuacao" id="tabela-itens-{{ row.item.pk }}">
+                            <td></td>
+                            <td colspan="2">
+                              <div class="licitacoes-tabela-wrapper">
+                                <div class="card-actions licitacoes-inline-actions">
+                                  <a class="btn btn-small" href="{% url 'licitacoes_tabela_item_create' bloco.sessao.pk row.item.pk %}?next={{ termo_detail_url }}%23tabela-itens-{{ row.item.pk }}">+item</a>
+                                </div>
+                                {% if row.tabela_linhas %}
+                                  <div class="table-wrapper">
+                                    <table class="table table-fulltext">
+                                      <thead>
+                                        <tr>
+                                          <th>Item</th>
+                                          <th>Descricao</th>
+                                          <th>CATMAT/CATSER</th>
+                                          <th>Siafisico</th>
+                                          <th>Unidade de Fornecimento</th>
+                                          <th>Quantidade</th>
+                                          <th>Acoes</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {% for linha in row.tabela_linhas %}
+                                          <tr>
+                                            <td>{{ linha.ordem }}</td>
+                                            <td>{{ linha.descricao|expand_seds|linebreaksbr }}</td>
+                                            <td>{{ linha.catmat_catser|default:"-" }}</td>
+                                            <td>{{ linha.siafisico|default:"-" }}</td>
+                                            <td>{{ linha.unidade_fornecimento|default:"-" }}</td>
+                                            <td>{{ linha.quantidade }}</td>
+                                            <td>
+                                              <a class="btn btn-small" href="{% url 'licitacoes_tabela_item_update' bloco.sessao.pk row.item.pk linha.pk %}?next={{ termo_detail_url }}%23tabela-itens-{{ row.item.pk }}">Editar</a>
+                                              <a class="btn btn-small btn-danger" href="{% url 'licitacoes_tabela_item_delete' bloco.sessao.pk row.item.pk linha.pk %}?next={{ termo_detail_url }}%23tabela-itens-{{ row.item.pk }}">Excluir</a>
+                                            </td>
+                                          </tr>
+                                        {% endfor %}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                {% else %}
+                                  <p>Nenhum item lancado na tabela.</p>
+                                {% endif %}
+                              </div>
+                            </td>
+                          </tr>
+                        {% endif %}
+                      {% endfor %}
+                      {% for subsessao in bloco.subsessoes_sem_itens %}
+                        <tr class="licitacoes-subsessao-row">
+                          <td></td>
+                          <td>
+                            <div class="licitacoes-subsessao-title">{{ subsessao.titulo|expand_seds }}</div>
+                          </td>
+                          <td>
+                            <div class="licitacoes-acoes">
+                              <form method="post" action="{% url 'licitacoes_subsessao_up' bloco.sessao.pk subsessao.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ termo_detail_url }}#sessao-{{ bloco.sessao.pk }}" /><button class="btn btn-small licitacoes-btn-up" type="submit">↑</button></form>
+                              <form method="post" action="{% url 'licitacoes_subsessao_down' bloco.sessao.pk subsessao.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ termo_detail_url }}#sessao-{{ bloco.sessao.pk }}" /><button class="btn btn-small licitacoes-btn-down" type="submit">↓</button></form>
+                              <a class="btn btn-small" href="{% url 'licitacoes_item_create_in_subsessao' bloco.sessao.pk subsessao.pk %}?next={{ termo_detail_url }}%23sessao-{{ bloco.sessao.pk }}">+item</a>
+                              <a class="btn btn-small" href="{% url 'licitacoes_subsessao_update' bloco.sessao.pk subsessao.pk %}?next={{ termo_detail_url }}%23sessao-{{ bloco.sessao.pk }}">Editar subsessao</a>
+                              <a class="btn btn-small btn-danger" href="{% url 'licitacoes_subsessao_delete' bloco.sessao.pk subsessao.pk %}?next={{ termo_detail_url }}%23sessao-{{ bloco.sessao.pk }}">Excluir subsessao</a>
+                            </div>
+                          </td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              {% else %}
+                <p>Nenhum item nesta sessao.</p>
+              {% endif %}
+            </div>
+          </article>
+        {% endfor %}
+      </section>
+    </div>
+  {% else %}
+    <p>Nenhuma sessao cadastrada neste termo.</p>
+  {% endif %}
+{% endblock %}

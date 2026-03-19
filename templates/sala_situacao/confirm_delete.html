@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/sala_situacao/sala_situacao.css' %}" />
+{% endblock %}
+
+
+{% block content %}
+  <section class="page-header">
+    <h2>{{ titulo }}</h2>
+  </section>
+
+  <div class="detail">
+    <p>{{ mensagem }}</p>
+    <p><strong>{{ object }}</strong></p>
+    {% if cascata_exclusao %}
+      <h3>Itens que também serão excluídos</h3>
+      {% for titulo, itens in cascata_exclusao %}
+        <p><strong>{{ titulo }}:</strong> {{ itens|length }}</p>
+        {% if itens %}
+          <ul>
+            {% for item in itens %}
+              <li>{{ item.nome|default:item }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+    <form method="post">
+      {% csrf_token %}
+      <div class="detail-actions">
+        <button type="submit" class="btn btn-danger">Confirmar exclusão</button>
+        <a class="btn btn-light" href="{{ voltar_url }}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}

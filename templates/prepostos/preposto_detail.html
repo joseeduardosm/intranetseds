@@ -1,0 +1,58 @@
+﻿{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/prepostos/prepostos.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>{{ preposto.nome }}</h2>
+  </section>
+
+  <div class="detail">
+    <p><strong>CPF:</strong> {{ preposto.cpf }}</p>
+    <p>
+      <strong>Telefone:</strong> {{ preposto.telefone|default:"-" }}
+      {% if preposto.telefone %}
+        <button class="btn btn-light btn-small copy-btn" type="button" data-copy="{{ preposto.telefone }}">Copiar</button>
+      {% endif %}
+    </p>
+    <p>
+      <strong>E-mail:</strong> {{ preposto.email|default:"-" }}
+      {% if preposto.email %}
+        <button class="btn btn-light btn-small copy-btn" type="button" data-copy="{{ preposto.email }}">Copiar</button>
+      {% endif %}
+    </p>
+    <p><strong>Empresa:</strong> {{ preposto.empresa }}</p>
+    <div class="detail-actions">
+      <a class="btn" href="{% url 'prepostos_update' preposto.pk %}">Editar</a>
+      <a class="btn btn-secondary" href="{% url 'prepostos_delete' preposto.pk %}">Excluir</a>
+      <a class="btn btn-light" href="{% url 'prepostos_list' %}">Voltar</a>
+    </div>
+  </div>
+
+  <script>
+    document.querySelectorAll(".copy-btn").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const texto = button.getAttribute("data-copy") || "";
+        if (!texto) return;
+        try {
+          await navigator.clipboard.writeText(texto);
+          const original = button.textContent;
+          button.textContent = "Copiado";
+          button.disabled = true;
+          setTimeout(() => {
+            button.textContent = original;
+            button.disabled = false;
+          }, 1500);
+        } catch (e) {
+          button.textContent = "Erro";
+          setTimeout(() => {
+            button.textContent = "Copiar";
+          }, 1500);
+        }
+      });
+    });
+  </script>
+{% endblock %}

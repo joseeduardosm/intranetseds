@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Identidade visual</h2>
+    <p>Defina as cores da barra de navegacao, do fundo e do nome do sistema.</p>
+  </section>
+
+  <section class="form-card identidade-preview-card">
+    <h3>Preview ao vivo</h3>
+    <p class="identidade-preview-hint">As cores abaixo mudam enquanto voce digita.</p>
+    <div class="identidade-preview" id="identidade-preview">
+      <div class="identidade-preview-header" id="preview-header">
+        <div class="identidade-preview-brand" id="preview-brand">Sistema de Gestao Integrada</div>
+        <div class="identidade-preview-links">
+          <span>Ramais</span>
+          <span>Administracao</span>
+          <span>Sair</span>
+        </div>
+      </div>
+      <div class="identidade-preview-body" id="preview-body">
+        <div class="identidade-preview-box">
+          <strong>Conteudo da pagina</strong>
+          <p>Este bloco simula o fundo da interface apos salvar as alteracoes.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {% if feedback %}
+    <div class="alert alert-{{ feedback.level }}">
+      {{ feedback.message }}
+    </div>
+  {% endif %}
+
+  <form class="form" method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <div class="form-actions">
+      <button class="btn" type="submit">Salvar</button>
+      <a class="btn btn-secondary" href="{% url 'administracao_configuracoes' %}">Voltar</a>
+    </div>
+  </form>
+
+  <script>
+    (function () {
+      const navbarInput = document.getElementById("id_navbar_color");
+      const backgroundInput = document.getElementById("id_background_color");
+      const brandInput = document.getElementById("id_brand_text_color");
+      const previewHeader = document.getElementById("preview-header");
+      const previewBody = document.getElementById("preview-body");
+      const previewBrand = document.getElementById("preview-brand");
+      if (!navbarInput || !backgroundInput || !brandInput || !previewHeader || !previewBody || !previewBrand) {
+        return;
+      }
+
+      const hexRe = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+      const rgbRe = /^rgb\(\s*(?:25[0-5]|2[0-4]\d|1?\d?\d)\s*,\s*(?:25[0-5]|2[0-4]\d|1?\d?\d)\s*,\s*(?:25[0-5]|2[0-4]\d|1?\d?\d)\s*\)$/i;
+      const isValid = (value) => hexRe.test(value) || rgbRe.test(value);
+      const markValidity = (input, ok) => {
+        input.classList.toggle("is-invalid", !ok);
+      };
+
+      const applyPreview = () => {
+        const navbar = navbarInput.value.trim();
+        const background = backgroundInput.value.trim();
+        const brand = brandInput.value.trim();
+
+        const navbarOk = isValid(navbar);
+        const backgroundOk = isValid(background);
+        const brandOk = isValid(brand);
+
+        markValidity(navbarInput, navbarOk);
+        markValidity(backgroundInput, backgroundOk);
+        markValidity(brandInput, brandOk);
+
+        if (navbarOk) {
+          previewHeader.style.background = navbar;
+        }
+        if (backgroundOk) {
+          previewBody.style.background = background;
+        }
+        if (brandOk) {
+          previewBrand.style.color = brand;
+        }
+      };
+
+      ["input", "change"].forEach((eventName) => {
+        navbarInput.addEventListener(eventName, applyPreview);
+        backgroundInput.addEventListener(eventName, applyPreview);
+        brandInput.addEventListener(eventName, applyPreview);
+      });
+
+      applyPreview();
+    })();
+  </script>
+{% endblock %}

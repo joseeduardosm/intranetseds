@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/reserva_salas/reserva_salas.css' %}" />
+{% endblock %}
+
+{% block container_class %}container-wide{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Reservas</h2>
+  </section>
+
+  <div class="card-actions">
+    {% if user.is_authenticated %}
+      <a class="btn" href="{% url 'reservas_create' %}">Nova reserva</a>
+    {% else %}
+      <button class="btn" type="button" data-login-popup="true" data-next="{% url 'reservas_create' %}">Nova reserva</button>
+    {% endif %}
+    <a class="btn btn-light" href="{% url 'reservas_dashboard' %}">Dashboard</a>
+    <a class="btn btn-light" href="{% url 'salas_list' %}">Voltar ao calendario</a>
+  </div>
+
+  {% if reservas %}
+    <div class="table-wrapper">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Evento</th>
+            <th>Sala</th>
+            <th>Data</th>
+            <th>Inicio</th>
+            <th>Fim</th>
+            <th>Responsavel</th>
+            <th>Pessoas</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for reserva in reservas %}
+            <tr>
+              <td><a href="{% url 'reservas_detail' reserva.pk %}">{{ reserva.nome_evento }}</a></td>
+              <td>{{ reserva.sala.nome }}</td>
+              <td>{{ reserva.data|date:"d/m/Y" }}</td>
+              <td>{{ reserva.hora_inicio|time:"H:i" }}</td>
+              <td>{{ reserva.hora_fim|time:"H:i" }}</td>
+              <td>{{ reserva.responsavel_evento }}</td>
+              <td>{{ reserva.quantidade_pessoas }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p>Nenhuma reserva cadastrada.</p>
+  {% endif %}
+{% endblock %}

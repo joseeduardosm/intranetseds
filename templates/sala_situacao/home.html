@@ -1,0 +1,270 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/sala_situacao/sala_situacao.css' %}" />
+{% endblock %}
+
+
+{% block content %}
+  <section class="sala-home-hero sala-home-hero--full">
+    <div class="sala-home-hero-main">
+      <h2>Sala de Situação com leitura visual expandida</h2>
+      <p class="sala-home-lead">
+        Os indicadores agora aparecem em cards com capa analítica, linguagem visual mais forte para leitura rápida da evolução do indicador.
+      </p>
+      <div class="card-actions sala-home-actions">
+        {% if perms.sala_situacao.add_indicadorestrategico %}
+          <a class="btn" href="{% url 'sala_indicador_estrategico_create' %}">Novo indicador</a>
+        {% endif %}
+        <a class="btn btn-light" href="{% url 'sala_painel_consolidado' %}">Painel consolidado</a>
+      </div>
+    </div>
+
+  </section>
+
+  {% include "sala_situacao/_card_search.html" with search_id="sala-home" target_selector=".card-grid" item_selector=".card" placeholder="Pesquisar indicadores..." aria_label="Pesquisar indicadores" %}
+  <div class="card-grid card-grid-fixed sala-home-card-grid">
+    {% for item in indicadores %}
+      {% with s=item.obj.progresso_snapshot %}
+      <article
+        class="card card-bloco sala-home-card sala-home-card--{{ s.delta_classe|default:'neutro' }}"
+        data-search-text="{{ item.obj.nome }} {{ item.obj.descricao }} {% for marcador in item.obj.marcadores_efetivos %}{{ marcador.nome }} {% endfor %}"
+      >
+        <a class="card-link" href="{{ item.detail_url }}">
+          <div class="sala-home-card-cover sala-home-card-cover--{{ s.delta_classe|default:'neutro' }}">
+            <div
+              class="sala-home-card-plot"
+              id="sala-home-plot-{{ forloop.counter }}"
+              data-chart-type="{{ item.chart_payload.type }}"
+              data-chart-payload='{{ item.chart_payload_json|escape }}'
+            ></div>
+          </div>
+
+          <div class="card-body sala-home-card-body">
+            <h3 class="card-title sala-home-card-title">{{ item.obj.nome }}</h3>
+            <p class="sala-home-card-description">
+              {% if item.obj.descricao %}
+                {{ item.obj.descricao|truncatechars:120 }}
+              {% else %}
+                {{ item.obj.texto_prazo }}
+              {% endif %}
+            </p>
+
+            {% if item.obj.marcadores_efetivos %}
+              <div class="sala-marcadores-wrap sala-home-card-markers">
+                {% for marcador in item.obj.marcadores_efetivos %}
+                  <span class="sala-marcador-chip" style="--marcador-cor: {{ marcador.cor }};">{{ marcador.nome }}</span>
+                {% endfor %}
+              </div>
+            {% endif %}
+
+          </div>
+        </a>
+      </article>
+      {% endwith %}
+    {% empty %}
+      <p>Nenhum indicador cadastrado.</p>
+    {% endfor %}
+  </div>
+
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <script>
+    (function () {
+      if (typeof Plotly === "undefined") return;
+
+      const config = {
+        responsive: true,
+        displayModeBar: false,
+        staticPlot: true,
+      };
+
+      document.querySelectorAll(".sala-home-card-plot").forEach((node) => {
+        const chartType = node.dataset.chartType || "bar_compare";
+        let payload = {};
+        try {
+          payload = JSON.parse(node.dataset.chartPayload || "{}");
+        } catch (error) {
+          console.warn("Falha ao interpretar payload do grafico", error, node.dataset.chartPayload);
+          return;
+        }
+
+        if (chartType === "line_meta") {
+          const labels = payload.labels || [];
+          const values = payload.values || [];
+          const meta = Number(payload.meta || 0);
+          Plotly.newPlot(
+            node,
+            [
+              {
+                x: labels,
+                y: values,
+                type: "scatter",
+                mode: "lines+markers",
+                line: { color: "#d7f3ff", width: 3, shape: "spline" },
+                marker: { size: 6, color: "#ffffff", line: { width: 1, color: "#d7f3ff" } },
+                hovertemplate: `%{x}<br>${payload.series_label || "Serie"}: %{y:.2f}${payload.unit || ""}<extra></extra>`,
+              },
+              {
+                x: labels,
+                y: labels.map(() => meta),
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#7dd3fc", width: 2, dash: "dot" },
+                hovertemplate: `Meta: %{y:.2f}${payload.unit || ""}<extra></extra>`,
+              },
+            ],
+            {
+              margin: { l: 12, r: 12, t: 16, b: 20 },
+              paper_bgcolor: "rgba(0,0,0,0)",
+              plot_bgcolor: "rgba(0,0,0,0)",
+              showlegend: false,
+              xaxis: {
+                showgrid: false,
+                zeroline: false,
+                tickfont: { size: 10, color: "rgba(255,255,255,0.78)" },
+                fixedrange: true,
+              },
+              yaxis: {
+                visible: false,
+                fixedrange: true,
+              },
+            },
+            config
+          );
+          return;
+        }
+
+        if (chartType === "area_trend") {
+          const labels = payload.labels || [];
+          const values = payload.values || [];
+          Plotly.newPlot(
+            node,
+            [
+              {
+                x: labels,
+                y: values,
+                type: "scatter",
+                mode: "lines+markers",
+                line: { color: "#7dd3fc", width: 3, shape: "spline" },
+                fill: "tozeroy",
+                fillcolor: "rgba(125, 211, 252, 0.18)",
+                marker: { size: 6, color: "#d7f3ff", line: { width: 1, color: "#7dd3fc" } },
+                hovertemplate: `%{x}<br>${payload.series_label || "Serie"}: %{y:.2f}${payload.unit || ""}<extra></extra>`,
+              },
+            ],
+            {
+              margin: { l: 12, r: 12, t: 16, b: 20 },
+              paper_bgcolor: "rgba(0,0,0,0)",
+              plot_bgcolor: "rgba(0,0,0,0)",
+              showlegend: false,
+              xaxis: {
+                showgrid: false,
+                zeroline: false,
+                tickfont: { size: 10, color: "rgba(255,255,255,0.78)" },
+                fixedrange: true,
+              },
+              yaxis: {
+                visible: false,
+                fixedrange: true,
+              },
+            },
+            config
+          );
+          return;
+        }
+
+        const prazo = Number(payload.prazo || 0);
+        const conclusao = Number(payload.conclusao || 0);
+        const conclusaoLabel = payload.conclusao_label || "Conclusao";
+        Plotly.newPlot(
+          node,
+          [
+            {
+              type: "bar",
+              orientation: "h",
+              x: [conclusao],
+              y: [conclusaoLabel],
+              marker: {
+                color: "rgba(255, 248, 234, 0.92)",
+                line: { color: "rgba(255,255,255,0.45)", width: 1 },
+              },
+              hovertemplate: `${conclusaoLabel}: %{x:.2f}%<extra></extra>`,
+            },
+          ],
+          {
+            margin: { l: 12, r: 12, t: 58, b: 16 },
+            paper_bgcolor: "rgba(0,0,0,0)",
+            plot_bgcolor: "rgba(0,0,0,0)",
+            bargap: 0.45,
+            showlegend: false,
+            xaxis: { range: [0, 100], visible: false, fixedrange: true },
+            yaxis: { visible: false, fixedrange: true },
+            shapes: [
+              {
+                type: "rect",
+                x0: 0,
+                x1: 100,
+                y0: -0.36,
+                y1: 0.36,
+                line: { color: "rgba(255,255,255,0.18)", width: 1 },
+                fillcolor: "rgba(255,255,255,0.10)",
+                layer: "below",
+              },
+              {
+                type: "line",
+                x0: prazo,
+                x1: prazo,
+                y0: -0.48,
+                y1: 0.48,
+                line: { color: "#7dd3fc", width: 3 },
+              },
+            ],
+            annotations: [
+              {
+                x: 0,
+                y: 1.12,
+                xref: "paper",
+                yref: "paper",
+                text: "Prazo",
+                showarrow: false,
+                xanchor: "left",
+                font: { size: 10, color: "rgba(255,255,255,0.74)" },
+              },
+              {
+                x: 0,
+                y: 0.97,
+                xref: "paper",
+                yref: "paper",
+                text: `${prazo.toFixed(2)}%`,
+                showarrow: false,
+                xanchor: "left",
+                font: { size: 16, color: "#ffffff" },
+              },
+              {
+                x: 1,
+                y: 1.12,
+                xref: "paper",
+                yref: "paper",
+                text: conclusaoLabel,
+                showarrow: false,
+                xanchor: "right",
+                font: { size: 10, color: "rgba(255,255,255,0.74)" },
+              },
+              {
+                x: 1,
+                y: 0.97,
+                xref: "paper",
+                yref: "paper",
+                text: `${conclusao.toFixed(2)}%`,
+                showarrow: false,
+                xanchor: "right",
+                font: { size: 16, color: "#ffffff" },
+              },
+            ],
+          },
+          config
+        );
+      });
+    })();
+  </script>
+{% endblock %}

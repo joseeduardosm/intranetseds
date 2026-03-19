@@ -1,0 +1,7 @@
+@import url("base/contratos-base.css");
+@import url("layout/contratos-layout.css");
+@import url("components/contratos-alertas.css");
+@import url("components/contratos-filtros.css");
+@import url("components/contratos-tabela.css");
+@import url("pages/contratos-list.css");
+@import url("utilities/contratos-utilities.css");

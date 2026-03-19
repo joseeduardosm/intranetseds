@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/licitacoes/licitacoes.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Novo ETP TIC</h2>
+  </section>
+
+  <form method="post" class="form">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <div class="form-actions">
+      <button class="btn" type="submit">Criar e iniciar</button>
+      <a class="btn btn-light" href="{% url 'licitacoes_etp_tic_list' %}">Cancelar</a>
+    </div>
+  </form>
+{% endblock %}

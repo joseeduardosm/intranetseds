@@ -1,0 +1,6 @@
+/* Ajustes da tela de listagem */
+
+#contratos-table td,
+#contratos-table th {
+  vertical-align: top;
+}

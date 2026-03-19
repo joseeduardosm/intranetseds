@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/usuarios/usuarios.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Setores</h2>
+  </section>
+
+  {% include 'usuarios/_tabs.html' with usuarios_tab='setores' %}
+
+  <div class="card-actions">
+    <a class="btn" href="{% url 'setores_create' %}">Novo setor</a>
+    <a class="btn btn-light" href="{% url 'setores_permissions_audit' %}">Auditoria de acessos</a>
+  </div>
+
+  {% if setores %}
+    <form method="get" id="setores-filter-form">
+      <div class="table-toolbar">
+        <div class="table-search">
+          <span class="table-search-icon">&#128269;</span>
+          <input type="search" id="setores-search" name="q" placeholder="Pesquisar em todas as colunas..." value="{{ request.GET.q|default:'' }}" />
+        </div>
+        <div class="card-actions">
+          <a class="btn btn-light" href="{% url 'setores_list' %}">Limpar filtros</a>
+        </div>
+      </div>
+    </form>
+    <div class="table-wrapper">
+      <table class="table table-sortable" id="setores-table">
+        <thead>
+          <tr>
+            <th class="sortable">Setor</th>
+            <th class="sortable">Setor pai</th>
+            <th class="sortable">Caminho</th>
+            <th class="sortable">Membros</th>
+            <th>Acoes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for setor in setores %}
+            <tr>
+              <td>{{ setor.group.name }}</td>
+              <td>{% if setor.parent %}{{ setor.parent.group.name }}{% else %}-{% endif %}</td>
+              <td>{{ setor.get_path_labels|join:" -> " }}</td>
+              <td>{{ setor.member_count }}</td>
+              <td class="table-actions">
+                <a class="btn btn-light" href="{% url 'setores_update' setor.group.pk %}">Editar</a>
+                {% if setor.group.name != "ADMIN" %}
+                  <a class="btn btn-secondary" href="{% url 'setores_delete' setor.group.pk %}">Excluir</a>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if is_paginated %}
+      <nav class="pagination">
+        {% if page_obj.has_previous %}
+          <a class="btn btn-light" href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}page={{ page_obj.previous_page_number }}">Anterior</a>
+        {% endif %}
+        <span class="pagination-meta">Pagina {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+          <a class="btn btn-light" href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}page={{ page_obj.next_page_number }}">Proxima</a>
+        {% endif %}
+      </nav>
+    {% endif %}
+    <script>
+      const setoresTable = document.getElementById("setores-table");
+      const setoresSearch = document.getElementById("setores-search");
+      const setoresFilterForm = document.getElementById("setores-filter-form");
+      if (setoresTable && setoresSearch) {
+        const getCellValue = (row, index) => (row.children[index]?.textContent || "").trim().toLowerCase();
+        const sortTable = (index, direction) => {
+          const rows = Array.from(setoresTable.tBodies[0].rows);
+          rows.sort((a, b) => {
+            const aText = getCellValue(a, index);
+            const bText = getCellValue(b, index);
+            if (aText < bText) return direction === "asc" ? -1 : 1;
+            if (aText > bText) return direction === "asc" ? 1 : -1;
+            return 0;
+          });
+          rows.forEach((row) => setoresTable.tBodies[0].appendChild(row));
+        };
+
+        setoresTable.querySelectorAll("th.sortable").forEach((th, index) => {
+          th.addEventListener("click", () => {
+            const current = th.getAttribute("data-direction") || "desc";
+            const next = current === "asc" ? "desc" : "asc";
+            setoresTable.querySelectorAll("th.sortable").forEach((header) => header.removeAttribute("data-direction"));
+            th.setAttribute("data-direction", next);
+            sortTable(index, next);
+          });
+        });
+
+        if (setoresFilterForm) {
+          let submitTimer = null;
+          setoresSearch.addEventListener("input", () => {
+            window.clearTimeout(submitTimer);
+            submitTimer = window.setTimeout(() => setoresFilterForm.requestSubmit(), 250);
+          });
+        }
+      }
+    </script>
+  {% else %}
+    <p>Nenhum setor cadastrado.</p>
+  {% endif %}
+{% endblock %}

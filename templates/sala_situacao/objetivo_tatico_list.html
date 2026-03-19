@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/sala_situacao/sala_situacao.css' %}" />
+{% endblock %}
+
+
+{% block content %}
+  <section class="page-header"><h2>Objetivos táticos - <span data-search-heading-count="objetivos-taticos-lista">{{ objetivos|length }}</span> objetivos táticos relacionados</h2></section>
+  <div class="card-actions">
+    {% if perms.sala_situacao.add_objetivotatico %}
+      <a class="btn" href="{% url 'sala_objetivo_tatico_create' %}">Novo objetivo tático</a>
+    {% endif %}
+    <a class="btn btn-light" href="{% url 'sala_situacao_home' %}">Sala de Situação</a>
+  </div>
+
+  {% include "sala_situacao/_card_search.html" with search_id="objetivos-taticos-lista" target_selector=".card-grid" item_selector=".card" placeholder="Pesquisar objetivos táticos..." aria_label="Pesquisar objetivos táticos" %}
+  <div class="card-grid card-grid-fixed">
+    {% for objetivo in objetivos %}
+      <article class="card card-bloco" data-search-text="{{ objetivo.nome }} {{ objetivo.descricao }} {% for marcador in objetivo.marcadores_efetivos %}{{ marcador.nome }} {% endfor %}">
+        <a class="card-link" href="{% url 'sala_objetivo_tatico_detail' objetivo.pk %}">
+          <div class="card-body">
+            <h3 class="card-title">{{ objetivo.nome }}</h3>
+            {% if objetivo.marcadores_efetivos %}
+              <div class="sala-marcadores-wrap">
+                {% for marcador in objetivo.marcadores_efetivos %}
+                  <span class="sala-marcador-chip" style="--marcador-cor: {{ marcador.cor }};">{{ marcador.nome }}</span>
+                {% endfor %}
+              </div>
+            {% endif %}
+            {% include "sala_situacao/_progresso_duplo.html" with item=objetivo %}
+          </div>
+        </a>
+      </article>
+    {% empty %}
+      <p>Nenhum objetivo tático cadastrado.</p>
+    {% endfor %}
+  </div>
+{% endblock %}

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/folha_ponto/folha_ponto.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Feriados</h2>
+  </section>
+
+  <div class="card-actions">
+    {% if perms.folha_ponto.add_feriado or user.is_superuser %}
+      <a class="btn" href="{% url 'folha_ponto_feriado_create' %}">Novo feriado</a>
+    {% endif %}
+    <a class="btn btn-secondary" href="{% url 'administracao_rh' %}">Voltar</a>
+  </div>
+
+  {% if feriados %}
+    <div class="table-wrapper">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Descricao</th>
+            <th>Acoes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in feriados %}
+            <tr>
+              <td>{{ item.data|date:"d/m/Y" }}</td>
+              <td>{{ item.descricao }}</td>
+              <td>
+                {% if perms.folha_ponto.change_feriado or user.is_superuser %}
+                  <a class="btn btn-small" href="{% url 'folha_ponto_feriado_update' item.pk %}">Editar</a>
+                {% endif %}
+                {% if perms.folha_ponto.delete_feriado or user.is_superuser %}
+                  <a class="btn btn-small btn-danger" href="{% url 'folha_ponto_feriado_delete' item.pk %}">Excluir</a>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p>Nenhum feriado cadastrado.</p>
+  {% endif %}
+{% endblock %}

@@ -1,0 +1,40 @@
+﻿{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/prepostos/prepostos.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Prepostos</h2>
+  </section>
+
+  <div class="card-actions">
+    <a class="btn" href="{% url 'prepostos_create' %}">Novo preposto</a>
+    <a class="btn btn-light" href="{% url 'contratos_list' %}">Contratos</a>
+    <a class="btn btn-light" href="{% url 'empresas_list' %}">Empresas</a>
+  </div>
+
+  {% if prepostos %}
+    <div class="card-grid">
+      {% for preposto in prepostos %}
+        <article class="card">
+          <a class="card-link" href="{% url 'prepostos_detail' preposto.pk %}">
+            <div class="card-body">
+              <h3 class="card-title">{{ preposto.nome }}</h3>
+              <p class="card-meta">{{ preposto.empresa }}</p>
+              <p class="card-text">
+                CPF: {{ preposto.cpf }}<br />
+                Telefone: {{ preposto.telefone|default:"-" }}<br />
+                E-mail: {{ preposto.email|default:"-" }}
+              </p>
+            </div>
+          </a>
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p>Nenhum preposto cadastrado.</p>
+  {% endif %}
+{% endblock %}

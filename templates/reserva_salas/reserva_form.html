@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/reserva_salas/reserva_salas.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>{% if object %}Editar reserva{% else %}Nova reserva{% endif %}</h2>
+  </section>
+
+  <div class="form">
+    <form method="post">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      <p>
+        <label for="{{ form.sala.id_for_label }}">{{ form.sala.label }}</label>
+        {{ form.sala }}
+        {{ form.sala.errors }}
+      </p>
+      <p>
+        <label for="{{ form.data.id_for_label }}">{{ form.data.label }}</label>
+        {{ form.data }}
+        {{ form.data.errors }}
+      </p>
+      <p>
+        <label for="{{ form.hora_inicio.id_for_label }}">{{ form.hora_inicio.label }}</label>
+        {{ form.hora_inicio }}
+        {{ form.hora_inicio.errors }}
+      </p>
+      <p>
+        <label for="{{ form.hora_fim.id_for_label }}">{{ form.hora_fim.label }}</label>
+        {{ form.hora_fim }}
+        {{ form.hora_fim.errors }}
+      </p>
+      {% if not object %}
+        <p>
+          <label for="{{ form.recorrencia.id_for_label }}">{{ form.recorrencia.label }}</label>
+          {{ form.recorrencia }}
+          {{ form.recorrencia.errors }}
+        </p>
+        <p id="recorrencia-fim-row">
+          <label for="{{ form.recorrencia_fim.id_for_label }}">{{ form.recorrencia_fim.label }}</label>
+          {{ form.recorrencia_fim }}
+          {{ form.recorrencia_fim.errors }}
+        </p>
+      {% endif %}
+      <p>
+        <label for="{{ form.nome_evento.id_for_label }}">{{ form.nome_evento.label }}</label>
+        {{ form.nome_evento }}
+        {{ form.nome_evento.errors }}
+      </p>
+      <p>
+        <label for="{{ form.responsavel_evento.id_for_label }}">{{ form.responsavel_evento.label }}</label>
+        {{ form.responsavel_evento }}
+        {{ form.responsavel_evento.errors }}
+      </p>
+      <p>
+        <label for="{{ form.quantidade_pessoas.id_for_label }}">{{ form.quantidade_pessoas.label }}</label>
+        {{ form.quantidade_pessoas }}
+        {{ form.quantidade_pessoas.errors }}
+      </p>
+
+      <fieldset class="form-fieldset">
+        <legend>Recursos necessarios</legend>
+        <div class="checkbox-grid">
+          <label class="checkbox-item" for="{{ form.televisao.id_for_label }}">
+            {{ form.televisao }} {{ form.televisao.label }}
+          </label>
+          <label class="checkbox-item" for="{{ form.projetor.id_for_label }}">
+            {{ form.projetor }} {{ form.projetor.label }}
+          </label>
+          <label class="checkbox-item" for="{{ form.som.id_for_label }}">
+            {{ form.som }} {{ form.som.label }}
+          </label>
+          <label class="checkbox-item" for="{{ form.microfone_evento.id_for_label }}">
+            {{ form.microfone_evento }} {{ form.microfone_evento.label }}
+          </label>
+          <label class="checkbox-item" for="{{ form.som_evento.id_for_label }}">
+            {{ form.som_evento }} {{ form.som_evento.label }}
+          </label>
+          <label class="checkbox-item" for="{{ form.mesa_som_evento.id_for_label }}">
+            {{ form.mesa_som_evento }} {{ form.mesa_som_evento.label }}
+          </label>
+          <label class="checkbox-item" for="{{ form.videowall.id_for_label }}">
+            {{ form.videowall }} {{ form.videowall.label }}
+          </label>
+          <label class="checkbox-item" for="{{ form.wifi.id_for_label }}">
+            {{ form.wifi }} {{ form.wifi.label }}
+          </label>
+        </div>
+      </fieldset>
+
+      {% if object and object.serie_id and serie_count|default:0 > 1 %}
+        <fieldset class="form-fieldset">
+          <legend>Aplicar alteracao</legend>
+          <label class="checkbox-item">
+            <input type="radio" name="apply_scope" value="single" checked />
+            Somente este evento
+          </label>
+          <label class="checkbox-item">
+            <input type="radio" name="apply_scope" value="all" />
+            Todos os eventos recorrentes
+          </label>
+        </fieldset>
+      {% endif %}
+      <div class="form-actions">
+        <button type="submit" class="btn">Salvar</button>
+        <a class="btn btn-light" href="{% url 'reservas_list' %}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+
+  {% if form.errors %}
+    <script>
+      const errors = [];
+      {% for field in form %}
+        {% for error in field.errors %}
+          errors.push("{{ error|escapejs }}");
+        {% endfor %}
+      {% endfor %}
+      {% for error in form.non_field_errors %}
+        errors.push("{{ error|escapejs }}");
+      {% endfor %}
+      if (errors.length) {
+        alert(errors.join("\\n"));
+      }
+    </script>
+  {% endif %}
+
+  <script>
+    const salaSelect = document.getElementById("id_sala");
+    const applySelectColor = (select) => {
+      if (!select) return;
+      const option = select.options[select.selectedIndex];
+      const color = option?.dataset?.color;
+      select.style.color = color || "var(--text)";
+    };
+    if (salaSelect) {
+      salaSelect.addEventListener("change", () => applySelectColor(salaSelect));
+      applySelectColor(salaSelect);
+    }
+
+    const recorrenciaSelect = document.getElementById("id_recorrencia");
+    const recorrenciaFimRow = document.getElementById("recorrencia-fim-row");
+    const toggleRecorrenciaFim = () => {
+      if (!recorrenciaSelect || !recorrenciaFimRow) return;
+      const active = recorrenciaSelect.value && recorrenciaSelect.value !== "";
+      recorrenciaFimRow.style.display = active ? "block" : "none";
+    };
+    if (recorrenciaSelect) {
+      recorrenciaSelect.addEventListener("change", toggleRecorrenciaFim);
+      toggleRecorrenciaFim();
+    }
+  </script>
+{% endblock %}

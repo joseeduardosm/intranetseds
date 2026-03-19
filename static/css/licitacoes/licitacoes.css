@@ -1,0 +1,9 @@
+@import url("base/licitacoes-base.css");
+@import url("layout/licitacoes-layout.css");
+@import url("components/licitacoes-buttons.css");
+@import url("components/licitacoes-cards.css");
+@import url("components/licitacoes-forms.css");
+@import url("components/licitacoes-tables.css");
+@import url("pages/licitacoes-termo-detail.css");
+@import url("pages/licitacoes-etp-tic.css");
+@import url("utilities/licitacoes-utilities.css");

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/monitoramento/monitoramento.css' %}" />
+{% endblock %}
+
+{% block container_class %}container-wide{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Dashboards do projeto {{ projeto.nome }}</h2>
+  </section>
+
+  <div class="card-actions">
+    <a class="btn" href="{% url 'monitoramento_dashboard_create' projeto.pk %}">Novo dashboard</a>
+    <a class="btn btn-light" href="{% url 'monitoramento_projeto_detail' projeto.pk %}">Voltar</a>
+  </div>
+
+  {% if dashboards %}
+    <section class="card-grid card-grid-fixed monitor-dashboard-list">
+      {% for dashboard in dashboards %}
+        <article class="card card-square monitor-card">
+          <a class="card-link card-square-link" href="{% url 'monitoramento_dashboard_detail' dashboard.pk %}">
+            <div class="card-body">
+              <h3 class="card-title">{{ dashboard.titulo }}</h3>
+              <p class="card-text">{{ dashboard.descricao|default:"Dashboard pronto para filtros parametrizados, visualização e exportação XLSX." }}</p>
+            </div>
+          </a>
+        </article>
+      {% endfor %}
+    </section>
+  {% else %}
+    <article class="card monitor-empty-card">
+      <div class="card-body">
+        <h3 class="card-title">Nenhum dashboard cadastrado</h3>
+        <p class="card-text">Crie o primeiro dashboard para este projeto.</p>
+      </div>
+    </article>
+  {% endif %}
+{% endblock %}

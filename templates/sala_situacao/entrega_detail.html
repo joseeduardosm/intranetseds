@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/sala_situacao/sala_situacao.css' %}" />
+{% endblock %}
+
+
+{% block content %}
+  <section class="sala-detail-layout sala-detail-layout--wide">
+    <div>
+      <section class="page-header"><h2>Detalhes do item</h2></section>
+      <div class="detail sala-detail-panel">
+        <p><strong>Nome:</strong> {{ entrega.nome }}</p>
+        <p>
+          <strong>Processos:</strong>
+          {% for processo in entrega.processos.all %}
+            <a href="{% url 'sala_processo_detail' processo.pk %}">{{ processo.nome }}</a>{% if not forloop.last %}, {% endif %}
+          {% empty %}
+            -
+          {% endfor %}
+        </p>
+        <p><strong>Descrição:</strong> {{ entrega.descricao|default:'-' }}</p>
+        <p>
+          <strong>Marcadores herdados:</strong>
+          {% for marcador in entrega.marcadores_efetivos %}
+            <span class="sala-marcador-chip" style="--marcador-cor: {{ marcador.cor }};">{{ marcador.nome }}</span>
+          {% empty %}
+            -
+          {% endfor %}
+        </p>
+        {% if entrega.eh_entrega_monitoramento %}
+          <p><strong>Variável de monitoramento:</strong> {{ entrega.variavel_monitoramento.nome }}</p>
+          <p><strong>Ciclo:</strong> {{ entrega.ciclo_monitoramento.titulo }}</p>
+          <p>
+            <strong>Valor informado:</strong>
+            {{ entrega.valor_monitoramento|default:'-' }} {{ entrega.variavel_monitoramento.unidade_medida }}
+          </p>
+          <p>
+            <strong>Evidência:</strong>
+            {% if entrega.evidencia_monitoramento %}
+              <a href="{{ entrega.evidencia_monitoramento.url }}" target="_blank" rel="noopener">Abrir arquivo</a>
+            {% else %}
+              -
+            {% endif %}
+          </p>
+          <p><strong>Último monitoramento em:</strong> {{ entrega.monitorado_em|date:'d/m/Y H:i'|default:'-' }}</p>
+        {% endif %}
+        <p>
+          <strong>Período:</strong>
+          {{ entrega.periodo_inicio|date:'d/m/Y'|default:'-' }} a {{ entrega.periodo_fim|date:'d/m/Y'|default:'-' }}
+        </p>
+        <p><strong>Data de lançamento:</strong> {{ entrega.data_lancamento|date:'d/m/Y'|default:'-' }}</p>
+        <p><strong>Data de entrega estipulada:</strong> {{ entrega.data_entrega_estipulada|date:'d/m/Y'|default:'-' }}</p>
+        <p><strong>Prazo:</strong> {{ entrega.texto_prazo }}</p>
+        {% include "sala_situacao/_progresso_duplo.html" with item=entrega show_delta_tooltip=True %}
+        <div class="detail-actions">
+          {% if entrega.eh_entrega_monitoramento and pode_monitorar %}
+            <button class="btn" type="button" id="btn-monitorar-entrega">Monitorar</button>
+          {% endif %}
+          {% if can_edit %}<a class="btn" href="{% url 'sala_entrega_update' entrega.pk %}">Editar</a>{% endif %}
+          {% if can_delete %}<a class="btn btn-secondary" href="{% url 'sala_entrega_delete' entrega.pk %}">Excluir</a>{% endif %}
+          <a class="btn btn-light" href="{% url 'sala_entrega_list' %}">Voltar</a>
+        </div>
+      </div>
+      {% include "sala_situacao/_relacionamentos_hierarquicos.html" %}
+    </div>
+    <aside>
+      <section class="page-header"><h2>Notas e histórico</h2></section>
+      <div class="detail sala-detail-panel">
+        {% include "sala_situacao/_notas_item.html" %}
+        <h3 class="sala-side-title">Histórico de evoluções</h3>
+        {% include "sala_situacao/_historico_alteracoes.html" %}
+      </div>
+    </aside>
+  </section>
+  {% if entrega.eh_entrega_monitoramento and pode_monitorar and monitoramento_form %}
+    <div class="photo-modal" id="monitoramento-modal" aria-hidden="true">
+      <div class="photo-modal-backdrop" data-close-monitoramento="true"></div>
+      <div class="photo-modal-content" role="dialog" aria-modal="true" aria-label="Monitorar entrega">
+        <button class="photo-modal-close" type="button" aria-label="Fechar" data-close-monitoramento="true">×</button>
+        <h3>Monitorar entrega</h3>
+        <form method="post" enctype="multipart/form-data" action="{% url 'sala_entrega_monitorar' entrega.pk %}">
+          {% csrf_token %}
+          <div class="sala-form-field">
+            <label for="{{ monitoramento_form.valor_monitoramento.id_for_label }}">{{ monitoramento_form.valor_monitoramento.label }}</label>
+            {{ monitoramento_form.valor_monitoramento }}
+          </div>
+          <div class="sala-form-field">
+            <label for="{{ monitoramento_form.evidencia_monitoramento.id_for_label }}">Evidência</label>
+            {{ monitoramento_form.evidencia_monitoramento }}
+          </div>
+          <div class="detail-actions">
+            <button class="btn" type="submit">Salvar monitoramento</button>
+            <button class="btn btn-light" type="button" data-close-monitoramento="true">Cancelar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <script>
+      (function () {
+        const modal = document.getElementById("monitoramento-modal");
+        const openBtn = document.getElementById("btn-monitorar-entrega");
+        if (!modal || !openBtn) return;
+        const closeModal = () => {
+          modal.classList.remove("is-open");
+          modal.setAttribute("aria-hidden", "true");
+        };
+        openBtn.addEventListener("click", () => {
+          modal.classList.add("is-open");
+          modal.setAttribute("aria-hidden", "false");
+        });
+        modal.addEventListener("click", (event) => {
+          if (event.target && event.target.dataset && event.target.dataset.closeMonitoramento === "true") {
+            closeModal();
+          }
+        });
+        document.addEventListener("keydown", (event) => {
+          if (event.key === "Escape" && modal.classList.contains("is-open")) {
+            closeModal();
+          }
+        });
+      })();
+    </script>
+  {% endif %}
+{% endblock %}

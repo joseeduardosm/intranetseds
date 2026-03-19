@@ -1,0 +1,143 @@
+/* Componentes de progresso */
+
+.progresso-wrap {
+  margin-top: 10px;
+}
+
+.progresso-label {
+  font-size: 0.72rem;
+  color: var(--primary);
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.progresso-barra-bg {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  background: #e7e3db;
+  overflow: hidden;
+  border: 1px solid #d7d2c8;
+}
+
+.progresso-barra-fill {
+  height: 100%;
+  border-radius: inherit;
+  transition: width 0.25s ease;
+}
+
+.progresso-verde {
+  background: #2e9d44;
+}
+
+.progresso-amarelo {
+  background: #d9a400;
+}
+
+.progresso-vermelho {
+  background: #c73b2e;
+}
+
+.progresso-duplo {
+  margin-top: 8px;
+  display: grid;
+  gap: 8px;
+}
+
+.progresso-linha-topo {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.progresso-titulo {
+  font-size: 0.66rem;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.progresso-valor {
+  font-size: 0.66rem;
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.progresso-delta {
+  font-size: 0.62rem;
+  font-weight: 700;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.progresso-delta--tooltip {
+  cursor: help;
+}
+
+.delta-positivo {
+  color: #2e9d44;
+}
+
+.delta-negativo {
+  color: #c73b2e;
+}
+
+.delta-neutro {
+  color: #d9a400;
+}
+
+.progresso-delta-help {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.55rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.progresso-delta-tooltip {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: calc(100% + 6px);
+  z-index: 12;
+  min-width: 210px;
+  max-width: 260px;
+  background: #fff;
+  color: #1a1a1a;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  box-shadow: 0 8px 18px rgba(31, 42, 68, 0.16);
+  font-size: 0.62rem;
+  line-height: 1.25;
+  font-weight: 600;
+}
+
+.progresso-delta--tooltip:hover .progresso-delta-tooltip {
+  display: block;
+}
+
+.monitoramento-status {
+  margin-left: 8px;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.monitoramento-status--vermelho {
+  color: #c73b2e;
+}
+
+.monitoramento-status--amarelo {
+  color: #d9a400;
+}
+
+.monitoramento-status--verde {
+  color: #2e9d44;
+}

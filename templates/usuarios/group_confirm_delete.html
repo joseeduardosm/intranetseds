@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/usuarios/usuarios.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Excluir setor</h2>
+  </section>
+
+  {% include 'usuarios/_tabs.html' with usuarios_tab='setores' %}
+
+  <div class="confirm-delete">
+    <p>Tem certeza que deseja excluir o setor "{{ object.name }}"?</p>
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-actions">
+        <button type="submit" class="btn btn-secondary">Excluir</button>
+        <a class="btn btn-light" href="{% url 'setores_list' %}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}

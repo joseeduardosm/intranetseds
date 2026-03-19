@@ -1,0 +1,11 @@
+.dashboard #content-main .module {
+  overflow: hidden;
+}
+
+.dashboard #content-main .module table caption {
+  padding: 12px 16px;
+}
+
+.dashboard #content-main .module table {
+  border-top: 1px solid var(--border);
+}

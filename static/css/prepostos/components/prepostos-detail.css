@@ -1,0 +1,17 @@
+/* Bloco de detalhe */
+
+.detail {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 28px;
+  margin: 32px 0 48px;
+  box-shadow: 0 10px 22px rgba(31, 42, 68, 0.08);
+}
+
+.detail-actions {
+  margin: 16px 0;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}

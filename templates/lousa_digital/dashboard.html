@@ -1,0 +1,260 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/lousa_digital/lousa_digital.css' %}" />
+{% endblock %}
+
+{% block container_class %}container-wide{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Dashboard da Lousa Digital</h2>
+  </section>
+
+  <div class="card-actions">
+    <a class="btn btn-light" href="{% url 'lousa_digital_list' %}">Voltar à Lousa</a>
+    <a class="btn btn-light" href="{% url 'lousa_digital_create' %}">Novo processo</a>
+  </div>
+
+  <section class="lousa-dashboard">
+    <div class="lousa-dashboard-kpis">
+      <article class="card lousa-kpi-card">
+        <p class="lousa-kpi-label">Processos monitorados</p>
+        <p class="lousa-kpi-value">{{ total_processos_monitorados }}</p>
+        <p class="lousa-kpi-meta">Base visível para o usuário logado</p>
+      </article>
+      <article class="card lousa-kpi-card">
+        <p class="lousa-kpi-label">Processos com destino atual ativo</p>
+        <p class="lousa-kpi-value">{{ total_processos_com_destino_ativo }}</p>
+        <p class="lousa-kpi-meta">Com encaminhamento em aberto</p>
+      </article>
+      <article class="card lousa-kpi-card">
+        <p class="lousa-kpi-label">Processos com prazo crítico</p>
+        <p class="lousa-kpi-value">{{ percentual_critico }}%</p>
+        <p class="lousa-kpi-meta">{{ processos_criticos }} processo{{ processos_criticos|pluralize }} em vencido, hoje ou 1-3 dias</p>
+      </article>
+      <article class="card lousa-kpi-card">
+        <p class="lousa-kpi-label">Alertas enviados</p>
+        <p class="lousa-kpi-value">{{ total_alertas_enviados }}</p>
+        <p class="lousa-kpi-meta">Eventos de e-mail registrados na timeline</p>
+      </article>
+    </div>
+
+    <div class="lousa-dashboard-grid lousa-dashboard-grid--2">
+      <article class="card lousa-chart-card">
+        <h3 class="lousa-chart-title">Processos por destino atual</h3>
+        <p class="lousa-chart-meta">Considera o encaminhamento ativo prioritário de cada processo.</p>
+        <div id="chart-destino-atual" class="lousa-chart"></div>
+      </article>
+      <article class="card lousa-chart-card">
+        <h3 class="lousa-chart-title">Encaminhamentos ativos por faixa de prazo</h3>
+        <p class="lousa-chart-meta">Vencidos, hoje, 1-3, 4-7 e acima de 7 dias.</p>
+        <div id="chart-faixa-prazo" class="lousa-chart"></div>
+      </article>
+    </div>
+
+    <div class="lousa-dashboard-grid lousa-dashboard-grid--3">
+      <article class="card lousa-chart-card">
+        <h3 class="lousa-chart-title">Processos criados por período</h3>
+        <div id="chart-processos-periodo" class="lousa-chart lousa-chart--compact"></div>
+      </article>
+      <article class="card lousa-chart-card">
+        <h3 class="lousa-chart-title">Encaminhamentos criados por período</h3>
+        <div id="chart-encaminhamentos-periodo" class="lousa-chart lousa-chart--compact"></div>
+      </article>
+      <article class="card lousa-chart-card">
+        <h3 class="lousa-chart-title">Devoluções por período</h3>
+        <div id="chart-devolucoes-periodo" class="lousa-chart lousa-chart--compact"></div>
+      </article>
+    </div>
+
+    <div class="lousa-dashboard-grid lousa-dashboard-grid--1-2">
+      <article class="card lousa-chart-card">
+        <h3 class="lousa-chart-title">Destinos que mais recebem processos</h3>
+        <p class="lousa-chart-meta">Ranking por volume histórico de encaminhamentos.</p>
+        <div id="chart-destinos-top" class="lousa-chart"></div>
+      </article>
+
+      <article class="card lousa-table-card">
+        <h3 class="lousa-chart-title">Usuários que mais cadastram processos</h3>
+        {% if ranking_cadastro %}
+          <div class="table-wrapper">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Usuário</th>
+                  <th>Processos cadastrados</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in ranking_cadastro %}
+                  <tr>
+                    <td>{{ item.nome }}</td>
+                    <td>{{ item.total }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p>Nenhum processo com autoria registrada.</p>
+        {% endif %}
+      </article>
+    </div>
+
+    <article class="card lousa-table-card">
+      <h3 class="lousa-chart-title">Usuários com maior volume tratado</h3>
+      <p class="lousa-chart-meta">Soma de encaminhamentos criados e devolvidos por usuário.</p>
+      {% if ranking_tratados %}
+        <div class="table-wrapper">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Usuário</th>
+                <th>Encaminhamentos criados</th>
+                <th>Devoluções</th>
+                <th>Total tratado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in ranking_tratados %}
+                <tr>
+                  <td>{{ item.nome }}</td>
+                  <td>{{ item.criados }}</td>
+                  <td>{{ item.devolvidos }}</td>
+                  <td>{{ item.total }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p>Nenhuma movimentação operacional registrada.</p>
+      {% endif %}
+    </article>
+  </section>
+
+  {{ grafico_processos_destino_atual|json_script:"grafico-processos-destino-atual" }}
+  {{ grafico_encaminhamentos_faixa_prazo|json_script:"grafico-encaminhamentos-faixa-prazo" }}
+  {{ grafico_processos_criados_periodo|json_script:"grafico-processos-criados-periodo" }}
+  {{ grafico_encaminhamentos_criados_periodo|json_script:"grafico-encaminhamentos-criados-periodo" }}
+  {{ grafico_devolucoes_periodo|json_script:"grafico-devolucoes-periodo" }}
+  {{ grafico_destinos_mais_recebem|json_script:"grafico-destinos-mais-recebem" }}
+
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <script>
+    const parseChartData = (id) => JSON.parse(document.getElementById(id)?.textContent || "{}");
+
+    const destinoAtual = parseChartData("grafico-processos-destino-atual");
+    const faixaPrazo = parseChartData("grafico-encaminhamentos-faixa-prazo");
+    const processosPeriodo = parseChartData("grafico-processos-criados-periodo");
+    const encaminhamentosPeriodo = parseChartData("grafico-encaminhamentos-criados-periodo");
+    const devolucoesPeriodo = parseChartData("grafico-devolucoes-periodo");
+    const destinosRecebem = parseChartData("grafico-destinos-mais-recebem");
+
+    const plotlyConfig = {
+      responsive: true,
+      displaylogo: false,
+      toImageButtonOptions: {
+        format: "jpeg",
+        filename: "dashboard-lousa-digital",
+        scale: 2,
+      },
+    };
+
+    const baseLayout = {
+      margin: { l: 48, r: 16, t: 12, b: 36 },
+      paper_bgcolor: "#ffffff",
+      plot_bgcolor: "#ffffff",
+      font: { family: "Segoe UI, sans-serif", color: "#1f2a44" },
+    };
+
+    Plotly.newPlot(
+      "chart-destino-atual",
+      [
+        {
+          labels: destinoAtual.labels || [],
+          values: destinoAtual.values || [],
+          type: "pie",
+          hole: 0.48,
+          textinfo: "label+percent",
+          marker: {
+            colors: ["#d95f02", "#1f6feb", "#0f766e", "#e0a800", "#c73b2e", "#6f42c1", "#72808e"],
+          },
+        },
+      ],
+      {
+        ...baseLayout,
+        margin: { l: 16, r: 16, t: 12, b: 12 },
+      },
+      plotlyConfig
+    );
+
+    Plotly.newPlot(
+      "chart-faixa-prazo",
+      [
+        {
+          x: faixaPrazo.labels || [],
+          y: faixaPrazo.values || [],
+          type: "bar",
+          marker: {
+            color: ["#c73b2e", "#e05a47", "#d9a400", "#0f766e", "#1f6feb"],
+          },
+          hovertemplate: "%{x}<br>%{y} encaminhamento(s)<extra></extra>",
+        },
+      ],
+      {
+        ...baseLayout,
+        yaxis: { title: "Encaminhamentos ativos", rangemode: "tozero" },
+      },
+      plotlyConfig
+    );
+
+    const renderLine = (elementId, payload, color, eixoTitulo) =>
+      Plotly.newPlot(
+        elementId,
+        [
+          {
+            x: payload.labels || [],
+            y: payload.values || [],
+            type: "scatter",
+            mode: "lines+markers",
+            line: { color, width: 3 },
+            marker: { size: 8 },
+            hovertemplate: "%{x}<br>%{y}<extra></extra>",
+          },
+        ],
+        {
+          ...baseLayout,
+          yaxis: { title: eixoTitulo, rangemode: "tozero" },
+        },
+        plotlyConfig
+      );
+
+    renderLine("chart-processos-periodo", processosPeriodo, "#1f6feb", "Processos");
+    renderLine("chart-encaminhamentos-periodo", encaminhamentosPeriodo, "#d95f02", "Encaminhamentos");
+    renderLine("chart-devolucoes-periodo", devolucoesPeriodo, "#0f766e", "Devoluções");
+
+    Plotly.newPlot(
+      "chart-destinos-top",
+      [
+        {
+          x: destinosRecebem.values || [],
+          y: destinosRecebem.labels || [],
+          type: "bar",
+          orientation: "h",
+          marker: { color: "#d95f02" },
+          hovertemplate: "%{y}<br>%{x} encaminhamento(s)<extra></extra>",
+        },
+      ],
+      {
+        ...baseLayout,
+        margin: { l: 140, r: 16, t: 12, b: 36 },
+        xaxis: { title: "Encaminhamentos", rangemode: "tozero" },
+        yaxis: { automargin: true },
+      },
+      plotlyConfig
+    );
+  </script>
+{% endblock %}

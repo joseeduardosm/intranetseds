@@ -1,0 +1,8 @@
+table thead th {
+  background: #fbfaf7;
+  color: var(--primary);
+}
+
+table tbody tr:nth-child(odd) {
+  background: #fcfbf8;
+}

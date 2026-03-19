@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/licitacoes/licitacoes.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Pré-visualização do ETP TIC</h2>
+    <p><strong>Processo:</strong> {{ etp.numero_processo_servico }}</p>
+  </section>
+
+  <div class="card-actions">
+    <a class="btn" href="{% url 'licitacoes_etp_tic_edit' etp.pk %}?secao={{ etp.secao_atual }}">Editar</a>
+    <a class="btn btn-light" href="{% url 'licitacoes_etp_tic_export_docx' etp.pk %}">Exportar DOCX</a>
+    <a class="btn btn-light" href="{% url 'licitacoes_etp_tic_list' %}">Voltar</a>
+  </div>
+
+  {% for secao in secoes_render %}
+    <article class="card etp-preview-card">
+      <div class="card-body">
+        <h3 class="card-title">{{ secao.numero }}. {{ secao.titulo }}</h3>
+        {% if secao.descricao %}
+          <p class="etp-description">{{ secao.descricao }}</p>
+        {% endif %}
+        {% if secao.entradas %}
+          <ul class="etp-preview-list">
+            {% for entrada in secao.entradas %}
+              <li>{{ entrada }}</li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p>-</p>
+        {% endif %}
+      </div>
+    </article>
+  {% endfor %}
+{% endblock %}

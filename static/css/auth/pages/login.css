@@ -1,0 +1,12 @@
+.login-page {
+  max-width: 520px;
+  margin: 32px auto 0;
+}
+
+.login-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: 0 12px 24px rgba(31, 42, 68, 0.08);
+}

@@ -1,0 +1,22 @@
+/* Paginação das listagens */
+
+.pagination {
+  margin: 12px 0 32px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.pagination-meta {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.confirm-delete {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 24px;
+  margin: 16px 0 48px;
+}

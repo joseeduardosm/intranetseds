@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/licitacoes/licitacoes.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Duplicar TR</h2>
+    <p>Origem: <strong>{{ termo_origem.apelido }}</strong></p>
+  </section>
+
+  <div class="form">
+    <form method="post">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      <p>
+        <label for="{{ form.novo_apelido.id_for_label }}">{{ form.novo_apelido.label }}</label>
+        {{ form.novo_apelido }}
+        {{ form.novo_apelido.errors }}
+      </p>
+      <div class="form-actions">
+        <button class="btn" type="submit">Duplicar</button>
+        <a class="btn btn-light" href="{% url 'licitacoes_termo_list' %}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}

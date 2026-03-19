@@ -1,0 +1,94 @@
+body { font-family: Arial, sans-serif; margin: 0; background: #f5f5f5; }
+.page { width: auto; margin: 0; background: #fff; padding: 0; box-sizing: border-box; }
+.fp-table { width: 18cm; margin: 0 auto; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
+.fp-table, .fp-table th, .fp-table td { border: 1px solid #222; }
+.fp-table th, .fp-table td { padding: 0 2px; white-space: nowrap; overflow: hidden; text-overflow: clip; height: 0.5cm; line-height: 1; }
+.center { text-align: center; }
+.bold { font-weight: 700; }
+.red { color: #d00; }
+.header-main { text-align: center; font-size: 16px; font-weight: 700; }
+.subheader { text-align: center; font-size: 12px; }
+.sp-logo { text-align: center; font-weight: 700; overflow: visible !important; }
+.sp-logo img { max-width: 20mm; max-height: 20mm; display: block; margin: 0 auto; object-fit: contain; }
+.linhas { margin-top: 28px; }
+.line {
+  border-bottom: 1px solid #222;
+  height: 18px;
+  line-height: 18px;
+  font-size: 11px;
+  padding: 0 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.assinaturas { display: grid; grid-template-columns: 1fr 1fr; margin-top: 80px; gap: 24px; }
+.assinatura-box { font-weight: 700; }
+.fp-grid-dia { width: 0.9cm; }
+.fp-grid-hora { width: 1.5cm; }
+.fp-grid-ass { width: 5cm; }
+.fp-grid-obs { width: 2.6cm; }
+.fp-grid-visto { width: 0.75cm; }
+.page-front { min-height: calc(29.7cm - 3cm); display: flex; flex-direction: column; }
+.page-front .fp-table { font-size: 11.5px; }
+.page-front .fp-table th,
+.page-front .fp-table td { line-height: 1.08; }
+.page-front .dia-row td { height: 0.5cm; }
+.page-front .assinaturas-front { margin-top: auto !important; padding-top: 6mm; }
+.fp-footer-title { font-size: 11px; font-weight: 700; text-align: center; }
+.fp-finance-wrap { padding: 0 !important; border: 0 !important; }
+.fp-finance { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 9.2px; }
+.fp-finance td { border: 1px solid #222; padding: 0 2px; white-space: normal; overflow: hidden; text-overflow: clip; line-height: 1; height: 0.5cm; }
+.fp-finance tr { height: 0.5cm; }
+.fp-finance .lbl { font-weight: 700; text-align: center; }
+.fp-finance .metric { font-weight: 700; text-align: center; }
+.fp-finance .lbl-sub { font-weight: 700; text-align: center; line-height: 1.02; }
+.fp-finance .periodo { font-size: 9px; }
+.fp-finance .periodo .top { font-weight: 700; margin-bottom: 1px; white-space: nowrap; }
+.fp-finance .periodo .bottom {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 8px;
+  white-space: nowrap;
+  width: 100%;
+}
+.fp-finance .periodo .bottom .de { text-align: left; }
+.fp-finance .periodo .bottom .ate { text-align: left; }
+.fp-finance .qtd { text-align: center; font-weight: 700; font-size: 9px; white-space: nowrap; }
+.fp-finance .qtd-field {
+  padding: 0 !important;
+}
+.fp-finance .qtd-field .top {
+  font-size: 8.2px;
+  font-weight: 700;
+  text-align: center;
+  padding: 1px 2px 0;
+}
+.fp-finance .qtd-field .bottom {
+  min-height: 10px;
+}
+.fp-finance-col-12 { width: 12%; }
+.fp-finance-col-22 { width: 22%; }
+.fp-finance-col-15 { width: 15%; }
+.fp-finance-col-20 { width: 20%; }
+.fp-finance-col-16 { width: 16%; }
+.assinaturas-front { display: grid !important; grid-template-columns: 1fr 1fr auto; align-items: end; column-gap: 14px; }
+.assinatura-item { text-align: center; font-weight: 700; }
+.assinatura-item .line { border-bottom: 1px solid #222; height: 0; margin-bottom: 4px; }
+.assinatura-data { font-weight: 700; white-space: nowrap; }
+.fp-nowrap { white-space: nowrap; }
+.obs-cell { font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.visto-cell { white-space: nowrap; }
+.visto-header {
+  font-size: 10px;
+  line-height: 1.05;
+  white-space: normal !important;
+}
+.consolidacao-title { margin: 40px 0 30px; }
+@media print {
+  @page { size: A4 portrait; margin: 1cm; }
+  body { background: #fff; }
+  .page { width: auto; margin: 0; padding: 0; }
+  .page-front { break-inside: avoid-page; page-break-inside: avoid; break-after: page; page-break-after: always; }
+  .page-back { break-inside: avoid-page; page-break-inside: avoid; }
+  .fp-table tr { break-inside: avoid; page-break-inside: avoid; }
+}

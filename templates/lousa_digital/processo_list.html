@@ -1,0 +1,345 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load lousa_tags %}
+
+{% block container_class %}container-wide{% endblock %}
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/lousa_digital/lousa_digital.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Lousa Digital - {{ total_processos }} processo{{ total_processos|pluralize }}</h2>
+  </section>
+
+  <div class="card-actions">
+    <a class="btn" href="{% url 'lousa_digital_create' %}">Novo processo</a>
+    <a class="btn btn-light" href="{% url 'lousa_digital_dashboard' %}">Dashboard</a>
+    {% if view_mode == 'cards' %}
+      <a class="btn btn-light" href="?view=table{% if query %}&q={{ query|urlencode }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if ordem_prazo %}&ordem_prazo={{ ordem_prazo }}{% endif %}{% if arquivo_morto_filter %}&arquivo_morto={{ arquivo_morto_filter|urlencode }}{% endif %}{% if sort_by %}&sort_by={{ sort_by|urlencode }}{% endif %}{% if sort_dir %}&sort_dir={{ sort_dir|urlencode }}{% endif %}{% if col_sei %}&col_sei={{ col_sei|urlencode }}{% endif %}{% if col_assunto %}&col_assunto={{ col_assunto|urlencode }}{% endif %}{% if col_origem %}&col_origem={{ col_origem|urlencode }}{% endif %}{% if col_destino %}&col_destino={{ col_destino|urlencode }}{% endif %}{% if col_ativos %}&col_ativos={{ col_ativos|urlencode }}{% endif %}{% if col_prazo %}&col_prazo={{ col_prazo|urlencode }}{% endif %}{% if col_atualizado %}&col_atualizado={{ col_atualizado|urlencode }}{% endif %}">Ver tabela</a>
+    {% else %}
+      <a class="btn btn-light" href="?view=cards{% if query %}&q={{ query|urlencode }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if ordem_prazo %}&ordem_prazo={{ ordem_prazo }}{% endif %}{% if arquivo_morto_filter %}&arquivo_morto={{ arquivo_morto_filter|urlencode }}{% endif %}{% if sort_by %}&sort_by={{ sort_by|urlencode }}{% endif %}{% if sort_dir %}&sort_dir={{ sort_dir|urlencode }}{% endif %}{% if col_sei %}&col_sei={{ col_sei|urlencode }}{% endif %}{% if col_assunto %}&col_assunto={{ col_assunto|urlencode }}{% endif %}{% if col_origem %}&col_origem={{ col_origem|urlencode }}{% endif %}{% if col_destino %}&col_destino={{ col_destino|urlencode }}{% endif %}{% if col_ativos %}&col_ativos={{ col_ativos|urlencode }}{% endif %}{% if col_prazo %}&col_prazo={{ col_prazo|urlencode }}{% endif %}{% if col_atualizado %}&col_atualizado={{ col_atualizado|urlencode }}{% endif %}">Ver cards</a>
+    {% endif %}
+  </div>
+
+  <form method="get" action="{% url 'lousa_digital_list' %}" class="lousa-search-form">
+    <input type="hidden" name="view" value="{{ view_mode }}" />
+    {% if status_filter %}
+      <input type="hidden" name="status" value="{{ status_filter }}" />
+    {% endif %}
+    {% if ordem_prazo %}
+      <input type="hidden" name="ordem_prazo" value="{{ ordem_prazo }}" />
+    {% endif %}
+    {% if arquivo_morto_filter %}
+      <input type="hidden" name="arquivo_morto" value="{{ arquivo_morto_filter }}" />
+    {% endif %}
+    {% if sort_by %}
+      <input type="hidden" name="sort_by" value="{{ sort_by }}" />
+    {% endif %}
+    {% if sort_dir %}
+      <input type="hidden" name="sort_dir" value="{{ sort_dir }}" />
+    {% endif %}
+    {% if col_sei %}
+      <input type="hidden" name="col_sei" value="{{ col_sei }}" />
+    {% endif %}
+    {% if col_assunto %}
+      <input type="hidden" name="col_assunto" value="{{ col_assunto }}" />
+    {% endif %}
+    {% if col_origem %}
+      <input type="hidden" name="col_origem" value="{{ col_origem }}" />
+    {% endif %}
+    {% if col_destino %}
+      <input type="hidden" name="col_destino" value="{{ col_destino }}" />
+    {% endif %}
+    {% if col_ativos %}
+      <input type="hidden" name="col_ativos" value="{{ col_ativos }}" />
+    {% endif %}
+    {% if col_prazo %}
+      <input type="hidden" name="col_prazo" value="{{ col_prazo }}" />
+    {% endif %}
+    {% if col_atualizado %}
+      <input type="hidden" name="col_atualizado" value="{{ col_atualizado }}" />
+    {% endif %}
+    <input type="search" name="q" value="{{ query }}" placeholder="Pesquisar por SEI, assunto, origem ou destino" />
+    <button class="btn" type="submit">Pesquisar</button>
+    {% if query %}
+      <a class="btn btn-light" href="?view={{ view_mode }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if arquivo_morto_filter %}&arquivo_morto={{ arquivo_morto_filter|urlencode }}{% endif %}">Limpar</a>
+    {% endif %}
+  </form>
+  <div class="sala-marcadores-wrap lousa-status-filtros">
+    <a
+      class="sala-marcador-chip{% if status_filter == 'EM_ABERTO' %} sala-marcador-chip--filtro-ativo{% endif %}"
+      style="--marcador-cor: #d9a400;"
+      href="?view={{ view_mode }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if ordem_prazo %}&ordem_prazo={{ ordem_prazo }}{% endif %}{% if arquivo_morto_filter %}&arquivo_morto={{ arquivo_morto_filter|urlencode }}{% endif %}{% if sort_by %}&sort_by={{ sort_by|urlencode }}{% endif %}{% if sort_dir %}&sort_dir={{ sort_dir|urlencode }}{% endif %}{% if col_sei %}&col_sei={{ col_sei|urlencode }}{% endif %}{% if col_assunto %}&col_assunto={{ col_assunto|urlencode }}{% endif %}{% if col_origem %}&col_origem={{ col_origem|urlencode }}{% endif %}{% if col_destino %}&col_destino={{ col_destino|urlencode }}{% endif %}{% if col_ativos %}&col_ativos={{ col_ativos|urlencode }}{% endif %}{% if col_prazo %}&col_prazo={{ col_prazo|urlencode }}{% endif %}{% if col_atualizado %}&col_atualizado={{ col_atualizado|urlencode }}{% endif %}&status=EM_ABERTO"
+    >
+      Em aberto
+    </a>
+    <a
+      class="sala-marcador-chip{% if status_filter == 'CONCLUIDO' %} sala-marcador-chip--filtro-ativo{% endif %}"
+      style="--marcador-cor: #2e9d44;"
+      href="?view={{ view_mode }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if ordem_prazo %}&ordem_prazo={{ ordem_prazo }}{% endif %}{% if arquivo_morto_filter %}&arquivo_morto={{ arquivo_morto_filter|urlencode }}{% endif %}{% if sort_by %}&sort_by={{ sort_by|urlencode }}{% endif %}{% if sort_dir %}&sort_dir={{ sort_dir|urlencode }}{% endif %}{% if col_sei %}&col_sei={{ col_sei|urlencode }}{% endif %}{% if col_assunto %}&col_assunto={{ col_assunto|urlencode }}{% endif %}{% if col_origem %}&col_origem={{ col_origem|urlencode }}{% endif %}{% if col_destino %}&col_destino={{ col_destino|urlencode }}{% endif %}{% if col_ativos %}&col_ativos={{ col_ativos|urlencode }}{% endif %}{% if col_prazo %}&col_prazo={{ col_prazo|urlencode }}{% endif %}{% if col_atualizado %}&col_atualizado={{ col_atualizado|urlencode }}{% endif %}&status=CONCLUIDO"
+    >
+      Concluido
+    </a>
+    <a
+      class="sala-marcador-chip{% if ordem_prazo == 'prazo_mais_proximo' %} sala-marcador-chip--filtro-ativo{% endif %}"
+      style="--marcador-cor: #0d6efd;"
+      href="?view={{ view_mode }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if arquivo_morto_filter %}&arquivo_morto={{ arquivo_morto_filter|urlencode }}{% endif %}{% if sort_by %}&sort_by={{ sort_by|urlencode }}{% endif %}{% if sort_dir %}&sort_dir={{ sort_dir|urlencode }}{% endif %}{% if col_sei %}&col_sei={{ col_sei|urlencode }}{% endif %}{% if col_assunto %}&col_assunto={{ col_assunto|urlencode }}{% endif %}{% if col_origem %}&col_origem={{ col_origem|urlencode }}{% endif %}{% if col_destino %}&col_destino={{ col_destino|urlencode }}{% endif %}{% if col_ativos %}&col_ativos={{ col_ativos|urlencode }}{% endif %}{% if col_prazo %}&col_prazo={{ col_prazo|urlencode }}{% endif %}{% if col_atualizado %}&col_atualizado={{ col_atualizado|urlencode }}{% endif %}&ordem_prazo=prazo_mais_proximo"
+    >
+      Prazo crescente
+    </a>
+    <a
+      class="sala-marcador-chip{% if ordem_prazo == 'prazo_mais_distante' %} sala-marcador-chip--filtro-ativo{% endif %}"
+      style="--marcador-cor: #6f42c1;"
+      href="?view={{ view_mode }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if arquivo_morto_filter %}&arquivo_morto={{ arquivo_morto_filter|urlencode }}{% endif %}{% if sort_by %}&sort_by={{ sort_by|urlencode }}{% endif %}{% if sort_dir %}&sort_dir={{ sort_dir|urlencode }}{% endif %}{% if col_sei %}&col_sei={{ col_sei|urlencode }}{% endif %}{% if col_assunto %}&col_assunto={{ col_assunto|urlencode }}{% endif %}{% if col_origem %}&col_origem={{ col_origem|urlencode }}{% endif %}{% if col_destino %}&col_destino={{ col_destino|urlencode }}{% endif %}{% if col_ativos %}&col_ativos={{ col_ativos|urlencode }}{% endif %}{% if col_prazo %}&col_prazo={{ col_prazo|urlencode }}{% endif %}{% if col_atualizado %}&col_atualizado={{ col_atualizado|urlencode }}{% endif %}&ordem_prazo=prazo_mais_distante"
+    >
+      Prazo decrescente
+    </a>
+    <a
+      class="sala-marcador-chip{% if arquivo_morto_filter == '1' or arquivo_morto_filter == 'true' or arquivo_morto_filter == 'sim' %} sala-marcador-chip--filtro-ativo{% endif %}"
+      style="--marcador-cor: #111111;"
+      href="?view={{ view_mode }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if ordem_prazo %}&ordem_prazo={{ ordem_prazo }}{% endif %}{% if sort_by %}&sort_by={{ sort_by|urlencode }}{% endif %}{% if sort_dir %}&sort_dir={{ sort_dir|urlencode }}{% endif %}{% if col_sei %}&col_sei={{ col_sei|urlencode }}{% endif %}{% if col_assunto %}&col_assunto={{ col_assunto|urlencode }}{% endif %}{% if col_origem %}&col_origem={{ col_origem|urlencode }}{% endif %}{% if col_destino %}&col_destino={{ col_destino|urlencode }}{% endif %}{% if col_ativos %}&col_ativos={{ col_ativos|urlencode }}{% endif %}{% if col_prazo %}&col_prazo={{ col_prazo|urlencode }}{% endif %}{% if col_atualizado %}&col_atualizado={{ col_atualizado|urlencode }}{% endif %}&arquivo_morto=1"
+    >
+      Arquivo morto
+    </a>
+    {% if status_filter or ordem_prazo or arquivo_morto_filter %}
+      <a class="btn btn-light btn-small" href="?view={{ view_mode }}{% if query %}&q={{ query|urlencode }}{% endif %}">Limpar filtros</a>
+    {% endif %}
+  </div>
+
+  {% if processos %}
+    {% if view_mode == 'cards' %}
+      <div class="card-grid card-grid-fixed lousa-card-grid-container">
+        {% for processo in processos %}
+          {% include "lousa_digital/_processo_card.html" with processo=processo %}
+        {% endfor %}
+      </div>
+    {% else %}
+      <form method="get" action="{% url 'lousa_digital_list' %}" id="lousa-table-filter-form">
+        <input type="hidden" name="view" value="table" />
+        {% if query %}
+          <input type="hidden" name="q" value="{{ query }}" />
+        {% endif %}
+        {% if status_filter %}
+          <input type="hidden" name="status" value="{{ status_filter }}" />
+        {% endif %}
+        {% if ordem_prazo %}
+          <input type="hidden" name="ordem_prazo" value="{{ ordem_prazo }}" />
+        {% endif %}
+        {% if arquivo_morto_filter %}
+          <input type="hidden" name="arquivo_morto" value="{{ arquivo_morto_filter }}" />
+        {% endif %}
+        {% if sort_by %}
+          <input type="hidden" name="sort_by" value="{{ sort_by }}" />
+        {% endif %}
+        {% if sort_dir %}
+          <input type="hidden" name="sort_dir" value="{{ sort_dir }}" />
+        {% endif %}
+      <div class="table-wrapper">
+        <table class="table table-sortable" id="lousa-table" data-sort-by="{{ sort_by }}" data-sort-dir="{{ sort_dir }}">
+          <thead>
+            <tr>
+              <th class="sortable" data-sort-key="sei">Numero SEI</th>
+              <th class="sortable" data-sort-key="assunto">Assunto</th>
+              <th class="sortable" data-sort-key="origem">Origem</th>
+              <th class="sortable" data-sort-key="destino">Destino ativo</th>
+              <th class="sortable" data-sort-key="ativos">Ativos</th>
+              <th class="sortable" data-sort-key="prazo">Prazo</th>
+              <th class="sortable" data-sort-key="atualizado">Atualizado em</th>
+            </tr>
+            <tr>
+              <th><input type="search" name="col_sei" value="{{ col_sei }}" class="table-filter" placeholder="Filtrar..." /></th>
+              <th><input type="search" name="col_assunto" value="{{ col_assunto }}" class="table-filter" placeholder="Filtrar..." /></th>
+              <th><input type="search" name="col_origem" value="{{ col_origem }}" class="table-filter" placeholder="Filtrar..." /></th>
+              <th><input type="search" name="col_destino" value="{{ col_destino }}" class="table-filter" placeholder="Filtrar..." /></th>
+              <th><input type="search" name="col_ativos" value="{{ col_ativos }}" class="table-filter" placeholder="Filtrar..." /></th>
+              <th><input type="search" name="col_prazo" value="{{ col_prazo }}" class="table-filter" placeholder="Filtrar..." /></th>
+              <th><input type="search" name="col_atualizado" value="{{ col_atualizado }}" class="table-filter" placeholder="Filtrar..." /></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for processo in processos %}
+              <tr>
+                <td><a href="{% url 'lousa_digital_detail' processo.pk %}">{{ processo.numero_sei }}</a></td>
+                <td>{{ processo.assunto }}</td>
+                <td>{{ processo.caixa_origem }}</td>
+                <td>{{ processo.destino_ativo }}</td>
+                <td>{{ processo.ativos }}</td>
+                <td>{% if processo.prazo_data_ativo %}{{ processo.prazo_data_ativo|date:"d/m/Y" }}{% else %}-{% endif %}</td>
+                <td>{{ processo.atualizado_em|date:"d/m/Y H:i" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="card-actions">
+        <button class="btn" type="submit">Aplicar filtros da tabela</button>
+        <a
+          class="btn btn-light"
+          href="?view=table{% if query %}&q={{ query|urlencode }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if ordem_prazo %}&ordem_prazo={{ ordem_prazo }}{% endif %}{% if arquivo_morto_filter %}&arquivo_morto={{ arquivo_morto_filter|urlencode }}{% endif %}"
+        >
+          Limpar filtros da tabela
+        </a>
+      </div>
+      </form>
+    {% endif %}
+    {% if is_paginated %}
+      <nav class="pagination">
+        {% if page_obj.has_previous %}
+          <a class="btn btn-light" href="?page={{ page_obj.previous_page_number }}{{ querystring }}">Anterior</a>
+        {% endif %}
+        <span class="pagination-meta">Pagina {{ page_obj.number }} de {{ paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+          <a class="btn btn-light" href="?page={{ page_obj.next_page_number }}{{ querystring }}">Proxima</a>
+        {% endif %}
+      </nav>
+    {% endif %}
+  {% else %}
+    <p>Nenhum processo encontrado.</p>
+  {% endif %}
+
+  <div class="profile-alert-backdrop auth-required-hidden" id="lousa-devolver-backdrop" aria-hidden="true"></div>
+  <div class="profile-alert-modal auth-required-hidden" id="lousa-devolver-modal" role="dialog" aria-modal="true" aria-label="Confirmar devolução">
+    <h3>Confirmar devolução</h3>
+    <p>Deseja marcar este encaminhamento como devolvido?</p>
+    <div class="profile-alert-actions">
+      <form method="post" id="lousa-devolver-form">
+        {% csrf_token %}
+        <button class="btn btn-secondary" type="submit">devolvido</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const parseDateBr = (value) => {
+      const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+      if (!match) return null;
+      const [, dd, mm, yyyy] = match;
+      const date = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
+      return Number.isNaN(date.getTime()) ? null : date.getTime();
+    };
+
+    const sortTable = (table, index, direction) => {
+      const rows = Array.from(table.tBodies[0].rows);
+      rows.sort((a, b) => {
+        const aText = (a.cells[index]?.textContent || "").trim().toLowerCase();
+        const bText = (b.cells[index]?.textContent || "").trim().toLowerCase();
+        if (index === 5 || index === 6) {
+          const aDate = parseDateBr(aText);
+          const bDate = parseDateBr(bText);
+          if (aDate !== null && bDate !== null) {
+            if (aDate < bDate) return direction === "asc" ? -1 : 1;
+            if (aDate > bDate) return direction === "asc" ? 1 : -1;
+            return 0;
+          }
+        }
+        const aNum = Number.parseFloat(aText.replace(/[^\d.-]/g, ""));
+        const bNum = Number.parseFloat(bText.replace(/[^\d.-]/g, ""));
+        const useNumber = !Number.isNaN(aNum) && !Number.isNaN(bNum);
+        const av = useNumber ? aNum : aText;
+        const bv = useNumber ? bNum : bText;
+        if (av < bv) return direction === "asc" ? -1 : 1;
+        if (av > bv) return direction === "asc" ? 1 : -1;
+        return 0;
+      });
+      rows.forEach((row) => table.tBodies[0].appendChild(row));
+    };
+
+    const table = document.getElementById("lousa-table");
+    if (table) {
+      const currentSortBy = table.dataset.sortBy || "";
+      const currentSortDir = table.dataset.sortDir || "asc";
+      table.querySelectorAll("th.sortable").forEach((th, index) => {
+        const sortKey = th.dataset.sortKey || "";
+        if (sortKey && sortKey === currentSortBy) {
+          th.dataset.direction = currentSortDir;
+        }
+        th.addEventListener("click", () => {
+          const next = sortKey === currentSortBy && currentSortDir === "asc" ? "desc" : "asc";
+          const params = new URLSearchParams(window.location.search);
+          params.set("view", "table");
+          params.set("sort_by", sortKey);
+          params.set("sort_dir", next);
+          params.delete("page");
+          window.location.search = params.toString();
+        });
+      });
+
+      const tableFilterForm = document.getElementById("lousa-table-filter-form");
+      const tableFilterInputs = tableFilterForm
+        ? tableFilterForm.querySelectorAll("input.table-filter")
+        : [];
+      let filterSubmitTimer = null;
+      tableFilterInputs.forEach((input) => {
+        input.addEventListener("input", () => {
+          if (filterSubmitTimer) window.clearTimeout(filterSubmitTimer);
+          filterSubmitTimer = window.setTimeout(() => {
+            tableFilterForm.submit();
+          }, 450);
+        });
+      });
+    }
+
+    const progressClassByPercent = (value) => {
+      if (value > 75) return "is-danger";
+      if (value > 50) return "is-warning";
+      return "is-safe";
+    };
+
+    document.querySelectorAll("[data-progress]").forEach((card) => {
+      const startIso = card.dataset.start;
+      const totalDays = parseInt(card.dataset.totalDays || "0", 10);
+      const fill = card.querySelector("[data-progress-fill]");
+      if (!startIso || !totalDays || !fill) return;
+
+      const refresh = () => {
+        const start = new Date(startIso);
+        const now = new Date();
+        const startDay = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+        const nowDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const elapsedDays = Math.max(Math.floor((nowDay - startDay) / 86400000), 0);
+        const percentage = Math.min((elapsedDays / totalDays) * 100, 100);
+        fill.style.width = `${percentage}%`;
+        fill.classList.remove("is-safe", "is-warning", "is-danger", "is-complete");
+        fill.classList.add(progressClassByPercent(percentage));
+      };
+
+      refresh();
+      window.setInterval(refresh, 60000);
+    });
+
+    const devolverBackdrop = document.getElementById("lousa-devolver-backdrop");
+    const devolverModal = document.getElementById("lousa-devolver-modal");
+    const devolverForm = document.getElementById("lousa-devolver-form");
+    const closeDevolverModal = () => {
+      if (!devolverBackdrop || !devolverModal) return;
+      devolverBackdrop.classList.add("auth-required-hidden");
+      devolverModal.classList.add("auth-required-hidden");
+      devolverBackdrop.setAttribute("aria-hidden", "true");
+    };
+    const openDevolverModal = (url) => {
+      if (!devolverBackdrop || !devolverModal || !devolverForm || !url) return;
+      devolverForm.setAttribute("action", url);
+      devolverBackdrop.classList.remove("auth-required-hidden");
+      devolverModal.classList.remove("auth-required-hidden");
+      devolverBackdrop.setAttribute("aria-hidden", "false");
+    };
+
+    document.querySelectorAll("[data-devolver-open]").forEach((btn) => {
+      btn.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        openDevolverModal(btn.dataset.devolverUrl || "");
+      });
+    });
+
+    if (devolverBackdrop) {
+      devolverBackdrop.addEventListener("click", closeDevolverModal);
+    }
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        closeDevolverModal();
+      }
+    });
+  </script>
+{% endblock %}

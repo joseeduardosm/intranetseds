@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <!-- Cabeçalho da página (novo ou edição) -->
+  <section class="page-header">
+    {% if object %}
+      <h2>Editar noticia</h2>
+    {% else %}
+      <h2>Nova noticia</h2>
+    {% endif %}
+  </section>
+
+  <!-- Formulário de criação/edição de notícia -->
+  <form class="form" method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <div class="form-actions">
+      <button class="btn" type="submit">Salvar</button>
+      <a class="btn btn-secondary" href="{% url 'home' %}">Cancelar</a>
+    </div>
+  </form>
+{% endblock %}

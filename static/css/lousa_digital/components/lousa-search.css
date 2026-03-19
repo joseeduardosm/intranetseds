@@ -1,0 +1,24 @@
+/* Busca e filtros */
+
+.lousa-search-form {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 10px 0 14px;
+}
+
+.lousa-search-form input[type="search"] {
+  flex: 1;
+  min-width: 260px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  padding: 8px 10px;
+  font-size: 0.92rem;
+  color: var(--text);
+}
+
+.lousa-status-filtros {
+  margin: 2px 0 14px;
+}

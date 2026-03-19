@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/licitacoes/licitacoes.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Termos de Referencia</h2>
+  </section>
+
+  <div class="card-actions">
+    <a class="btn" href="{% url 'licitacoes_termo_create' %}">+termo</a>
+    <a class="btn btn-light" href="{% url 'licitacoes_termo_import' %}">Importar DOCX</a>
+    <a class="btn btn-light" href="{% url 'licitacoes_home' %}">Voltar</a>
+  </div>
+
+  {% if termos %}
+    <div class="table-wrapper">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Apelido</th>
+            <th>Processo SEI</th>
+            <th>Acoes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for termo in termos %}
+            <tr>
+              <td><a href="{% url 'licitacoes_termo_detail' termo.pk %}">{{ termo.apelido }}</a></td>
+              <td>{{ termo.processo_sei }}</td>
+              <td>
+                <a class="btn btn-small btn-light" href="{% url 'licitacoes_termo_export_docx' termo.pk %}">Exportar DOCX</a>
+                <a class="btn btn-small" href="{% url 'licitacoes_termo_update' termo.pk %}">Editar</a>
+                <a class="btn btn-small btn-light" href="{% url 'licitacoes_termo_duplicate' termo.pk %}">Duplicar</a>
+                <a class="btn btn-small btn-danger" href="{% url 'licitacoes_termo_delete' termo.pk %}">Excluir</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p>Nenhum termo cadastrado.</p>
+  {% endif %}
+{% endblock %}

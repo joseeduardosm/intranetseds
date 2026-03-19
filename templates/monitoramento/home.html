@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/monitoramento/monitoramento.css' %}" />
+{% endblock %}
+
+{% block container_class %}container-wide{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Monitoramento</h2>
+  </section>
+
+  <div class="card-actions">
+    <a class="btn" href="{% url 'monitoramento_projeto_create' %}">Novo projeto</a>
+  </div>
+
+  {% if projetos %}
+    <section class="card-grid card-grid-fixed">
+      {% for projeto in projetos %}
+        <article class="card card-square monitor-card">
+          <a class="card-link card-square-link" href="{% url 'monitoramento_projeto_detail' projeto.pk %}">
+            <div class="card-body">
+              <h3 class="card-title">{{ projeto.nome }}</h3>
+              <p class="card-text">{{ projeto.descricao|default:"Projeto de monitoramento pronto para conexões, esquema e dashboards." }}</p>
+            </div>
+          </a>
+        </article>
+      {% endfor %}
+    </section>
+  {% else %}
+    <article class="card monitor-empty-card">
+      <div class="card-body">
+        {% if schema_indisponivel %}
+          <h3 class="card-title">Monitoramento aguardando migração</h3>
+          <p class="card-text">As tabelas do app ainda não existem neste banco. Aplique as migrações do módulo <code>monitoramento</code> para liberar o cadastro de projetos.</p>
+        {% else %}
+          <h3 class="card-title">Nenhum projeto cadastrado</h3>
+          <p class="card-text">Crie o primeiro projeto para cadastrar a conexão, verificar o esquema e montar dashboards.</p>
+        {% endif %}
+      </div>
+    </article>
+  {% endif %}
+{% endblock %}

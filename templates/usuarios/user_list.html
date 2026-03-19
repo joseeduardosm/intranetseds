@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/usuarios/usuarios.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Usuarios</h2>
+  </section>
+
+  {% include 'usuarios/_tabs.html' with usuarios_tab='usuarios' %}
+
+  <div class="card-actions">
+    <a class="btn" href="{% url 'usuarios_create' %}">Novo usuario</a>
+  </div>
+
+  <form method="get" id="usuarios-filter-form">
+    <div class="table-toolbar">
+      <div class="table-search">
+        <span class="table-search-icon">&#128269;</span>
+        <input type="search" id="usuarios-search" name="q" placeholder="Pesquisar em todas as colunas..." value="{{ filtros.q }}" />
+      </div>
+      <div class="card-actions">
+        <a class="btn btn-light" href="{% url 'usuarios_list' %}">Limpar filtros</a>
+      </div>
+    </div>
+  {% if usuarios %}
+    <div class="table-wrapper">
+      <table class="table table-sortable" id="usuarios-table">
+        <thead>
+          <tr>
+            <th class="sortable">
+              <a href="?{{ sort_links.nome }}">Nome{% if current_sort == "nome" %} {% if current_dir == "asc" %}▲{% else %}▼{% endif %}{% endif %}</a>
+            </th>
+            <th class="sortable">
+              <a href="?{{ sort_links.login }}">Login{% if current_sort == "login" %} {% if current_dir == "asc" %}▲{% else %}▼{% endif %}{% endif %}</a>
+            </th>
+            <th class="sortable">
+              <a href="?{{ sort_links.email }}">Email{% if current_sort == "email" %} {% if current_dir == "asc" %}▲{% else %}▼{% endif %}{% endif %}</a>
+            </th>
+            <th class="sortable">
+              <a href="?{{ sort_links.setor }}">Setores{% if current_sort == "setor" %} {% if current_dir == "asc" %}▲{% else %}▼{% endif %}{% endif %}</a>
+            </th>
+            <th>Acoes</th>
+          </tr>
+          <tr>
+            <th><input type="search" class="table-filter" name="nome" placeholder="Filtrar..." value="{{ filtros.nome }}" /></th>
+            <th><input type="search" class="table-filter" name="login" placeholder="Filtrar..." value="{{ filtros.login }}" /></th>
+            <th><input type="search" class="table-filter" name="email" placeholder="Filtrar..." value="{{ filtros.email }}" /></th>
+            <th><input type="search" class="table-filter" name="setor" placeholder="Filtrar..." value="{{ filtros.setor }}" /></th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for usuario in usuarios %}
+            <tr>
+              <td>{{ usuario.first_name }}</td>
+              <td>{{ usuario.username }}</td>
+              <td>{{ usuario.email }}</td>
+              <td>
+                {% if usuario.is_superuser %}
+                  Admin
+                {% else %}
+                  {% if usuario.setor_memberships.all %}
+                    {% for membership in usuario.setor_memberships.all %}
+                      {{ membership.setor.group.name }}{% if not forloop.last %}, {% endif %}
+                    {% endfor %}
+                  {% else %}
+                    {{ usuario.groups.all|join:", " }}
+                  {% endif %}
+                {% endif %}
+              </td>
+              <td class="table-actions">
+                <a class="btn btn-light" href="{% url 'usuarios_update' usuario.pk %}">Editar</a>
+                <a class="btn btn-secondary" href="{% url 'usuarios_delete' usuario.pk %}">Excluir</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </form>
+    {% if is_paginated %}
+      <nav class="pagination">
+        {% if page_obj.has_previous %}
+          <a class="btn btn-light" href="?{% if pagination_query %}{{ pagination_query }}&{% endif %}page={{ page_obj.previous_page_number }}">Anterior</a>
+        {% endif %}
+        <span class="pagination-meta">Pagina {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+          <a class="btn btn-light" href="?{% if pagination_query %}{{ pagination_query }}&{% endif %}page={{ page_obj.next_page_number }}">Proxima</a>
+        {% endif %}
+      </nav>
+    {% endif %}
+    <script>
+      const usersFilterForm = document.getElementById("usuarios-filter-form");
+
+      if (usersFilterForm) {
+        let submitTimer = null;
+        usersFilterForm.querySelectorAll("input[type='search']").forEach((input) => {
+          input.addEventListener("input", () => {
+            window.clearTimeout(submitTimer);
+            submitTimer = window.setTimeout(() => usersFilterForm.requestSubmit(), 250);
+          });
+        });
+      }
+    </script>
+  {% else %}
+  </form>
+    <p>Nenhum usuario encontrado para os filtros informados.</p>
+  {% endif %}
+{% endblock %}

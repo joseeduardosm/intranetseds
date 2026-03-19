@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/licitacoes/licitacoes.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Licitacoes</h2>
+  </section>
+
+  <section class="card-grid config-grid">
+    <article class="card card-square">
+      <a class="card-link card-square-link" href="{% url 'licitacoes_termo_list' %}">
+        <div class="card-body">
+          <h3 class="card-title">Termo de Referencia</h3>
+          <p class="card-text">Criar e organizar termos, sessoes, itens e subitens.</p>
+        </div>
+      </a>
+    </article>
+    <article class="card card-square">
+      <a class="card-link card-square-link" href="{% url 'licitacoes_etp_tic_list' %}">
+        <div class="card-body">
+          <h3 class="card-title">ETP TIC</h3>
+          <p class="card-text">Criar Estudos Tecnicos</p>
+        </div>
+      </a>
+    </article>
+  </section>
+{% endblock %}

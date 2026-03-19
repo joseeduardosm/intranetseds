@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/licitacoes/licitacoes.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Excluir termo</h2>
+  </section>
+
+  <div class="form">
+    <p>Tem certeza que deseja excluir o termo <strong>{{ object.apelido }}</strong>?</p>
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-actions">
+        <button class="btn btn-danger" type="submit">Excluir</button>
+        <a class="btn btn-light" href="{% url 'licitacoes_termo_list' %}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}

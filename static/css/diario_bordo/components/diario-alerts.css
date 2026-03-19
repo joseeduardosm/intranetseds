@@ -1,0 +1,46 @@
+.bloco-alerta-amarelo {
+  background: #f2c94c;
+  border-color: #f2c94c;
+  color: #1a1a1a;
+}
+
+.bloco-alerta-laranja {
+  background: #f2994a;
+  border-color: #f2994a;
+  color: #1a1a1a;
+}
+
+.bloco-alerta-vermelho {
+  background: #e53935;
+  border-color: #e53935;
+  color: #ffffff;
+}
+
+.bloco-alerta-roxo {
+  background: #46096b;
+  border-color: #46096b;
+  color: #ffffff;
+}
+
+.bloco-alerta-preto {
+  background: #0d0d0d;
+  border-color: #0d0d0d;
+  color: #ff3b30;
+}
+
+.db-card.bloco-alerta-amarelo .db-card-meta,
+.db-card.bloco-alerta-laranja .db-card-meta {
+  color: #2e2e2e;
+}
+
+.db-card.bloco-alerta-vermelho .db-card-title,
+.db-card.bloco-alerta-vermelho .db-card-meta,
+.db-card.bloco-alerta-roxo .db-card-title,
+.db-card.bloco-alerta-roxo .db-card-meta {
+  color: #fff;
+}
+
+.db-card.bloco-alerta-preto .db-card-title,
+.db-card.bloco-alerta-preto .db-card-meta {
+  color: #ff5d52;
+}

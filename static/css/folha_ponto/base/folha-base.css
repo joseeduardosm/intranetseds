@@ -1,0 +1,9 @@
+/* Base do módulo Folha de Ponto */
+
+.folha-ponto-page {
+  --folha-surface: var(--card);
+  --folha-border: var(--border);
+  --folha-primary: var(--primary);
+  --folha-text: var(--text);
+  --folha-muted: var(--muted);
+}

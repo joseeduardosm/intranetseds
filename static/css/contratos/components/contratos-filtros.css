@@ -1,0 +1,76 @@
+/* Legenda e filtros visuais da listagem */
+
+.table-legend {
+  display: flex;
+  gap: 10px;
+  flex-wrap: nowrap;
+  align-items: center;
+  margin: 8px 0 12px;
+}
+
+.legend-label {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.legend-item {
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  border: 1px solid var(--border);
+  background: #ffffff;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.legend-item.linha-alerta-vermelho,
+.legend-item.linha-alerta-roxo,
+.legend-item.linha-alerta-preto {
+  color: #ffffff;
+}
+
+.legend-item.linha-alerta-amarelo {
+  background: #f2c94c;
+  border-color: #f2c94c;
+}
+
+.legend-item.linha-alerta-laranja {
+  background: #f2994a;
+  border-color: #f2994a;
+}
+
+.legend-item.linha-alerta-vermelho {
+  background: #e53935;
+  border-color: #e53935;
+}
+
+.legend-item.linha-alerta-roxo {
+  background: #46096b;
+  border-color: #46096b;
+}
+
+.legend-item.linha-alerta-preto {
+  background: #0d0d0d;
+  border-color: #0d0d0d;
+  color: #ff3b30;
+  font-weight: 700;
+}
+
+.legend-clear {
+  background: #ffffff;
+}
+
+.legend-active {
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
+  transform: translateY(-1px);
+}
+
+.table-filter {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.85rem;
+}

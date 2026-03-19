@@ -1,0 +1,34 @@
+<!-- Nó do organograma (renderização recursiva) -->
+<div class="org-node">
+  <div class="org-card">
+    <div class="org-info">
+      <div class="org-highlight">{{ node.pessoa.setor }}</div>
+      <div class="org-name-row">
+        <span class="org-name">{{ node.pessoa.nome_display }}</span>
+        <span class="org-role">{{ node.pessoa.cargo }}</span>
+      </div>
+      <div class="org-contact">Ramal: {{ node.pessoa.ramal }} · {{ node.pessoa.email_display }}</div>
+    </div>
+    <div class="org-actions-inline">
+      <a class="btn btn-secondary btn-small" href="{% url 'ramais_detail' node.pessoa.pk %}">Detalhes</a>
+    </div>
+    <div class="org-avatar">
+      {% if node.pessoa.foto %}
+        <!-- Foto do colaborador -->
+        <img src="{{ node.pessoa.foto.url }}" alt="{{ node.pessoa.nome_display }}" />
+      {% else %}
+        <!-- Inicial quando não há foto -->
+        <span>{{ node.pessoa.nome_display|first }}</span>
+      {% endif %}
+    </div>
+  </div>
+  {% if node.children %}
+    <!-- Filhos/subordinados -->
+    <div class="org-children">
+      {% for child in node.children %}
+        {% include 'ramais/organograma_node.html' with node=child %}
+      {% endfor %}
+    </div>
+  {% endif %}
+</div>
+

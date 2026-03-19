@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/monitoramento/monitoramento.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>{{ projeto.nome }}</h2>
+  </section>
+
+  <div class="card-actions">
+    <a class="btn btn-light" href="{% url 'monitoramento_home' %}">Voltar</a>
+  </div>
+
+  {% if projeto.descricao %}
+    <article class="card monitor-summary-card">
+      <div class="card-body">
+        <p class="card-text">{{ projeto.descricao }}</p>
+      </div>
+    </article>
+  {% endif %}
+
+  <section class="card-grid monitor-project-grid">
+    <article class="card card-square monitor-card">
+      <a class="card-link card-square-link" href="{% url 'monitoramento_conexao' projeto.pk %}">
+        <div class="card-body">
+          <h3 class="card-title">Cadastrar BD</h3>
+          <p class="card-text">{% if has_conexao %}Atualizar conexão e testar acesso.{% else %}Cadastrar a conexão principal do projeto.{% endif %}</p>
+        </div>
+      </a>
+    </article>
+    <article class="card card-square monitor-card">
+      <a class="card-link card-square-link" href="{% url 'monitoramento_esquema' projeto.pk %}">
+        <div class="card-body">
+          <h3 class="card-title">Verificar esquema</h3>
+          <p class="card-text">{% if has_esquema %}Visualizar ou atualizar o diagrama do banco.{% else %}Gerar a primeira leitura visual das tabelas e relacionamentos.{% endif %}</p>
+        </div>
+      </a>
+    </article>
+    <article class="card card-square monitor-card">
+      <a class="card-link card-square-link" href="{% url 'monitoramento_dashboard_create' projeto.pk %}">
+        <div class="card-body">
+          <h3 class="card-title">Criar dash</h3>
+          <p class="card-text">Cadastrar a consulta, mapear eixos e escolher o tipo de gráfico.</p>
+        </div>
+      </a>
+    </article>
+    <article class="card card-square monitor-card">
+      <a class="card-link card-square-link" href="{% url 'monitoramento_dashboard_list' projeto.pk %}">
+        <div class="card-body">
+          <h3 class="card-title">Ver dashboards</h3>
+          <p class="card-text">{{ dashboard_count }} dashboard{{ dashboard_count|pluralize }} cadastrado{{ dashboard_count|pluralize }} neste projeto.</p>
+        </div>
+      </a>
+    </article>
+  </section>
+{% endblock %}

@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/usuarios/usuarios.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Excluir usuario</h2>
+  </section>
+
+  {% include 'usuarios/_tabs.html' with usuarios_tab='usuarios' %}
+
+  <div class="confirm-delete">
+    <p>Tem certeza que deseja excluir o usuario "{{ object.username }}"?</p>
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-actions">
+        <button type="submit" class="btn btn-secondary">Excluir</button>
+        <a class="btn btn-light" href="{% url 'usuarios_list' %}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}

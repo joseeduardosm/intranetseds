@@ -1,0 +1,29 @@
+<section class="sala-notas">
+  <h3>Notas da equipe</h3>
+  <form method="post" class="sala-notas-form">
+    {% csrf_token %}
+    {{ nota_form.non_field_errors }}
+    <div class="form-group">
+      {{ nota_form.texto.label_tag }}
+      {{ nota_form.texto }}
+      {% for error in nota_form.texto.errors %}
+        <div class="form-error">{{ error }}</div>
+      {% endfor %}
+    </div>
+    <button type="submit" class="btn btn-primary">Adicionar nota</button>
+  </form>
+
+  <div class="sala-notas-lista">
+    {% for nota in notas_item %}
+      <article class="sala-nota-item">
+        <header class="sala-nota-head">
+          <strong>{{ nota.criado_por.get_full_name|default:nota.criado_por.username|default:"Sistema" }}</strong>
+          <span>{{ nota.criado_em|date:'d/m/Y H:i' }}</span>
+        </header>
+        <p>{{ nota.texto|linebreaksbr }}</p>
+      </article>
+    {% empty %}
+      <p class="audit-history-meta">Nenhuma nota registrada até o momento.</p>
+    {% endfor %}
+  </div>
+</section>

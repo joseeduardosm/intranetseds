@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Atalhos</h2>
+  </section>
+
+  <div class="card-actions">
+    <a class="btn" href="{% url 'administracao_atalho_create' %}">Novo atalho</a>
+    <a class="btn btn-secondary" href="{% url 'administracao_configuracoes' %}">Voltar</a>
+  </div>
+
+  {% if atalhos %}
+    <div class="card-grid">
+      {% for atalho in atalhos %}
+        <article class="card">
+          <div class="card-body">
+            <h3 class="card-title">{{ atalho.titulo }}</h3>
+            <p class="card-text"><strong>Status:</strong> {% if atalho.ativo %}Ativo{% else %}Inativo{% endif %}</p>
+            <p class="card-text"><strong>URL:</strong> {{ atalho.url_destino }}</p>
+          </div>
+          <div class="card-footer">
+            <a class="btn btn-small" href="{% url 'administracao_atalho_update' atalho.pk %}">Editar</a>
+            <a class="btn btn-small btn-danger" href="{% url 'administracao_atalho_delete' atalho.pk %}">Excluir</a>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p>Nenhum atalho cadastrado.</p>
+  {% endif %}
+{% endblock %}

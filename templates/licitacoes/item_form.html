@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% load static %}
+{% block container_class %}container-wide{% endblock %}
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/licitacoes/licitacoes.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>{% if object %}Editar item{% elif parent_item %}Novo subitem{% else %}Novo item{% endif %}</h2>
+    <p>{{ termo.apelido }} - Sessao {{ sessao.ordem }}. {{ sessao.titulo }}</p>
+    {% if parent_item %}
+      <p>Item pai: {{ parent_item.texto|truncatechars:120 }}</p>
+    {% endif %}
+  </section>
+
+  <div class="form">
+    <form method="post" id="item-form">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ next_url }}" />
+      {{ form.non_field_errors }}
+      {% if not parent_item %}
+        <p>
+          <label for="{{ form.subsessao.id_for_label }}">{{ form.subsessao.label }}</label>
+          {{ form.subsessao }}
+          {{ form.subsessao.errors }}
+        </p>
+      {% endif %}
+      <p>
+        <label for="{{ form.texto.id_for_label }}">{{ form.texto.label }}</label>
+        {{ form.texto }}
+        {{ form.texto.errors }}
+      </p>
+      <div class="form-actions">
+        <button class="btn" type="submit">Salvar</button>
+        <a class="btn btn-light" href="{{ next_url }}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    (function () {
+      const form = document.getElementById("item-form");
+      const textoField = document.getElementById("{{ form.texto.id_for_label }}");
+      if (!form) return;
+      if (textoField) {
+        textoField.focus();
+      }
+
+      document.addEventListener("keydown", (event) => {
+        if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+          event.preventDefault();
+          form.requestSubmit();
+        }
+      });
+    })();
+  </script>
+{% endblock %}

@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/reserva_salas/reserva_salas.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>{{ sala.nome }}</h2>
+  </section>
+
+  <div class="sala-detail-layout">
+    <div class="detail">
+      <p><strong>Capacidade:</strong> {{ sala.capacidade }} pessoas</p>
+      <p><strong>Localizacao:</strong> {{ sala.localizacao }}</p>
+      <p><strong>Recursos:</strong>
+        {% if sala.recursos_disponiveis %}
+          {{ sala.recursos_disponiveis|join:", " }}
+        {% else %}
+          Sem recursos cadastrados.
+        {% endif %}
+      </p>
+      <div class="detail-actions">
+        {% if perms.reserva_salas.change_sala %}
+          <a class="btn" href="{% url 'salas_update' sala.pk %}">Editar</a>
+        {% endif %}
+        {% if perms.reserva_salas.delete_sala %}
+          <a class="btn btn-secondary" href="{% url 'salas_delete' sala.pk %}">Excluir</a>
+        {% endif %}
+        <a class="btn btn-light" href="{% url 'salas_list' %}">Voltar</a>
+      </div>
+    </div>
+    <aside class="sala-timeline">
+      <div class="diario-aside-card">
+        <h3>Próximos eventos</h3>
+        {% if reservas_futuras %}
+          <ul class="sala-timeline-list">
+            {% for reserva in reservas_futuras %}
+              <li class="sala-timeline-item">
+                <div class="sala-timeline-time">
+                  {{ reserva.data|date:"d/m/Y" }} · {{ reserva.hora_inicio|time:"H:i" }}–{{ reserva.hora_fim|time:"H:i" }}
+                </div>
+                <div class="sala-timeline-title">{{ reserva.nome_evento }}</div>
+                <div class="sala-timeline-meta">
+                  {{ reserva.responsavel_evento }} · {{ reserva.quantidade_pessoas }} pessoas
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+          {% if reservas_futuras_page %}
+            <div class="timeline-pagination">
+              {% if reservas_futuras_page.has_previous %}
+                <a class="btn btn-light btn-small" href="{{ timeline_page_base }}{{ reservas_futuras_page.previous_page_number }}">Anterior</a>
+              {% endif %}
+              <span class="timeline-page-info">Página {{ reservas_futuras_page.number }} de {{ reservas_futuras_paginator.num_pages }}</span>
+              {% if reservas_futuras_page.has_next %}
+                <a class="btn btn-light btn-small" href="{{ timeline_page_base }}{{ reservas_futuras_page.next_page_number }}">Próxima</a>
+              {% endif %}
+            </div>
+          {% endif %}
+        {% else %}
+          <p class="diario-feed-empty">Sem eventos futuros para esta sala.</p>
+        {% endif %}
+      </div>
+    </aside>
+  </div>
+{% endblock %}

@@ -1,0 +1,297 @@
+9. EQUIPE TÉCNICA DA CONTRATADA
+
+9.1. Tendo em vista a exclusiva responsabilidade da CONTRATADA por danos de qualquer natureza que possam ser causados aos bens, equipamentos, instalações, entre outros, de propriedade da SEDS, para a execução dos serviços especificados neste descritivo técnico, a CONTRATADA obriga-se a disponibilizar somente profissionais devidamente qualificados, que tenham realizado cursos de especialização nos objetos deste projeto básico;
+
+9.2. A empresa CONTRATADA é responsável pela contínua reciclagem do conhecimento dos seus profissionais, de modo a capacitá-los a atender as demandas atuais e futuras da SEDS, bem como às atualizações tecnológicas que vierem a ocorrer;
+
+9.3. A CONTRATADA deverá apresentar relação da equipe técnica que irá executar os serviços previstos neste termo, fornecendo:
+
+9.3.1. Tipo de vínculo dos integrantes da equipe com a CONTRATADA devendo ser observado, que estes obrigatoriamente façam parte de seu quadro permanente.
+
+9.4. Para comprovação do tipo de vínculo serão aceitas cópias autenticadas dos seguintes documentos: registro em carteira de trabalho, estatuto ou contrato social, contrato de prestação de serviços registrado em cartório de títulos e documentos.
+
+9.5. A CONTRATADA se compromete a disponibilizar equipe técnica na SEDS para a realização dos serviços previstos, de modo a executar todas as atividades acordadas dentro do prazo e qualidade exigidos.
+
+9.6. Caso haja necessidade de ausência de qualquer dos componentes da equipe a CONTRATADA deverá substituí-lo por outro de igual ou maior qualificação.
+
+9.7. A Secretaria de Desenvolvimento Social poderá solicitar a substituição de integrantes da equipe técnica da CONTRATADA que não esteja apresentando resultados esperados em termos de qualidade, cumprimento dos prazos ou comportamento profissional.
+
+9.7.1. A CONTRATADA deverá fazer a substituição em um prazo máximo de (cinco) dias úteis.
+
+9.7.2. O mesmo prazo se aplica para os casos em que haja a saída de algum integrante da equipe por iniciativa própria ou da CONTRATADA.
+
+9.8. Para execução dos serviços a CONTRATADA deverá fornecer os equipamentos e ferramental necessários.
+
+9.9. A CONTRATADA deverá garantir o comportamento ético e profissional de seus empregados, cabendo-lhe responder integralmente por todos os danos ou atos resultantes de ação ou omissão dos mesmos, inclusive por inobservância das orientações da SEDS, obrigando-se a substituí-los quando do comportamento inconveniente ou inadequado, tão logo solicitado.
+
+9.10. A CONTRATADA deverá instruir a equipe na prestação dos serviços contratados quanto ao cumprimento e obediência das Diretrizes e Normas de Política Corporativa de Segurança da Informação da SEDS, necessárias para resguardar e assegurar que as informações sejam preservadas quanto à integridade e confidencialidade, sob pena de responsabilizar-se pelo ressarcimento de quaisquer danos ou prejuízos causados à SEDS, ou a terceiros, decorrentes de execução dos serviços contratados, bastando para tanto, comunicação por escrito;
+
+9.11. A CONTRATADA deverá instruir a equipe no cumprimento do disposto a seguir quando tiver acesso, nos termos do item anterior, às informações confidenciais da Secretaria de Desenvolvimento Social:
+
+9.11.1. Manter sigilo sobre essas informações;
+
+9.11.2. Limitar o acesso dessas informações aos profissionais que estejam envolvidos nos serviços objeto da contratação;
+
+9.11.3. Notificar prontamente a Secretaria de Desenvolvimento Social sobre qualquer divulgação ou uso não autorizado dessas informações e seguir todos os passos indicados para remediar qualquer divulgação ou uso;
+
+9.11.4. Não usar, gravar ou de alguma outra forma reproduzir ou reter essas informações, exceto se autorizado por escrito pela Secretaria de Desenvolvimento Social;
+
+9.11.5. Garantir que as pessoas, com acesso a essas informações, estejam avisadas de sua natureza confidencial e das obrigações originadas desses fatos.
+
+9.12. Incumbe à CONTRATADA gerenciar integralmente as atividades da equipe técnica disponibilizadas para a execução dos serviços, a qual será transmitida as instruções, orientações e normas para execução das atividades.
+
+9.13. Para a prestação dos serviços, a CONTRATADA deverá designar equipe mínima composta por: 1 Gerente de Projetos; 3 Product Owners (Especialistas de Produto); 1 Arquiteto de Soluções; 1 Coordenador de Infraestrutura; 1 Administrador de Banco de Dados; 1 Analista de Redes; 3 Analistas de Suporte; Coordenação de Desenvolvimento e Administração de Banco de Dados. As atribuições descritas nos subitens seguintes devem ser alocadas a esses perfis, conforme aderência técnica.
+
+9.13.1. Gerente de Projetos - referência de 160 horas mensais.
+
+9.13.1.1. Atuar como ponto focal de governança e gestão dos serviços prestados, assegurando o alinhamento contínuo entre as demandas da SEDS e as entregas da CONTRATADA;
+
+9.13.1.2. Planejar, coordenar e supervisionar a execução dos serviços contratados, garantindo cumprimento de prazos, níveis de serviço (SLAs) e padrões de qualidade estabelecidos;
+
+9.13.1.3. Gerenciar o backlog de demandas, incluindo recepção, priorização, distribuição e acompanhamento das ordens de serviço;
+
+9.13.1.4. Estabelecer e manter controles operacionais e gerenciais que assegurem a rastreabilidade, previsibilidade e transparência das entregas;
+
+9.13.1.5. Atuar na interlocução com a SEDS, respondendo às solicitações, alinhando expectativas e comunicando riscos, desvios e planos de ação;
+
+9.13.1.6. Implementar práticas de gestão ágil e/ou híbrida, conforme a natureza das demandas, promovendo entregas iterativas, incremento contínuo de valor e adaptação às mudanças;
+
+9.13.1.7. Monitorar e reportar indicadores de desempenho (KPIs), incluindo produtividade, qualidade, cumprimento de prazos e aderência aos níveis de serviço;
+
+9.13.1.8. Garantir a adequada alocação e dimensionamento dos recursos técnicos, conforme a complexidade e criticidade das demandas;
+
+9.13.1.9. Promover a melhoria contínua dos processos, propondo ajustes técnicos e operacionais que visem maior eficiência, economicidade e qualidade dos serviços;
+
+9.13.1.10. Consolidar e apresentar relatórios gerenciais periódicos, contendo status das demandas, evolução dos serviços, riscos identificados e recomendações;
+
+9.13.1.11. Atuar na gestão de riscos e incidentes relacionados aos serviços, definindo e acompanhando planos de mitigação e contingência;
+
+9.13.1.12. Coordenar a integração entre as diferentes frentes técnicas envolvidas (desenvolvimento, infraestrutura, dados e suporte), assegurando a coesão das soluções;
+
+9.13.1.13. Assegurar aderência às diretrizes de governança de TI, segurança da informação e conformidade aplicáveis ao ambiente da SEDS;
+
+9.13.1.14. Avaliar continuamente o desempenho do ambiente tecnológico e dos serviços prestados, propondo ajustes sempre que necessário;
+
+9.13.1.15. Participar de reuniões de acompanhamento e governança, quando demandado, apresentando resultados, evidências e planos de evolução;
+
+9.13.1.16. Certificações de referência para o perfil: PMP ou PRINCE2 Practitioner; Scrum Master (PSM I/II ou CSM); ITIL 4 Foundation; COBIT Foundation.
+
+9.13.2. Coordenador(a) de Infraestrutura - referência de 160 horas mensais.
+
+9.13.2.1. Coordenar a implantação, configuração, operação e sustentação da infraestrutura de TI, incluindo ambientes locais, redundantes e unidades descentralizadas (ex.: Bom Prato), assegurando disponibilidade, desempenho e continuidade dos serviços;
+
+9.13.2.2. Gerenciar ambientes de alta disponibilidade, incluindo servidores, redes, storage e serviços críticos, garantindo resiliência e aderência aos níveis de serviço estabelecidos;
+
+9.13.2.3. Implementar e gerir processos de monitoramento contínuo da infraestrutura, com definição de alertas, métricas e respostas automatizadas para mitigação de incidentes;
+
+9.13.2.4. Gerenciar o backlog de incidentes e requisições de infraestrutura, assegurando o cumprimento dos SLAs e a adequada priorização das demandas;
+
+9.13.2.5. Executar e conduzir o processo de Gestão de Problemas, com foco na identificação e eliminação de causas raiz, reduzindo recorrência de incidentes;
+
+9.13.2.6. Definir, manter e testar rotinas de backup, restore e plano de recuperação de desastres (DR), garantindo integridade, disponibilidade e rastreabilidade das informações;
+
+9.13.2.7. Atuar em conjunto com as áreas demandantes e técnicas na identificação de melhorias contínuas na infraestrutura e nos serviços correlatos;
+
+9.13.2.8. Estabelecer e manter padrões, procedimentos operacionais e documentação técnica da infraestrutura, assegurando padronização e governança do ambiente;
+
+9.13.2.9. Coordenar e dimensionar a equipe técnica de infraestrutura, assegurando adequada alocação de recursos conforme criticidade e volume das demandas;
+
+9.13.2.10. Gerenciar as entregas e resultados relacionados à infraestrutura, garantindo qualidade, conformidade e aderência às necessidades da SEDS;
+
+9.13.2.11. Monitorar indicadores de desempenho (KPIs) da infraestrutura, incluindo disponibilidade, capacidade, performance e taxa de incidentes, reportando periodicamente aos gestores e áreas de negócio;
+
+9.13.2.12. Participar de projetos de TI, atuando na definição e implementação de soluções de infraestrutura que suportem novas aplicações e serviços;
+
+9.13.2.13. Assegurar a conformidade da infraestrutura com diretrizes de segurança da informação, políticas institucionais e boas práticas de mercado;
+
+9.13.2.14. Conhecimento em soluções de backup corporativo (ex.: Veeam), com estratégias de retenção em múltiplas camadas (disco, fita e nuvem – ex.: Storage Gateway/AWS);
+
+9.13.2.15. Certificações de referência para o perfil: ITIL 4 Foundation; Microsoft Certified: Windows Server Hybrid Administrator Associate; VMware VCP-DCV ou equivalente; AWS Certified SysOps Administrator - Associate.
+
+9.13.3. Arquiteto(a) de Soluções - referência de 160 horas mensais.
+
+9.13.3.1. Definir e manter a arquitetura de soluções de tecnologia da informação, garantindo alinhamento com os objetivos estratégicos da SEDS e com as diretrizes de arquitetura corporativa;
+
+9.13.3.2. Elaborar arquiteturas de referência (lógica, física, integração e dados), contemplando requisitos de escalabilidade, segurança, disponibilidade e desempenho;
+
+9.13.3.3. Atuar no desenho de soluções para novos sistemas, evoluções ou integrações, avaliando alternativas tecnológicas e propondo a melhor abordagem técnica e econômica;
+
+9.13.3.4. Definir padrões tecnológicos, frameworks, boas práticas e guidelines de desenvolvimento, infraestrutura e integração;
+
+9.13.3.5. Avaliar e validar tecnicamente soluções propostas pelas equipes, garantindo aderência à arquitetura definida e evitando débitos técnicos;
+
+9.13.3.6. Apoiar processos de modernização tecnológica, incluindo migração para cloud, containerização, microsserviços e desacoplamento de sistemas legados;
+
+9.13.3.7. Definir e orientar padrões de integração entre sistemas (APIs, mensageria, interoperabilidade), assegurando coesão e reutilização;
+
+9.13.3.8. Atuar em conjunto com as áreas de segurança da informação, garantindo que as soluções estejam aderentes aos requisitos de segurança desde a concepção (security by design);
+
+9.13.3.9. Avaliar impactos arquiteturais de mudanças e novas demandas, mitigando riscos técnicos e operacionais;
+
+9.13.3.10. Apoiar tecnicamente a gestão de portfólio de sistemas, identificando redundâncias, oportunidades de consolidação e racionalização de soluções;
+
+9.13.3.11. Produzir e manter documentação arquitetural (diagramas, padrões, decisões arquiteturais – ADRs), garantindo rastreabilidade e governança;
+
+9.13.3.12. Apoiar tecnicamente projetos estratégicos, atuando como referência para decisões de alto impacto;
+
+9.13.3.13. Certificações de referência para o perfil: TOGAF (Foundation/Certified); Microsoft Certified: Azure Solutions Architect Expert ou AWS Certified Solutions Architect - Professional; CISSP ou CompTIA Security+.
+
+9.13.4. Analista de Redes – referência de 160 horas mensais
+
+9.13.4.1. Administrar, configurar e manter a infraestrutura de redes (LAN, WAN, WLAN), garantindo disponibilidade, desempenho e segurança das comunicações;
+
+9.13.4.2. Monitorar continuamente os ativos de rede (roteadores, switches, firewalls e links), identificando e atuando proativamente em degradações ou falhas;
+
+9.13.4.3. Gerenciar e analisar o tráfego de rede, avaliando utilização de banda, latência, perda de pacotes e desempenho dos enlaces;
+
+9.13.4.4. Implementar e manter políticas de segmentação de rede (VLANs, ACLs, QoS), assegurando isolamento, priorização de tráfego e eficiência operacional;
+
+9.13.4.5. Configurar e administrar serviços de conectividade, incluindo VPNs, balanceamento de carga e redundância de links;
+
+9.13.4.6. Atuar na resolução de incidentes e problemas de rede, realizando diagnóstico de causa raiz e propondo ações corretivas e preventivas;
+
+9.13.4.7. Apoiar a definição e implementação de padrões de segurança de rede, em alinhamento com as diretrizes de segurança da informação;
+
+9.13.4.8. Executar atualizações, patches e hardening de dispositivos de rede, conforme recomendações dos fabricantes e políticas vigentes;
+
+9.13.4.9. Elaborar e manter documentação técnica da rede (topologias, endereçamento IP, inventário de ativos e configurações);
+
+9.13.4.10. Monitorar indicadores de desempenho da rede (disponibilidade, throughput, latência, MTTR), reportando periodicamente aos gestores;
+
+9.13.4.11. Apoiar projetos de expansão ou reestruturação da rede, incluindo implantação de novos enlaces, unidades ou serviços;
+
+9.13.4.12. Interagir com fornecedores de telecomunicações para tratativas de incidentes, performance e disponibilidade dos links;
+
+9.13.4.13. Garantir aderência às políticas de governança e segurança da informação no âmbito da rede;
+
+9.13.4.14. Possuir conhecimentos avançados em protocolos de rede (TCP/IP, BGP, OSPF, VLAN, STP), equipamentos de rede e troubleshooting;
+
+9.13.4.15. Certificações de referência para o perfil: Cisco CCNA/CCNP Enterprise; Fortinet NSE 4 ou equivalente; ITIL 4 Foundation.
+
+9.13.5. Administrador(a) de Banco de Dados – referência de 160 horas mensais
+
+9.13.5.1. Administrar, configurar e manter os ambientes de banco de dados, garantindo disponibilidade, desempenho, integridade e segurança das informações;
+
+9.13.5.2. Instalar, configurar e atualizar sistemas gerenciadores de banco de dados (SGBDs), aplicando patches e correções conforme recomendações dos fabricantes;
+
+9.13.5.3. Monitorar continuamente o desempenho dos bancos de dados, realizando análise de consumo de recursos, otimização de queries e tuning de índices;
+
+9.13.5.4. Implementar e manter rotinas de backup e restore, definindo políticas de retenção, testes periódicos de recuperação e estratégias de continuidade (RPO/RTO);
+
+9.13.5.5. Gerenciar usuários, perfis e permissões de acesso aos bancos de dados, assegurando conformidade com as políticas de segurança da informação;
+
+9.13.5.6. Implementar mecanismos de alta disponibilidade e replicação de dados, conforme criticidade dos sistemas;
+
+9.13.5.7. Atuar na análise e resolução de incidentes relacionados a banco de dados, incluindo identificação de causa raiz e proposição de ações corretivas;
+
+9.13.5.8. Apoiar equipes de desenvolvimento na modelagem de dados, revisão de queries e definição de boas práticas de acesso e persistência;
+
+9.13.5.9. Garantir a integridade e consistência dos dados, por meio de validações, auditorias e controles de qualidade de dados;
+
+9.13.5.10. Planejar e executar atividades de capacity planning, avaliando crescimento de bases e necessidade de expansão de recursos;
+
+9.13.5.11. Implementar e manter políticas de segurança de dados, incluindo criptografia, mascaramento e auditoria de acessos;
+
+9.13.5.12. Elaborar e manter documentação técnica dos ambientes de banco de dados, incluindo arquitetura, rotinas operacionais e procedimentos de recuperação;
+
+9.13.5.13. Apoiar projetos de implantação, migração ou modernização de bancos de dados, incluindo adoção de soluções em nuvem ou híbridas;
+
+9.13.5.14. Monitorar e reportar indicadores de desempenho dos bancos de dados (tempo de resposta, disponibilidade, crescimento, incidentes);
+
+9.13.5.15. Certificações de referência para o perfil: Microsoft Certified: Azure Database Administrator Associate; Oracle Database OCP ou equivalente; EDB PostgreSQL Associate/Professional ou equivalente; MongoDB Certified DBA Associate.
+
+9.13.6. Especialista de Produto (Product Owner) – equipe com 3 profissionais, referência total de 480 horas mensais
+
+9.13.6.1. Atuar como responsável pela gestão do produto, acumulando atribuições de Product Owner e Analista de Negócio, garantindo alinhamento entre as necessidades das áreas da SEDS e as entregas das equipes técnicas;
+
+9.13.6.2. Levantar, analisar e detalhar requisitos funcionais e não funcionais, compreendendo os processos de negócio e identificando oportunidades de melhoria com uso de tecnologia;
+
+9.13.6.3. Mapear e modelar processos de negócio (AS-IS e TO-BE), propondo otimizações, padronizações e ganhos de eficiência operacional;
+
+9.13.6.4. Gerenciar e priorizar o backlog do produto, assegurando que as demandas estejam orientadas à geração de valor para o negócio;
+
+9.13.6.5. Elaborar histórias de usuário, critérios de aceitação, regras de negócio e documentação funcional necessária para o desenvolvimento das soluções;
+
+9.13.6.6. Atuar como interface entre as áreas de negócio e as equipes técnicas (desenvolvimento, dados e infraestrutura), garantindo entendimento comum das demandas;
+
+9.13.6.7. Conduzir validações funcionais com usuários, assegurando aderência das entregas aos requisitos e objetivos definidos;
+
+9.13.6.8. Definir critérios de aceite e qualidade das entregas, sendo responsável pela homologação funcional das soluções;
+
+9.13.6.9. Participar e conduzir atividades do ciclo ágil (planning, refinement, review e retrospectiva), garantindo evolução contínua do produto;
+
+9.13.6.10. Realizar análise de custo-benefício das demandas e soluções propostas, subsidiando a priorização e tomada de decisão;
+
+9.13.6.11. Gerenciar feedbacks, não conformidades e necessidades dos usuários, garantindo sua adequada incorporação ao backlog;
+
+9.13.6.12. Monitorar indicadores de produto e desempenho (valor gerado, lead time, throughput, satisfação do usuário), promovendo melhorias contínuas;
+
+9.13.6.13. Apoiar a definição e evolução do roadmap do produto, alinhado às diretrizes estratégicas da SEDS;
+
+9.13.6.14. Atuar na gestão de stakeholders, assegurando comunicação clara, alinhamento de expectativas e engajamento das partes interessadas;
+
+9.13.6.15. Identificar oportunidades de evolução e inovação nos produtos digitais, propondo melhorias funcionais e tecnológicas;
+
+9.13.6.16. Garantir a rastreabilidade das demandas, desde sua concepção até a entrega e validação;
+
+9.13.6.17. Certificações de referência para o perfil: Professional Scrum Product Owner (PSPO I/II) ou Certified Scrum Product Owner (CSPO); PMI-PBA ou IIBA ECBA/CCBA; Lean Six Sigma Yellow/Green Belt.
+
+9.13.7. Analista de Suporte – equipe com 3 profissionais, referência total de 480 horas mensais
+
+9.13.7.1. Atuar no atendimento e suporte técnico aos usuários dos sistemas e serviços de TI, garantindo a continuidade operacional e a adequada experiência do usuário;
+
+9.13.7.2. Registrar, classificar, priorizar e acompanhar chamados (incidentes e requisições), assegurando cumprimento dos níveis de serviço (SLAs);
+
+9.13.7.3. Realizar diagnóstico e resolução de incidentes de 1º e 2º níveis, escalando quando necessário para as equipes especializadas;
+
+9.13.7.4. Executar procedimentos de troubleshooting em sistemas, aplicações, estações de trabalho, redes e serviços, visando rápida restauração dos serviços;
+
+9.13.7.5. Apoiar usuários na utilização dos sistemas corporativos, orientando quanto a funcionalidades, boas práticas e resolução de dúvidas;
+
+9.13.7.6. Monitorar o ambiente de TI e atuar proativamente na identificação de falhas ou degradações de serviço;
+
+9.13.7.7. Documentar atendimentos realizados, soluções aplicadas e procedimentos operacionais, alimentando base de conhecimento;
+
+9.13.7.8. Apoiar a gestão de problemas, contribuindo com evidências e análises para identificação de causas raiz;
+
+9.13.7.9. Apoiar atividades de instalação, configuração e atualização de softwares e equipamentos, quando aplicável ao escopo do contrato;
+
+9.13.7.10. Interagir com fornecedores e demais equipes técnicas para tratativa de incidentes e requisições;
+
+9.13.7.11. Elaborar relatórios operacionais e gerenciais sobre atendimentos, incidentes recorrentes e desempenho do suporte;
+
+9.13.7.12. Assegurar aderência aos processos de gestão de serviços de TI (ITIL), incluindo gestão de incidentes, requisições e níveis de serviço;
+
+9.13.7.13. Certificações de referência para o perfil: ITIL 4 Foundation; HDI Support Center Analyst (HDI-SCA) ou equivalente; CompTIA A+ e Network+; Microsoft 365 Certified Fundamentals (MS-900) ou equivalente.
+
+9.13.8. Coordenação de Desenvolvimento e Administração de Banco de Dados (Tech Lead) – 160 horas mensais
+
+9.13.8.1. Atuar como liderança técnica das frentes de desenvolvimento de sistemas e dados, garantindo a qualidade, padronização e evolução das soluções;
+
+9.13.8.2. Definir diretrizes técnicas, padrões de desenvolvimento, arquitetura de aplicações e boas práticas de engenharia de software e dados;
+
+9.13.8.3. Coordenar tecnicamente as equipes envolvidas (desenvolvimento e banco de dados), apoiando na resolução de problemas complexos e tomada de decisões técnicas;
+
+9.13.8.4. Assegurar a qualidade do código, promovendo revisões técnicas (code review), padronização e redução de débitos técnicos;
+
+9.13.8.5. Garantir a correta integração entre sistemas, serviços e bases de dados, assegurando consistência e interoperabilidade;
+
+9.13.8.6. Apoiar o Product Owner na avaliação técnica de demandas, estimativas e definição de soluções;
+
+9.13.8.7. Atuar na definição e evolução de pipelines de desenvolvimento (CI/CD), automação de testes e práticas DevOps;
+
+9.13.8.8. Definir e orientar boas práticas de modelagem de dados, uso de SGBDs e acesso às bases;
+
+9.13.8.9. Apoiar a definição de estratégias de dados, incluindo integração, qualidade, governança e uso analítico;
+
+9.13.8.10. Acompanhar tecnicamente o desempenho das aplicações e bancos de dados, propondo melhorias de arquitetura e performance;
+
+9.13.8.11. Garantir a adoção de práticas de segurança no desenvolvimento (DevSecOps), incluindo proteção de dados e controle de acessos;
+
+9.13.8.12. Apoiar iniciativas de modernização tecnológica, incluindo refatoração de sistemas, migração para cloud e adoção de novas arquiteturas;
+
+9.13.8.13. Promover disseminação de conhecimento técnico, capacitação das equipes e padronização de práticas;
+
+9.13.8.14. Apoiar a definição e manutenção de documentação técnica das soluções e sistemas;
+
+9.13.8.15. Atuar como referência técnica junto à SEDS para decisões relacionadas a desenvolvimento e dados.

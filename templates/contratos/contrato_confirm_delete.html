@@ -1,0 +1,23 @@
+﻿{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/contratos/contratos.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Excluir contrato</h2>
+  </section>
+
+  <div class="detail">
+    <p>Tem certeza que deseja excluir <strong>{{ object.nro_contrato }}</strong>?</p>
+    <form method="post">
+      {% csrf_token %}
+      <div class="detail-actions">
+        <button type="submit" class="btn btn-danger">Confirmar exclusão</button>
+        <a class="btn btn-light" href="{% url 'contratos_detail' object.pk %}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}

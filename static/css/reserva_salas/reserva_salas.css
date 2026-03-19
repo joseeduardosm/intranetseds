@@ -1,0 +1,8 @@
+@import url("base/reserva-base.css");
+@import url("layout/reserva-layout.css");
+@import url("components/reserva-cards.css");
+@import url("components/reserva-forms.css");
+@import url("components/reserva-table.css");
+@import url("components/reserva-calendar.css");
+@import url("pages/reserva-salas.css");
+@import url("utilities/reserva-utilities.css");

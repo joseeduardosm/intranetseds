@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/reserva_salas/reserva_salas.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>{{ reserva.nome_evento }}</h2>
+  </section>
+
+  <div class="detail">
+    <p><strong>Data:</strong> {{ reserva.data|date:"d/m/Y" }} - {{ reserva.hora_inicio|time:"H:i" }} - {{ reserva.hora_fim|time:"H:i" }}</p>
+    <p><strong>Sala - Local:</strong> {{ reserva.sala.nome }} - {{ reserva.sala.localizacao }}</p>
+    <p><strong>Reservado por:</strong>
+      {% if reservado_por_nome_curto %}
+        {% if reservado_por_url %}
+          <a href="{{ reservado_por_url }}">{{ reservado_por_nome_curto }}</a>
+        {% else %}
+          {{ reservado_por_nome_curto }}
+        {% endif %}
+        - {{ reservado_por_ramal|default:"-" }} - {{ reservado_por_email|default:"-" }}
+      {% else %}
+        -
+      {% endif %}
+    </p>
+    <p><strong>Responsavel:</strong> {{ reserva.responsavel_evento }}</p>
+    <p><strong>Quantidade de pessoas:</strong> {{ reserva.quantidade_pessoas }}</p>
+    <p><strong>Recursos:</strong>
+      {% if reserva.televisao or reserva.projetor or reserva.som or reserva.microfone_evento or reserva.som_evento or reserva.mesa_som_evento or reserva.videowall or reserva.wifi %}
+        {% if reserva.televisao %}Televisao{% endif %}
+        {% if reserva.projetor %}{% if reserva.televisao %}, {% endif %}Projetor{% endif %}
+        {% if reserva.som %}{% if reserva.televisao or reserva.projetor %}, {% endif %}Som{% endif %}
+        {% if reserva.microfone_evento %}{% if reserva.televisao or reserva.projetor or reserva.som %}, {% endif %}Microfone (evento){% endif %}
+        {% if reserva.som_evento %}{% if reserva.televisao or reserva.projetor or reserva.som or reserva.microfone_evento %}, {% endif %}Som (evento){% endif %}
+        {% if reserva.mesa_som_evento %}{% if reserva.televisao or reserva.projetor or reserva.som or reserva.microfone_evento or reserva.som_evento %}, {% endif %}Mesa de som (evento){% endif %}
+        {% if reserva.videowall %}{% if reserva.televisao or reserva.projetor or reserva.som or reserva.microfone_evento or reserva.som_evento or reserva.mesa_som_evento %}, {% endif %}Videowall{% endif %}
+        {% if reserva.wifi %}{% if reserva.televisao or reserva.projetor or reserva.som or reserva.microfone_evento or reserva.som_evento or reserva.mesa_som_evento or reserva.videowall %}, {% endif %}Wi-Fi{% endif %}
+      {% else %}
+        Sem recursos.
+      {% endif %}
+    </p>
+    <div class="detail-actions">
+      {% if user.is_authenticated %}
+        {% if perms.reserva_salas.change_reserva or reserva.registrado_por_id == user.id %}
+          <a class="btn" href="{% url 'reservas_update' reserva.pk %}">Editar</a>
+        {% endif %}
+        {% if perms.reserva_salas.delete_reserva or reserva.registrado_por_id == user.id %}
+          <a class="btn btn-secondary" href="{% url 'reservas_delete' reserva.pk %}">Excluir</a>
+        {% endif %}
+      {% endif %}
+      <a class="btn btn-light" href="{% url 'reservas_list' %}">Voltar</a>
+    </div>
+  </div>
+{% endblock %}
