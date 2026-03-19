@@ -67,6 +67,29 @@
   text-align: center;
 }
 
+.sala-setor-filter-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.sala-setor-filter-label {
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.sala-setor-filter-select {
+  min-width: 280px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--text);
+  font: inherit;
+}
+
 .sala-detail-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 320px;
@@ -159,5 +182,15 @@
 
   .sala-timeline {
     position: static;
+  }
+
+  .sala-setor-filter-form {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .sala-setor-filter-select {
+    min-width: 0;
+    width: 100%;
   }
 }

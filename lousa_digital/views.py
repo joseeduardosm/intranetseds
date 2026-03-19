@@ -223,7 +223,7 @@ def _processos_visiveis_para_usuario(usuario):
     grupos_ids = list(usuario.groups.values_list("id", flat=True))
     filtro = Q(criado_por=usuario)
     if grupos_ids:
-        # Regra principal: visibilidade por grupos atuais do autor do processo.
+        # Regra principal: visibilidade por grupos atuais do criador do processo.
         filtro |= Q(criado_por__groups__id__in=grupos_ids)
     return queryset.filter(filtro).distinct()
 

@@ -14,7 +14,17 @@
     {% if perms.sala_situacao.add_entrega %}
       <a class="btn" href="{% url 'sala_entrega_create' %}">Nova entrega</a>
     {% endif %}
-    <a class="btn btn-light" href="{% url 'sala_situacao_home' %}">Voltar ao módulo</a>
+    <form method="get" class="sala-setor-filter-form">
+      <label for="entrega-setor-filter" class="sala-setor-filter-label">Setor</label>
+      <select id="entrega-setor-filter" name="setor" class="sala-setor-filter-select" onchange="this.form.submit()">
+        <option value="">Todos os setores</option>
+        {% for setor in setores_disponiveis %}
+          <option value="{{ setor.id }}" {% if setor_selecionado_id == setor.id|stringformat:'s' %}selected{% endif %}>
+            {{ setor.get_path_labels|join:" / " }}
+          </option>
+        {% endfor %}
+      </select>
+    </form>
   </div>
 
   <div class="calendar-view-tabs" role="tablist" aria-label="Visualização da lista de entregas">
@@ -63,11 +73,11 @@
     {% if is_paginated %}
       <nav class="pagination">
         {% if page_obj.has_previous %}
-          <a class="btn btn-light" href="?page={{ page_obj.previous_page_number }}">Anterior</a>
+          <a class="btn btn-light" href="?page={{ page_obj.previous_page_number }}{% if setor_selecionado_id %}&setor={{ setor_selecionado_id }}{% endif %}">Anterior</a>
         {% endif %}
         <span class="pagination-meta">Página {{ page_obj.number }} de {{ paginator.num_pages }}</span>
         {% if page_obj.has_next %}
-          <a class="btn btn-light" href="?page={{ page_obj.next_page_number }}">Próxima</a>
+          <a class="btn btn-light" href="?page={{ page_obj.next_page_number }}{% if setor_selecionado_id %}&setor={{ setor_selecionado_id }}{% endif %}">Próxima</a>
         {% endif %}
       </nav>
     {% endif %}
@@ -78,6 +88,7 @@
     class="calendar-shell sala-hidden"
     aria-live="polite"
     data-calendar-url="{{ entregas_calendario_api_url }}"
+    data-setor="{{ setor_selecionado_id }}"
   >
     <div class="calendar-toolbar">
       <div class="calendar-controls">
@@ -114,6 +125,7 @@
       const today = new Date();
       let currentDate = new Date();
       const calendarUrl = calendarView ? (calendarView.dataset.calendarUrl || "") : "";
+      const setorSelecionado = calendarView ? (calendarView.dataset.setor || "") : "";
       let entregas = [];
       let entregaIndex = {};
 
@@ -147,7 +159,9 @@
         if (!calendarUrl) return;
         const ano = date.getFullYear();
         const mes = date.getMonth() + 1;
-        const response = await fetch(`${calendarUrl}?ano=${ano}&mes=${mes}`, {
+        const params = new URLSearchParams({ ano: String(ano), mes: String(mes) });
+        if (setorSelecionado) params.set("setor", setorSelecionado);
+        const response = await fetch(`${calendarUrl}?${params.toString()}`, {
           headers: { "X-Requested-With": "XMLHttpRequest" },
         });
         if (!response.ok) return;

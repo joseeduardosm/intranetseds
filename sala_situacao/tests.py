@@ -30,6 +30,7 @@ from .models import (
     MarcadorVinculoItem,
     Processo,
 )
+from usuarios.models import SetorNode, UserSetorMembership
 
 
 class SalaSituacaoAccessTests(TestCase):
@@ -202,7 +203,181 @@ class SalaSituacaoAccessTests(TestCase):
         self.assertEqual(response_entregas.status_code, 200)
         self.assertGreater(len(response_entregas.context["entregas"]), 0)
 
-    def test_painel_consolidado_filtra_por_marcador_em_uso(self):
+    def test_setor_pai_visualiza_itens_do_setor_filho(self):
+        gestor_user = User.objects.create_user(username="gestor_pai", password=self.password)
+        grupo_pai = Group.objects.create(name="Gabinete")
+        grupo_filho = Group.objects.create(name="Assessoria Tecnica")
+        setor_pai = SetorNode.objects.create(group=grupo_pai)
+        setor_filho = SetorNode.objects.create(group=grupo_filho, parent=setor_pai)
+        UserSetorMembership.objects.create(user=gestor_user, setor=setor_pai)
+
+        hoje = timezone.localdate()
+        indicador = IndicadorEstrategico.objects.create(
+            nome="Indicador do filho",
+            tipo_indicador=IndicadorEstrategico.TipoIndicador.MATEMATICO,
+            formula_expressao="X",
+            meta_valor=Decimal("100"),
+            data_lancamento=hoje,
+            data_entrega_estipulada=hoje + timedelta(days=60),
+        )
+        indicador.sincronizar_variaveis_da_formula()
+        variavel = IndicadorVariavel.objects.get(
+            content_type__model="indicadorestrategico",
+            object_id=indicador.pk,
+            nome="X",
+        )
+        variavel.periodicidade_monitoramento = "MENSAL"
+        variavel.save(update_fields=["periodicidade_monitoramento", "atualizado_em"])
+        variavel.grupos_monitoramento.set([grupo_filho])
+        indicador.sincronizar_estrutura_processual_monitoramento()
+
+        processo = Processo.objects.filter(
+            nome__contains='Monitoramento de "X" do indicador'
+        ).first()
+        entrega = Entrega.objects.filter(variavel_monitoramento=variavel).order_by("id").first()
+
+        self.client.login(username=gestor_user.username, password=self.password)
+
+        response_home = self.client.get(reverse("sala_situacao_home"))
+        self.assertEqual(response_home.status_code, 200)
+        self.assertContains(response_home, "Indicador do filho")
+
+        response_indicador = self.client.get(reverse("sala_indicador_estrategico_detail", kwargs={"pk": indicador.pk}))
+        self.assertEqual(response_indicador.status_code, 200)
+
+        response_processos = self.client.get(reverse("sala_processo_list"))
+        self.assertEqual(response_processos.status_code, 200)
+        self.assertIn(processo.id, list(response_processos.context["processos"].values_list("id", flat=True)))
+
+        response_processo = self.client.get(reverse("sala_processo_detail", kwargs={"pk": processo.pk}))
+        self.assertEqual(response_processo.status_code, 200)
+
+        response_entregas = self.client.get(reverse("sala_entrega_list"))
+        self.assertEqual(response_entregas.status_code, 200)
+        self.assertIn(entrega.id, list(response_entregas.context["entregas"].values_list("id", flat=True)))
+
+        response_entrega = self.client.get(reverse("sala_entrega_detail", kwargs={"pk": entrega.pk}))
+        self.assertEqual(response_entrega.status_code, 200)
+
+    def test_filtro_por_setor_na_lista_de_processos(self):
+        gestor_user = User.objects.create_user(username="gestor_filtro", password=self.password)
+        grupo_pai = Group.objects.create(name="Secretaria")
+        grupo_filho_a = Group.objects.create(name="Setor A")
+        grupo_filho_b = Group.objects.create(name="Setor B")
+        setor_pai = SetorNode.objects.create(group=grupo_pai)
+        setor_filho_a = SetorNode.objects.create(group=grupo_filho_a, parent=setor_pai)
+        SetorNode.objects.create(group=grupo_filho_b, parent=setor_pai)
+        UserSetorMembership.objects.create(user=gestor_user, setor=setor_pai)
+
+        hoje = timezone.localdate()
+        indicador_a = IndicadorEstrategico.objects.create(
+            nome="Indicador setor A",
+            tipo_indicador=IndicadorEstrategico.TipoIndicador.MATEMATICO,
+            formula_expressao="XA",
+            meta_valor=Decimal("100"),
+            data_lancamento=hoje,
+            data_entrega_estipulada=hoje + timedelta(days=60),
+        )
+        indicador_a.sincronizar_variaveis_da_formula()
+        variavel_a = IndicadorVariavel.objects.get(
+            content_type__model="indicadorestrategico",
+            object_id=indicador_a.pk,
+            nome="XA",
+        )
+        variavel_a.periodicidade_monitoramento = "MENSAL"
+        variavel_a.save(update_fields=["periodicidade_monitoramento", "atualizado_em"])
+        variavel_a.grupos_monitoramento.set([grupo_filho_a])
+        indicador_a.sincronizar_estrutura_processual_monitoramento()
+
+        indicador_b = IndicadorEstrategico.objects.create(
+            nome="Indicador setor B",
+            tipo_indicador=IndicadorEstrategico.TipoIndicador.MATEMATICO,
+            formula_expressao="XB",
+            meta_valor=Decimal("100"),
+            data_lancamento=hoje,
+            data_entrega_estipulada=hoje + timedelta(days=60),
+        )
+        indicador_b.sincronizar_variaveis_da_formula()
+        variavel_b = IndicadorVariavel.objects.get(
+            content_type__model="indicadorestrategico",
+            object_id=indicador_b.pk,
+            nome="XB",
+        )
+        variavel_b.periodicidade_monitoramento = "MENSAL"
+        variavel_b.save(update_fields=["periodicidade_monitoramento", "atualizado_em"])
+        variavel_b.grupos_monitoramento.set([grupo_filho_b])
+        indicador_b.sincronizar_estrutura_processual_monitoramento()
+
+        processo_a = Processo.objects.filter(nome__contains='Monitoramento de "XA" do indicador').first()
+        processo_b = Processo.objects.filter(nome__contains='Monitoramento de "XB" do indicador').first()
+
+        self.client.login(username=gestor_user.username, password=self.password)
+        response = self.client.get(reverse("sala_processo_list"), {"setor": str(setor_filho_a.id)})
+        self.assertEqual(response.status_code, 200)
+        processos_ids = list(response.context["processos"].values_list("id", flat=True))
+        self.assertIn(processo_a.id, processos_ids)
+        self.assertNotIn(processo_b.id, processos_ids)
+
+    def test_filtro_por_setor_na_lista_de_entregas(self):
+        gestor_user = User.objects.create_user(username="gestor_entrega_filtro", password=self.password)
+        grupo_pai = Group.objects.create(name="Secretaria Entregas")
+        grupo_filho_a = Group.objects.create(name="Entrega Setor A")
+        grupo_filho_b = Group.objects.create(name="Entrega Setor B")
+        setor_pai = SetorNode.objects.create(group=grupo_pai)
+        setor_filho_a = SetorNode.objects.create(group=grupo_filho_a, parent=setor_pai)
+        SetorNode.objects.create(group=grupo_filho_b, parent=setor_pai)
+        UserSetorMembership.objects.create(user=gestor_user, setor=setor_pai)
+
+        hoje = timezone.localdate()
+        indicador_a = IndicadorEstrategico.objects.create(
+            nome="Indicador entrega A",
+            tipo_indicador=IndicadorEstrategico.TipoIndicador.MATEMATICO,
+            formula_expressao="EA",
+            meta_valor=Decimal("100"),
+            data_lancamento=hoje,
+            data_entrega_estipulada=hoje + timedelta(days=60),
+        )
+        indicador_a.sincronizar_variaveis_da_formula()
+        variavel_a = IndicadorVariavel.objects.get(
+            content_type__model="indicadorestrategico",
+            object_id=indicador_a.pk,
+            nome="EA",
+        )
+        variavel_a.periodicidade_monitoramento = "MENSAL"
+        variavel_a.save(update_fields=["periodicidade_monitoramento", "atualizado_em"])
+        variavel_a.grupos_monitoramento.set([grupo_filho_a])
+        indicador_a.sincronizar_estrutura_processual_monitoramento()
+
+        indicador_b = IndicadorEstrategico.objects.create(
+            nome="Indicador entrega B",
+            tipo_indicador=IndicadorEstrategico.TipoIndicador.MATEMATICO,
+            formula_expressao="EB",
+            meta_valor=Decimal("100"),
+            data_lancamento=hoje,
+            data_entrega_estipulada=hoje + timedelta(days=60),
+        )
+        indicador_b.sincronizar_variaveis_da_formula()
+        variavel_b = IndicadorVariavel.objects.get(
+            content_type__model="indicadorestrategico",
+            object_id=indicador_b.pk,
+            nome="EB",
+        )
+        variavel_b.periodicidade_monitoramento = "MENSAL"
+        variavel_b.save(update_fields=["periodicidade_monitoramento", "atualizado_em"])
+        variavel_b.grupos_monitoramento.set([grupo_filho_b])
+        indicador_b.sincronizar_estrutura_processual_monitoramento()
+
+        entrega_a = Entrega.objects.filter(variavel_monitoramento=variavel_a).order_by("id").first()
+        entrega_b = Entrega.objects.filter(variavel_monitoramento=variavel_b).order_by("id").first()
+
+        self.client.login(username=gestor_user.username, password=self.password)
+        response = self.client.get(reverse("sala_entrega_list"), {"setor": str(setor_filho_a.id)})
+        self.assertEqual(response.status_code, 200)
+        entregas_ids = list(response.context["entregas"].values_list("id", flat=True))
+        self.assertIn(entrega_a.id, entregas_ids)
+        self.assertNotIn(entrega_b.id, entregas_ids)
+
+    def test_painel_consolidado_redireciona_para_home(self):
         """Implementa parte do fluxo de negócio deste componente.
 
         Contexto arquitetural:
@@ -219,43 +394,10 @@ class SalaSituacaoAccessTests(TestCase):
         """
 
         self.client.login(username=self.user_autorizado.username, password=self.password)
-        ie_a = IndicadorEstrategico.objects.create(nome="Indicador A")
-        ie_b = IndicadorEstrategico.objects.create(nome="Indicador B")
-        marcador_a = Marcador.objects.create(
-            nome="Contrato",
-            nome_normalizado="contrato",
-            cor="#1f77b4",
-            ativo=True,
-        )
-        marcador_b = Marcador.objects.create(
-            nome="Obra",
-            nome_normalizado="obra",
-            cor="#ff7f0e",
-            ativo=True,
-        )
-        Marcador.objects.create(
-            nome="Sem uso",
-            nome_normalizado="sem uso",
-            cor="#2ca02c",
-            ativo=True,
-        )
-        ct_ie = ContentType.objects.get_for_model(IndicadorEstrategico)
-        MarcadorVinculoItem.objects.create(content_type=ct_ie, object_id=ie_a.pk, marcador=marcador_a)
-        MarcadorVinculoItem.objects.create(content_type=ct_ie, object_id=ie_b.pk, marcador=marcador_b)
+        response = self.client.get(reverse("sala_painel_consolidado"))
+        self.assertRedirects(response, reverse("sala_situacao_home"))
 
-        response_sem_filtro = self.client.get(reverse("sala_painel_consolidado"))
-        self.assertContains(response_sem_filtro, "Contrato")
-        self.assertContains(response_sem_filtro, "Obra")
-        self.assertNotContains(response_sem_filtro, "Sem uso")
-
-        response_filtrado = self.client.get(
-            reverse("sala_painel_consolidado"),
-            {"marcadores": str(marcador_a.id)},
-        )
-        self.assertContains(response_filtrado, "Indicador A")
-        self.assertNotContains(response_filtrado, "Indicador B")
-
-    def test_painel_consolidado_exibe_marcador_automatico_em_uso(self):
+    def test_painel_consolidado_redireciona_para_home_mesmo_com_marcadores(self):
         """Implementa parte do fluxo de negócio deste componente.
 
         Contexto arquitetural:
@@ -294,7 +436,7 @@ class SalaSituacaoAccessTests(TestCase):
         indicador.sincronizar_estrutura_processual_monitoramento()
 
         response = self.client.get(reverse("sala_painel_consolidado"))
-        self.assertContains(response, "DIVTI")
+        self.assertRedirects(response, reverse("sala_situacao_home"))
 
 
 class SalaSituacaoCadeiaTests(TestCase):
@@ -1281,7 +1423,12 @@ class SalaSituacaoHierarquiaAcessoTests(TestCase):
         """
 
         for codename in codenames:
-            user.user_permissions.add(Permission.objects.get(codename=codename))
+            user.user_permissions.add(
+                Permission.objects.get(
+                    codename=codename,
+                    content_type__app_label="sala_situacao",
+                )
+            )
 
     def test_propriedade_indicador_apenas_criador_ou_admin(self):
         """Implementa parte do fluxo de negócio deste componente.
@@ -1403,6 +1550,25 @@ class SalaSituacaoHierarquiaAcessoTests(TestCase):
         self.assertIn(self.entrega_x.nome, nomes)
         self.assertNotIn(self.entrega_y.nome, nomes)
 
+    def test_usuario_com_permissao_global_sem_participacao_nao_visualiza_itens(self):
+        self._grant(self.other_user, ["view_processo", "view_entrega"])
+
+        self.client.login(username=self.other_user.username, password=self.password)
+        response_processos = self.client.get(reverse("sala_processo_list"))
+        self.assertEqual(response_processos.status_code, 200)
+        processos_ids = list(response_processos.context["processos"].values_list("id", flat=True))
+        self.assertNotIn(self.processo_x.id, processos_ids)
+
+        response_entregas = self.client.get(reverse("sala_entrega_list"))
+        self.assertEqual(response_entregas.status_code, 200)
+        entregas_ids = list(response_entregas.context["entregas"].values_list("id", flat=True))
+        self.assertNotIn(self.entrega_x.id, entregas_ids)
+
+        response_processo_detail = self.client.get(reverse("sala_processo_detail", kwargs={"pk": self.processo_x.pk}))
+        self.assertEqual(response_processo_detail.status_code, 404)
+        response_entrega_detail = self.client.get(reverse("sala_entrega_detail", kwargs={"pk": self.entrega_x.pk}))
+        self.assertEqual(response_entrega_detail.status_code, 404)
+
     def test_processo_automatico_bloqueado_para_nao_admin(self):
         """Implementa parte do fluxo de negócio deste componente.
 
@@ -1426,8 +1592,7 @@ class SalaSituacaoHierarquiaAcessoTests(TestCase):
         self.assertEqual(response.status_code, 403)
 
         response = self.client.get(reverse("sala_processo_detail", kwargs={"pk": self.processo_x.pk}))
-        self.assertNotContains(response, "Editar")
-        self.assertNotContains(response, "Excluir")
+        self.assertEqual(response.status_code, 404)
 
     def test_marcador_automatico_por_grupo_sincroniza_sem_apagar_manual(self):
         """Implementa parte do fluxo de negócio deste componente.

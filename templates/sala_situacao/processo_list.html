@@ -12,7 +12,17 @@
       {% if perms.sala_situacao.add_processo %}
         <a class="btn" href="{% url 'sala_processo_create' %}">Novo processo</a>
       {% endif %}
-      <a class="btn btn-light" href="{% url 'sala_situacao_home' %}">Voltar ao módulo</a>
+      <form method="get" class="sala-setor-filter-form">
+        <label for="processo-setor-filter" class="sala-setor-filter-label">Setor</label>
+        <select id="processo-setor-filter" name="setor" class="sala-setor-filter-select" onchange="this.form.submit()">
+          <option value="">Todos os setores</option>
+          {% for setor in setores_disponiveis %}
+            <option value="{{ setor.id }}" {% if setor_selecionado_id == setor.id|stringformat:'s' %}selected{% endif %}>
+              {{ setor.get_path_labels|join:" / " }}
+            </option>
+          {% endfor %}
+        </select>
+      </form>
     </div>
 
     {% include "sala_situacao/_card_search.html" with search_id="processos-lista" target_selector=".card-grid" item_selector=".card" placeholder="Pesquisar processos..." aria_label="Pesquisar processos" %}

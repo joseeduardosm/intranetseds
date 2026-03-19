@@ -20,6 +20,7 @@ from .views import (
     ProcessoListView,
     ProcessoUpdateView,
     _arquivar_processos_sem_encaminhamento,
+    _processos_visiveis_para_usuario,
 )
 
 
@@ -421,6 +422,63 @@ class ProcessoListAlertaPrazoTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Faltam 10 dias")
         self.assertContains(response, "lousa-progress-alert")
+
+
+class ProcessoVisibilidadePorGrupoTests(TestCase):
+    def setUp(self):
+        self.grupo_a = Group.objects.create(name="Grupo A")
+        self.grupo_b = Group.objects.create(name="Grupo B")
+        self.criador = get_user_model().objects.create_user(username="criador", password="123456")
+        self.membro_a = get_user_model().objects.create_user(username="membro_a", password="123456")
+        self.outro = get_user_model().objects.create_user(username="outro", password="123456")
+        self.criador.groups.add(self.grupo_a)
+        self.membro_a.groups.add(self.grupo_a)
+        self.outro.groups.add(self.grupo_b)
+
+    def test_membro_do_mesmo_grupo_atual_do_criador_ve_processo(self):
+        processo = Processo.objects.create(
+            numero_sei="012.10000001/2026-00",
+            assunto="Visível por grupo",
+            caixa_origem="GABINETE",
+            criado_por=self.criador,
+            atualizado_por=self.criador,
+            grupo_insercao=self.grupo_a,
+            status=Processo.Status.EM_ABERTO,
+        )
+
+        visiveis = _processos_visiveis_para_usuario(self.membro_a)
+        self.assertIn(processo, visiveis)
+
+    def test_visibilidade_muda_quando_criador_muda_de_grupo(self):
+        processo = Processo.objects.create(
+            numero_sei="012.10000002/2026-00",
+            assunto="Dinâmica por grupo atual",
+            caixa_origem="GABINETE",
+            criado_por=self.criador,
+            atualizado_por=self.criador,
+            grupo_insercao=self.grupo_a,
+            status=Processo.Status.EM_ABERTO,
+        )
+        self.criador.groups.set([self.grupo_b])
+
+        visiveis_membro_a = _processos_visiveis_para_usuario(self.membro_a)
+        visiveis_outro = _processos_visiveis_para_usuario(self.outro)
+        self.assertNotIn(processo, visiveis_membro_a)
+        self.assertIn(processo, visiveis_outro)
+
+    def test_usuario_de_outro_grupo_nao_ve_processo(self):
+        processo = Processo.objects.create(
+            numero_sei="012.10000003/2026-00",
+            assunto="Restrito por grupo",
+            caixa_origem="GABINETE",
+            criado_por=self.criador,
+            atualizado_por=self.criador,
+            grupo_insercao=self.grupo_a,
+            status=Processo.Status.EM_ABERTO,
+        )
+
+        visiveis = _processos_visiveis_para_usuario(self.outro)
+        self.assertNotIn(processo, visiveis)
 
 
 class ProcessoDashboardViewTests(TestCase):

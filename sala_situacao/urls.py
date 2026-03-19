@@ -70,7 +70,7 @@ urlpatterns = [
     path("", views.SalaSituacaoHomeView.as_view(), name="sala_situacao_home"),
     path(
         "painel-consolidado/",
-        views.SalaSituacaoConsolidadoView.as_view(),
+        views.SalaSituacaoIndicadoresRedirectView.as_view(),
         name="sala_painel_consolidado",
     ),
     path(

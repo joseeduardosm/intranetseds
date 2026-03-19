@@ -1,7 +1,4 @@
 <nav class="sala-etapas-nav" aria-label="Navegação por etapas da Sala de Situação">
-  {% if perms.sala_situacao.view_salasituacaopainel %}
-    <a class="btn btn-light" href="{% url 'sala_painel_consolidado' %}">Painel consolidado</a>
-  {% endif %}
   {% if perms.sala_situacao.view_indicadorestrategico or perms.sala_situacao.view_indicadortatico %}
     <a class="btn btn-light" href="{% url 'sala_situacao_home' %}">Registro de indicadores</a>
   {% endif %}

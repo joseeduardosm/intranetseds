@@ -129,15 +129,26 @@
 }
 
 .entrega-lista-compacta #entregas-lista-view .entrega-card-marcadores {
-  min-height: 30px;
-  max-height: 30px;
+  min-height: 24px;
+  max-height: 52px;
   margin-bottom: 6px;
   overflow: hidden;
 }
 
 .entrega-lista-compacta #entregas-lista-view .entrega-card-marcadores .sala-marcadores-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
   margin: 0;
+  white-space: normal;
+}
+
+.entrega-lista-compacta #entregas-lista-view .entrega-card-marcadores .sala-marcador-chip {
+  margin: 0;
+  max-width: 100%;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .entrega-lista-compacta #entregas-lista-view .entrega-card-periodo {
@@ -312,58 +323,45 @@
 
 .sala-home-card-topline {
   position: absolute;
-  inset: 12px 12px auto 12px;
+  inset: 10px 10px auto 10px;
   z-index: 2;
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  align-items: flex-start;
+  align-items: stretch;
 }
 
-.sala-home-card-kind,
-.sala-home-card-plot-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.14);
+.sala-home-card-topmetric {
+  min-width: 108px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 0;
+  border-radius: 0;
+  border: none;
+  background: transparent;
   color: #fff;
-  backdrop-filter: blur(10px);
+  backdrop-filter: none;
 }
 
-.sala-home-card-kind {
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-}
-
-.sala-home-card-delta {
-  min-width: 88px;
-  padding: 8px 12px;
-  border-radius: 16px;
+.sala-home-card-topmetric--right {
   text-align: right;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.14);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(10px);
 }
 
-.sala-home-card-delta-label {
-  display: block;
-  font-size: 0.62rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  opacity: 0.78;
+.sala-home-card-topmetric-label {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: rgba(255, 255, 255, 0.84);
 }
 
-.sala-home-card-delta-value {
-  display: block;
-  margin-top: 2px;
-  font-size: 1.02rem;
-  font-weight: 800;
+.sala-home-card-topmetric-value {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  letter-spacing: 0;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.96);
 }
 
 .sala-home-card-plot {
@@ -397,21 +395,21 @@
   display: flex;
   flex-direction: column;
   gap: 0;
-  padding: 16px 16px 18px;
+  padding: 10px 12px 11px;
 }
 
 .sala-home-card-title {
   min-height: auto;
   max-height: none;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   font-size: 1.05rem;
   line-height: 1.24;
   color: #17324d;
 }
 
 .sala-home-card-description {
-  margin: 0 0 14px;
-  min-height: 42px;
+  margin: 0 0 4px;
+  min-height: 24px;
   color: #66758a;
   font-size: 0.9rem;
   line-height: 1.5;
@@ -526,9 +524,11 @@
     gap: 8px;
   }
 
-  .sala-home-card-kind,
-  .sala-home-card-delta,
-  .sala-home-card-plot-badge {
-    padding: 7px 10px;
+  .sala-home-card-topmetric {
+    padding: 0;
+  }
+
+  .sala-home-card-topmetric-value {
+    font-size: 0.9rem;
   }
 }

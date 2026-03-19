@@ -156,6 +156,39 @@ class PessoaRamal(models.Model):
             self.usuario.email = self.email
             self.usuario.save(update_fields=["email"])
 
+    def _sync_setor_acesso_from_setor_principal(self):
+        """Cria setor de acesso inicial a partir do setor principal, quando ausente.
+
+        Regra de negócio:
+        - se o perfil possui `setor` preenchido;
+        - e o usuário ainda não possui nenhum `UserSetorMembership`;
+        - então cria vínculo no `SetorNode` correspondente ao nome do setor.
+        """
+        if not self.usuario_id:
+            return
+        setor_nome = (self.setor or "").strip()
+        if not setor_nome:
+            return
+        try:
+            from usuarios.models import SetorNode, UserSetorMembership
+        except Exception:
+            return
+
+        if UserSetorMembership.objects.filter(user_id=self.usuario_id).exists():
+            return
+
+        setor_node = (
+            SetorNode.objects.select_related("group")
+            .filter(group__name__iexact=setor_nome)
+            .first()
+        )
+        if not setor_node:
+            return
+
+        UserSetorMembership.objects.get_or_create(user_id=self.usuario_id, setor=setor_node)
+        if self.usuario and setor_node.group_id:
+            self.usuario.groups.add(setor_node.group_id)
+
     def save(self, *args, **kwargs):
         """
         Persiste o registro garantindo sincronização e trilha de auditoria.
@@ -186,6 +219,7 @@ class PessoaRamal(models.Model):
             self.atualizado_por = user
         super().save(*args, **kwargs)
         self._sync_to_user()
+        self._sync_setor_acesso_from_setor_principal()
         if self.usuario_id:
             try:
                 from usuarios.models import UserAccessState

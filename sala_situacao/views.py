@@ -37,8 +37,13 @@ from django.views.decorators.http import require_GET, require_POST
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, RedirectView, TemplateView, UpdateView
 
 from auditoria.models import AuditLog
+from usuarios.models import SetorNode
 from usuarios.permissions import ADMIN_GROUP_NAME
-from .access import user_has_sala_situacao_access, user_is_monitoring_group_member
+from .access import (
+    user_has_sala_situacao_access,
+    user_is_monitoring_group_member,
+    visible_group_ids_for_user,
+)
 
 from .forms import (
     EntregaForm,
@@ -57,6 +62,7 @@ from .models import (
     IndicadorVariavel,
     IndicadorCicloValor,
     Marcador,
+    MarcadorVinculoAutomaticoGrupoItem,
     MarcadorVinculoItem,
     NotaItem,
     Processo,
@@ -369,14 +375,137 @@ def _entregas_queryset_para_usuario(user):
     queryset = Entrega.objects.all()
     if not getattr(user, "is_authenticated", False):
         return queryset.none()
-    if user.has_perm("sala_situacao.view_entrega") or user.has_perm("sala_situacao.change_entrega") or _usuario_admin_sala(user):
+    if _usuario_admin_sala(user):
         return queryset
-    if user.has_perm("sala_situacao.monitorar_entrega") or user_is_monitoring_group_member(user):
-        grupos_usuario_ids = list(user.groups.values_list("id", flat=True))
-        return queryset.filter(
-            variavel_monitoramento__grupos_monitoramento__id__in=grupos_usuario_ids
-        ).distinct()
-    return queryset.none()
+    grupos_usuario_ids = list(visible_group_ids_for_user(user))
+    if not grupos_usuario_ids:
+        return queryset.none()
+    content_type_entrega = ContentType.objects.get_for_model(Entrega)
+    entregas_ids = MarcadorVinculoAutomaticoGrupoItem.objects.filter(
+        content_type=content_type_entrega,
+        grupo_id__in=grupos_usuario_ids,
+    ).values_list("object_id", flat=True)
+    return queryset.filter(id__in=entregas_ids).distinct()
+
+
+def _processos_queryset_para_usuario(user):
+    """Executa uma rotina de apoio ao domínio de Sala de Situação.
+
+    Contexto arquitetural:
+    - Encapsula uma regra reutilizável para evitar duplicação entre camadas.
+    - Deve ser interpretada em conjunto com os pontos de chamada no fluxo.
+
+    Parâmetros:
+    - `user`.
+
+    Retorno:
+    - Valor calculado, objeto de domínio, coleção ORM ou estrutura de apoio
+      conforme a responsabilidade desta função.
+    """
+
+    queryset = Processo.objects.all()
+    if not getattr(user, "is_authenticated", False):
+        return queryset.none()
+    if _usuario_admin_sala(user):
+        return queryset
+    grupos_usuario_ids = list(visible_group_ids_for_user(user))
+    if not grupos_usuario_ids:
+        return queryset.none()
+    content_type_processo = ContentType.objects.get_for_model(Processo)
+    processos_ids = MarcadorVinculoAutomaticoGrupoItem.objects.filter(
+        content_type=content_type_processo,
+        grupo_id__in=grupos_usuario_ids,
+    ).values_list("object_id", flat=True)
+    entregas_ids = _entregas_queryset_para_usuario(user).values_list("id", flat=True)
+    return queryset.filter(Q(id__in=processos_ids) | Q(entregas__id__in=entregas_ids)).distinct()
+
+
+def _indicadores_estrategicos_queryset_para_usuario(user):
+    """Executa uma rotina de apoio ao domínio de Sala de Situação."""
+
+    queryset = IndicadorEstrategico.objects.all()
+    if not getattr(user, "is_authenticated", False):
+        return queryset.none()
+    if _usuario_admin_sala(user):
+        return queryset
+    grupos_usuario_ids = list(visible_group_ids_for_user(user))
+    if not grupos_usuario_ids:
+        return queryset.none()
+    content_type_ie = ContentType.objects.get_for_model(IndicadorEstrategico)
+    indicadores_ids = MarcadorVinculoAutomaticoGrupoItem.objects.filter(
+        content_type=content_type_ie,
+        grupo_id__in=grupos_usuario_ids,
+    ).values_list("object_id", flat=True)
+    return queryset.filter(id__in=indicadores_ids).distinct()
+
+
+def _indicadores_taticos_queryset_para_usuario(user):
+    """Executa uma rotina de apoio ao domínio de Sala de Situação."""
+
+    queryset = IndicadorTatico.objects.all()
+    if not getattr(user, "is_authenticated", False):
+        return queryset.none()
+    if _usuario_admin_sala(user):
+        return queryset
+    grupos_usuario_ids = list(visible_group_ids_for_user(user))
+    if not grupos_usuario_ids:
+        return queryset.none()
+    content_type_it = ContentType.objects.get_for_model(IndicadorTatico)
+    indicadores_ids = MarcadorVinculoAutomaticoGrupoItem.objects.filter(
+        content_type=content_type_it,
+        grupo_id__in=grupos_usuario_ids,
+    ).values_list("object_id", flat=True)
+    return queryset.filter(id__in=indicadores_ids).distinct()
+
+
+def _setores_visiveis_para_usuario(user):
+    """Executa uma rotina de apoio ao domínio de Sala de Situação."""
+
+    queryset = SetorNode.objects.filter(ativo=True).select_related("group", "parent__group")
+    if not getattr(user, "is_authenticated", False):
+        return queryset.none()
+    if _usuario_admin_sala(user):
+        return queryset.order_by("group__name")
+    grupos_usuario_ids = list(visible_group_ids_for_user(user))
+    if not grupos_usuario_ids:
+        return queryset.none()
+    return queryset.filter(group_id__in=grupos_usuario_ids).order_by("group__name")
+
+
+def _setor_ids_com_descendentes(setor_id):
+    """Executa uma rotina de apoio ao domínio de Sala de Situação."""
+
+    nodes = list(SetorNode.objects.filter(ativo=True).values("id", "parent_id"))
+    children_by_parent = {}
+    for node in nodes:
+        children_by_parent.setdefault(node["parent_id"], []).append(node["id"])
+
+    pending = [setor_id]
+    visited = set()
+    while pending:
+        current = pending.pop()
+        if current in visited:
+            continue
+        visited.add(current)
+        pending.extend(children_by_parent.get(current, []))
+    return visited
+
+
+def _filtrar_queryset_por_setor(queryset, model_class, setor_id):
+    """Executa uma rotina de apoio ao domínio de Sala de Situação."""
+
+    if not setor_id:
+        return queryset
+    setor_ids = _setor_ids_com_descendentes(setor_id)
+    group_ids = list(
+        SetorNode.objects.filter(id__in=setor_ids, ativo=True).values_list("group_id", flat=True)
+    )
+    content_type = ContentType.objects.get_for_model(model_class)
+    object_ids = MarcadorVinculoAutomaticoGrupoItem.objects.filter(
+        content_type=content_type,
+        grupo_id__in=group_ids,
+    ).values_list("object_id", flat=True)
+    return queryset.filter(id__in=object_ids).distinct()
 
 
 def _resolver_cascata_ie(indicador_estrategico):
@@ -876,7 +1005,7 @@ class SalaSituacaoHomeView(PermissionRequiredMixin, TemplateView):
         """
 
         context = super().get_context_data(**kwargs)
-        indicadores_estrategicos = IndicadorEstrategico.objects.prefetch_related(
+        indicadores_estrategicos = _indicadores_estrategicos_queryset_para_usuario(self.request.user).prefetch_related(
             "marcadores_vinculos__marcador"
         ).order_by("nome")
         indicadores = []
@@ -1904,6 +2033,15 @@ class IndicadorEstrategicoListView(PermissionRequiredMixin, ListView):
     template_name = "sala_situacao/indicador_estrategico_list.html"
     permission_required = "sala_situacao.view_indicadorestrategico"
 
+    def has_permission(self):
+        user = self.request.user
+        return bool(
+            user.has_perm("sala_situacao.view_indicadorestrategico")
+            or user.has_perm("sala_situacao.change_indicadorestrategico")
+            or user_is_monitoring_group_member(user)
+            or _usuario_admin_sala(user)
+        )
+
     def get_queryset(self):
         """Implementa parte do fluxo de negócio deste componente.
 
@@ -1920,9 +2058,12 @@ class IndicadorEstrategicoListView(PermissionRequiredMixin, ListView):
         - Valor ou estrutura esperada pelo chamador, preservando o contrato da classe.
         """
 
+        indicadores_permitidos = _indicadores_estrategicos_queryset_para_usuario(self.request.user).values_list(
+            "id", flat=True
+        )
         return IndicadorEstrategico.objects.prefetch_related(
             "marcadores_vinculos__marcador",
-        ).order_by("nome")
+        ).filter(id__in=indicadores_permitidos).order_by("nome")
 
 
 class IndicadorEstrategicoDetailView(
@@ -1946,6 +2087,15 @@ class IndicadorEstrategicoDetailView(
     template_name = "sala_situacao/indicador_estrategico_detail.html"
     permission_required = "sala_situacao.view_indicadorestrategico"
 
+    def has_permission(self):
+        user = self.request.user
+        return bool(
+            user.has_perm("sala_situacao.view_indicadorestrategico")
+            or user.has_perm("sala_situacao.change_indicadorestrategico")
+            or user_is_monitoring_group_member(user)
+            or _usuario_admin_sala(user)
+        )
+
     def get_queryset(self):
         """Implementa parte do fluxo de negócio deste componente.
 
@@ -1962,9 +2112,12 @@ class IndicadorEstrategicoDetailView(
         - Valor ou estrutura esperada pelo chamador, preservando o contrato da classe.
         """
 
+        indicadores_permitidos = _indicadores_estrategicos_queryset_para_usuario(self.request.user).values_list(
+            "id", flat=True
+        )
         return IndicadorEstrategico.objects.prefetch_related(
             "marcadores_vinculos__marcador",
-        )
+        ).filter(id__in=indicadores_permitidos)
 
     def get_related_groups(self):
         """Implementa parte do fluxo de negócio deste componente.
@@ -2248,6 +2401,15 @@ class IndicadorTaticoListView(PermissionRequiredMixin, ListView):
     template_name = "sala_situacao/indicador_tatico_list.html"
     permission_required = "sala_situacao.view_indicadortatico"
 
+    def has_permission(self):
+        user = self.request.user
+        return bool(
+            user.has_perm("sala_situacao.view_indicadortatico")
+            or user.has_perm("sala_situacao.change_indicadortatico")
+            or user_is_monitoring_group_member(user)
+            or _usuario_admin_sala(user)
+        )
+
     def get_queryset(self):
         """Implementa parte do fluxo de negócio deste componente.
 
@@ -2264,10 +2426,13 @@ class IndicadorTaticoListView(PermissionRequiredMixin, ListView):
         - Valor ou estrutura esperada pelo chamador, preservando o contrato da classe.
         """
 
+        indicadores_permitidos = _indicadores_taticos_queryset_para_usuario(self.request.user).values_list(
+            "id", flat=True
+        )
         return IndicadorTatico.objects.prefetch_related(
             "marcadores_vinculos__marcador",
             "indicadores_estrategicos__marcadores_vinculos__marcador",
-        ).order_by("nome")
+        ).filter(id__in=indicadores_permitidos).order_by("nome")
 
 
 class IndicadorTaticoDetailView(
@@ -2291,6 +2456,15 @@ class IndicadorTaticoDetailView(
     template_name = "sala_situacao/indicador_tatico_detail.html"
     permission_required = "sala_situacao.view_indicadortatico"
 
+    def has_permission(self):
+        user = self.request.user
+        return bool(
+            user.has_perm("sala_situacao.view_indicadortatico")
+            or user.has_perm("sala_situacao.change_indicadortatico")
+            or user_is_monitoring_group_member(user)
+            or _usuario_admin_sala(user)
+        )
+
     def get_queryset(self):
         """Implementa parte do fluxo de negócio deste componente.
 
@@ -2307,10 +2481,13 @@ class IndicadorTaticoDetailView(
         - Valor ou estrutura esperada pelo chamador, preservando o contrato da classe.
         """
 
+        indicadores_permitidos = _indicadores_taticos_queryset_para_usuario(self.request.user).values_list(
+            "id", flat=True
+        )
         return IndicadorTatico.objects.prefetch_related(
             "marcadores_vinculos__marcador",
             "indicadores_estrategicos__marcadores_vinculos__marcador",
-        )
+        ).filter(id__in=indicadores_permitidos)
 
     def get_related_groups(self):
         """Implementa parte do fluxo de negócio deste componente.
@@ -2764,14 +2941,24 @@ class ProcessoListView(PermissionRequiredMixin, ListView):
             "indicadores_estrategicos__marcadores_vinculos__marcador",
             "indicadores_estrategicos__marcadores_vinculos__marcador",
         ).order_by("nome")
-        if (
-            self.request.user.has_perm("sala_situacao.view_processo")
-            or self.request.user.has_perm("sala_situacao.change_processo")
-            or _usuario_admin_sala(self.request.user)
-        ):
-            return queryset
-        entregas_permitidas = _entregas_queryset_para_usuario(self.request.user).values_list("id", flat=True)
-        return queryset.filter(entregas__id__in=entregas_permitidas).distinct()
+        processos_permitidos = _processos_queryset_para_usuario(self.request.user).values_list("id", flat=True)
+        queryset = queryset.filter(id__in=processos_permitidos).distinct()
+
+        setor_raw = (self.request.GET.get("setor") or "").strip()
+        setores_visiveis = _setores_visiveis_para_usuario(self.request.user)
+        setor_ids_visiveis = set(setores_visiveis.values_list("id", flat=True))
+        if setor_raw.isdigit():
+            setor_id = int(setor_raw)
+            if setor_id in setor_ids_visiveis:
+                queryset = _filtrar_queryset_por_setor(queryset, Processo, setor_id)
+
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["setores_disponiveis"] = list(_setores_visiveis_para_usuario(self.request.user))
+        context["setor_selecionado_id"] = (self.request.GET.get("setor") or "").strip()
+        return context
 
 
 class ProcessoDetailView(
@@ -2841,14 +3028,8 @@ class ProcessoDetailView(
             "indicadores_estrategicos__marcadores_vinculos__marcador",
             "entregas__marcadores_vinculos__marcador",
         )
-        if (
-            self.request.user.has_perm("sala_situacao.view_processo")
-            or self.request.user.has_perm("sala_situacao.change_processo")
-            or _usuario_admin_sala(self.request.user)
-        ):
-            return queryset
-        entregas_permitidas = _entregas_queryset_para_usuario(self.request.user).values_list("id", flat=True)
-        return queryset.filter(entregas__id__in=entregas_permitidas).distinct()
+        processos_permitidos = _processos_queryset_para_usuario(self.request.user).values_list("id", flat=True)
+        return queryset.filter(id__in=processos_permitidos).distinct()
 
     def get_related_groups(self):
         """Implementa parte do fluxo de negócio deste componente.
@@ -3107,7 +3288,7 @@ class EntregaListView(PermissionRequiredMixin, ListView):
         - Valor ou estrutura esperada pelo chamador, preservando o contrato da classe.
         """
 
-        return (
+        queryset = (
             _entregas_queryset_para_usuario(self.request.user)
             .select_related("ciclo_monitoramento", "variavel_monitoramento")
             .prefetch_related(
@@ -3130,6 +3311,14 @@ class EntregaListView(PermissionRequiredMixin, ListView):
             )
             .order_by("entregue_ordenacao", "ciclo_ordenacao", "nome")
         )
+        setor_raw = (self.request.GET.get("setor") or "").strip()
+        setores_visiveis = _setores_visiveis_para_usuario(self.request.user)
+        setor_ids_visiveis = set(setores_visiveis.values_list("id", flat=True))
+        if setor_raw.isdigit():
+            setor_id = int(setor_raw)
+            if setor_id in setor_ids_visiveis:
+                queryset = _filtrar_queryset_por_setor(queryset, Entrega, setor_id)
+        return queryset
 
     def get_context_data(self, **kwargs):
         """Implementa parte do fluxo de negócio deste componente.
@@ -3145,6 +3334,8 @@ class EntregaListView(PermissionRequiredMixin, ListView):
         """
 
         context = super().get_context_data(**kwargs)
+        context["setores_disponiveis"] = list(_setores_visiveis_para_usuario(self.request.user))
+        context["setor_selecionado_id"] = (self.request.GET.get("setor") or "").strip()
         context["entregas_calendario_api_url"] = reverse("sala_entrega_calendario_api")
         return context
 
@@ -3196,6 +3387,13 @@ def entrega_calendario_api(request):
         .select_related("ciclo_monitoramento", "variavel_monitoramento")
         .order_by("data_entrega_estipulada", "nome")
     )
+    setor_raw = (request.GET.get("setor") or "").strip()
+    setores_visiveis = _setores_visiveis_para_usuario(request.user)
+    setor_ids_visiveis = set(setores_visiveis.values_list("id", flat=True))
+    if setor_raw.isdigit():
+        setor_id = int(setor_raw)
+        if setor_id in setor_ids_visiveis:
+            entregas = _filtrar_queryset_por_setor(entregas, Entrega, setor_id)
     resultados = []
     for entrega in entregas:
         entregue = entrega.progresso_percentual >= 100
