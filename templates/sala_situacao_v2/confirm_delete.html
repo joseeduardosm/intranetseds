@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/sala_situacao/sala_situacao.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header"><h2>Confirmar exclusão</h2></section>
+  <div class="detail sala-detail-panel">
+    <p>Deseja realmente excluir <strong>{{ object.nome }}</strong>?</p>
+    <form method="post">
+      {% csrf_token %}
+      <div class="detail-actions">
+        <button class="btn btn-secondary" type="submit">Excluir</button>
+        <a class="btn btn-light" href="{% url 'sala_situacao_home' %}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}
+

@@ -1,11 +1,11 @@
 <nav class="sala-etapas-nav" aria-label="Navegação por etapas da Sala de Situação">
-  {% if perms.sala_situacao.view_indicadorestrategico or perms.sala_situacao.view_indicadortatico %}
+  {% if user.is_authenticated %}
     <a class="btn btn-light" href="{% url 'sala_situacao_home' %}">Registro de indicadores</a>
   {% endif %}
-  {% if perms.sala_situacao.view_processo or perms.sala_situacao.change_processo or sala_situacao_monitoring_member %}
+  {% if user.is_authenticated %}
     <a class="btn btn-light" href="{% url 'sala_processo_list' %}">Processos</a>
   {% endif %}
-  {% if perms.sala_situacao.view_entrega or perms.sala_situacao.change_entrega or perms.sala_situacao.monitorar_entrega or sala_situacao_monitoring_member %}
+  {% if user.is_authenticated %}
     <a class="btn btn-light" href="{% url 'sala_entrega_list' %}">Entregas</a>
   {% endif %}
 </nav>

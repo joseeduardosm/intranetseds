@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/sala_situacao/sala_situacao.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="sala-detail-layout sala-detail-layout--wide">
+    <div>
+      <section class="page-header"><h2>Detalhes do indicador</h2></section>
+      <div class="detail sala-detail-panel">
+        <p><strong>Nome:</strong> {{ indicador.nome }}</p>
+        <p><strong>Descrição:</strong> {{ indicador.descricao|default:"-" }}</p>
+        {% if indicador.marcadores_efetivos %}
+          <p>
+            <strong>Marcadores:</strong>
+            {% for marcador in indicador.marcadores_efetivos %}
+              <span class="sala-marcador-chip" style="--marcador-cor: {{ marcador.cor }};">{{ marcador.nome }}</span>
+            {% endfor %}
+          </p>
+        {% endif %}
+        <p><strong>Tipo:</strong> {{ indicador.get_tipo_indicador_display }}</p>
+        <p><strong>Meta:</strong> {{ indicador.meta_valor|floatformat:2 }} {{ indicador.meta_unidade_medida }}</p>
+        <p><strong>Valor atual:</strong> {{ indicador.valor_atual|floatformat:2 }}</p>
+        <p><strong>Prazo:</strong> {{ indicador.texto_prazo }}</p>
+        {% if variaveis %}
+          <div>
+            <strong>Variáveis:</strong>
+            <ul>
+              {% for variavel in variaveis %}
+                <li>
+                  {{ variavel.nome }}:
+                  {{ variavel.get_periodicidade_monitoramento_display }}
+                  {% if variavel.grupos_monitoramento.all %}
+                    | grupos:
+                    {% for grupo in variavel.grupos_monitoramento.all %}
+                      {{ grupo.name }}{% if not forloop.last %}, {% endif %}
+                    {% endfor %}
+                  {% endif %}
+                </li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endif %}
+        {% include "sala_situacao/_progresso_duplo.html" with item=indicador show_delta_tooltip=True %}
+        <div class="detail-actions">
+          <a class="btn btn-light" href="{% url 'sala_processo_list' %}">Processos</a>
+          {% if can_edit %}<a class="btn" href="{% url 'sala_indicador_estrategico_update' indicador.pk %}">Editar</a>{% endif %}
+          {% if can_delete %}<a class="btn btn-secondary" href="{% url 'sala_indicador_estrategico_delete' indicador.pk %}">Excluir</a>{% endif %}
+          <a class="btn btn-light" href="{% url 'sala_indicador_estrategico_list' %}">Voltar</a>
+        </div>
+      </div>
+
+      <section class="page-header"><h2>Processos relacionados</h2></section>
+      <div class="card-grid card-grid-fixed">
+        {% for processo in processos %}
+          <article class="card card-bloco">
+            <a class="card-link" href="{% url 'sala_processo_detail' processo.pk %}">
+              <div class="card-body">
+                <h3 class="card-title">{{ processo.nome }}</h3>
+                {% if processo.marcadores_efetivos %}
+                  <div class="sala-marcadores-wrap">
+                    {% for marcador in processo.marcadores_efetivos %}
+                      <span class="sala-marcador-chip" style="--marcador-cor: {{ marcador.cor }};">{{ marcador.nome }}</span>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+              </div>
+            </a>
+          </article>
+        {% empty %}
+          <p>Nenhum processo relacionado.</p>
+        {% endfor %}
+      </div>
+    </div>
+    <aside>
+      <section class="page-header"><h2>Notas e histórico</h2></section>
+      <div class="detail sala-detail-panel">
+        {% include "sala_situacao/_notas_item.html" %}
+        <h3 class="sala-side-title">Histórico de evoluções</h3>
+        {% include "sala_situacao_v2/_historico_alteracoes.html" %}
+      </div>
+    </aside>
+  </section>
+{% endblock %}

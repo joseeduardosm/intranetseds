@@ -1,0 +1,685 @@
+from datetime import timedelta
+
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+from django.contrib.contenttypes.models import ContentType
+from django.db.models import F
+from django.http import HttpResponseForbidden, HttpResponseRedirect, JsonResponse
+from django.shortcuts import get_object_or_404
+from django.urls import reverse, reverse_lazy
+from django.utils.dateparse import parse_date, parse_datetime
+from django.utils import timezone
+from django.views.decorators.http import require_GET
+from django.views import View
+from django.views.generic import CreateView, DeleteView, DetailView, ListView, TemplateView, UpdateView
+
+from auditoria.models import AuditLog
+from sala_situacao.forms import NotaItemForm
+from sala_situacao.models import NotaItem
+
+from .access import (
+    user_can_delete_processo,
+    user_can_manage_entrega,
+    user_can_manage_indicador,
+    user_can_manage_processo,
+    user_can_write_item,
+    user_is_v2_admin,
+    writable_group_ids_for_user,
+)
+from .forms import EntregaForm, EntregaMonitoramentoForm, IndicadorForm, ProcessoForm
+from .models import Entrega, Indicador, Processo
+
+
+def _user_has_any_perm(user, perms):
+    return any(user.has_perm(perm) for perm in perms)
+
+
+class AuditHistoryContextMixin:
+    audit_limit = 15
+    FIELD_LABEL_MAP = {
+        "grupos_responsaveis": "Grupos responsáveis",
+        "grupos_criadores": "Grupos criadores",
+        "indicadores": "Indicadores",
+        "processos": "Processos",
+        "evolucao_manual": "Evolução manual",
+        "data_entrega_estipulada": "Data de entrega estipulada",
+    }
+
+    def _format_log_value(self, field_name, value):
+        if value is None or value == "":
+            return "-"
+        if isinstance(value, bool):
+            return "Sim" if value else "Não"
+        if field_name == "evolucao_manual":
+            try:
+                return f"{float(value):.0f}%"
+            except Exception:
+                return f"{value}%"
+        if isinstance(value, list):
+            return ", ".join(str(item) for item in value) if value else "-"
+        if isinstance(value, str):
+            dt = parse_datetime(value)
+            if dt is not None:
+                if timezone.is_aware(dt):
+                    dt = timezone.localtime(dt)
+                return dt.strftime("%d/%m/%Y %H:%M")
+            d = parse_date(value)
+            if d is not None:
+                return d.strftime("%d/%m/%Y")
+        return str(value)
+
+    def _field_label(self, field_name):
+        if field_name in self.FIELD_LABEL_MAP:
+            return self.FIELD_LABEL_MAP[field_name]
+        try:
+            field = self.object._meta.get_field(field_name)
+            return str(field.verbose_name).capitalize()
+        except Exception:
+            return (field_name or "").replace("_", " ").capitalize()
+
+    def _resolve_related_names(self, field_name, related_pks):
+        if not related_pks:
+            return []
+        try:
+            field = self.object._meta.get_field(field_name)
+            related_model = field.related_model
+            objs = related_model.objects.filter(pk__in=related_pks)
+            by_pk = {obj.pk: str(obj) for obj in objs}
+            return [f"{by_pk.get(pk, f'#{pk}')} (#{pk})" for pk in related_pks]
+        except Exception:
+            return [f"#{pk}" for pk in related_pks]
+
+    def _build_log_details(self, log):
+        changes = log.changes if isinstance(log.changes, dict) else {}
+        if not changes:
+            return []
+
+        if log.action in {AuditLog.Action.M2M_ADD, AuditLog.Action.M2M_REMOVE, AuditLog.Action.M2M_CLEAR}:
+            field_name = changes.get("field") or "relacionamento"
+            related_model = (changes.get("related_model") or "").strip().lower()
+            if field_name == "m2m" and related_model == "auth.group":
+                field_name = "grupos_responsaveis"
+            label = self._field_label(field_name)
+            if log.action == AuditLog.Action.M2M_CLEAR:
+                return [f"{label}: todos os vínculos foram removidos."]
+            related_items = changes.get("related_items") or []
+            related_names = [item.get("repr") or f"#{item.get('id')}" for item in related_items if isinstance(item, dict)]
+            if not related_names:
+                related_pks = [int(pk) for pk in (changes.get("related_pks") or [])]
+                related_names = self._resolve_related_names(field_name, related_pks)
+            if related_names:
+                if field_name == "grupos_responsaveis":
+                    prefix = "Adicionado" if log.action == AuditLog.Action.M2M_ADD else "Excluído"
+                    sufixo = "grupo" if len(related_names) == 1 else "grupos"
+                    return [f"{label}: {prefix} {', '.join(related_names)} ({sufixo})."]
+                prefix = "adicionados" if log.action == AuditLog.Action.M2M_ADD else "removidos"
+                return [f"{label}: {prefix} {', '.join(related_names)}."]
+            return [f"{label}: relacionamento atualizado."]
+
+        details = []
+        for field_name, delta in changes.items():
+            if not isinstance(delta, dict):
+                continue
+            old_value = delta.get("from", delta.get("old"))
+            new_value = delta.get("to", delta.get("new"))
+            if old_value is None and new_value is None:
+                continue
+            label = self._field_label(field_name)
+            details.append(
+                f"{label}: {self._format_log_value(field_name, old_value)} → {self._format_log_value(field_name, new_value)}"
+            )
+        return details
+
+    def _get_audit_logs(self):
+        content_type = ContentType.objects.get_for_model(self.object.__class__)
+        return (
+            AuditLog.objects.select_related("user")
+            .filter(content_type=content_type, object_id=str(self.object.pk))
+            .order_by("-timestamp")[: self.audit_limit]
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        logs = list(self._get_audit_logs())
+        context["historico_alteracoes"] = logs
+        context["historico_alteracoes_formatado"] = [
+            {"registro": log, "detalhes": self._build_log_details(log)}
+            for log in logs
+        ]
+        context["ultima_alteracao_usuario"] = next((log.user for log in logs if log.user), None)
+        return context
+
+
+class ItemNotesContextMixin:
+    nota_form_class = NotaItemForm
+    notas_limit = 30
+
+    def _get_notas(self):
+        content_type = ContentType.objects.get_for_model(self.object.__class__)
+        return (
+            NotaItem.objects.select_related("criado_por")
+            .filter(content_type=content_type, object_id=self.object.pk)
+            .order_by("-criado_em")[: self.notas_limit]
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["nota_form"] = kwargs.get("nota_form") or self.nota_form_class()
+        context["notas_item"] = list(self._get_notas())
+        return context
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        nota_form = self.nota_form_class(request.POST)
+        if nota_form.is_valid():
+            content_type = ContentType.objects.get_for_model(self.object.__class__)
+            NotaItem.objects.create(
+                content_type=content_type,
+                object_id=self.object.pk,
+                texto=nota_form.cleaned_data["texto"].strip(),
+                criado_por=request.user if request.user.is_authenticated else None,
+            )
+            messages.success(request, "Nota adicionada com sucesso.")
+            return HttpResponseRedirect(request.path)
+        messages.error(request, "Não foi possível salvar a nota. Verifique o conteúdo informado.")
+        context = self.get_context_data(nota_form=nota_form)
+        return self.render_to_response(context)
+
+
+class WriteAccessObjectMixin:
+    def dispatch(self, request, *args, **kwargs):
+        response = super().dispatch(request, *args, **kwargs)
+        return response
+
+    def get_writable_group_ids(self):
+        return writable_group_ids_for_user(self.request.user)
+
+    def has_object_write_access(self, obj):
+        return user_can_write_item(self.request.user, obj)
+
+    def ensure_object_write_access(self, obj):
+        if self.has_object_write_access(obj):
+            return None
+        return HttpResponseForbidden("Sem permissao de escrita para este item.")
+
+
+class SalaSituacaoV2HomeView(LoginRequiredMixin, TemplateView):
+    template_name = "sala_situacao_v2/home.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["indicadores"] = Indicador.objects.order_by("nome")
+        context["processos"] = Processo.objects.order_by("nome")[:12]
+        context["entregas"] = Entrega.objects.order_by("nome")[:12]
+        return context
+
+
+class IndicadorListView(LoginRequiredMixin, ListView):
+    model = Indicador
+    context_object_name = "indicadores"
+    template_name = "sala_situacao_v2/indicador_list.html"
+
+    def get_queryset(self):
+        return Indicador.objects.order_by("nome")
+
+
+class IndicadorDetailView(LoginRequiredMixin, ItemNotesContextMixin, AuditHistoryContextMixin, DetailView):
+    model = Indicador
+    context_object_name = "indicador"
+    template_name = "sala_situacao_v2/indicador_detail.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        can_manage = user_can_manage_indicador(self.request.user, self.object)
+        context["can_edit"] = can_manage
+        context["can_delete"] = can_manage
+        context["processos"] = self.object.processos.order_by("nome")
+        context["variaveis"] = self.object.variaveis.prefetch_related("grupos_monitoramento", "ciclos_monitoramento").all()
+        return context
+
+
+class IndicadorCreateView(LoginRequiredMixin, PermissionRequiredMixin, WriteAccessObjectMixin, CreateView):
+    permission_required = ("sala_situacao_v2.add_indicador",)
+    model = Indicador
+    form_class = IndicadorForm
+    template_name = "sala_situacao_v2/form.html"
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["writable_group_ids"] = self.get_writable_group_ids()
+        return kwargs
+
+    def has_permission(self):
+        return _user_has_any_perm(
+            self.request.user,
+            ("sala_situacao_v2.add_indicador", "sala_situacao.add_indicadorestrategico"),
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["titulo"] = "Novo indicador"
+        context["cancel_url"] = reverse("sala_indicador_estrategico_list")
+        form = context.get("form")
+        if form is not None:
+            context["variaveis_group_options"] = [
+                {"id": grupo.id, "nome": grupo.name}
+                for grupo in form.fields["grupos_responsaveis"].queryset.order_by("name")
+            ]
+        return context
+
+    def form_valid(self, form):
+        if not user_is_v2_admin(self.request.user):
+            selected_ids = set(form.cleaned_data["grupos_responsaveis"].values_list("id", flat=True))
+            if not selected_ids.intersection(self.get_writable_group_ids()):
+                return HttpResponseForbidden("Sem permissao para atribuir os grupos informados.")
+        response = super().form_valid(form)
+        if self.object and not self.object.grupos_criadores.exists():
+            self.object.grupos_criadores.set(form.cleaned_data["grupos_responsaveis"])
+        messages.success(self.request, "Indicador criado com sucesso.")
+        return response
+
+    def get_success_url(self):
+        return reverse("sala_indicador_estrategico_detail", kwargs={"pk": self.object.pk})
+
+
+class IndicadorUpdateView(LoginRequiredMixin, PermissionRequiredMixin, WriteAccessObjectMixin, UpdateView):
+    permission_required = ("sala_situacao_v2.change_indicador",)
+    model = Indicador
+    form_class = IndicadorForm
+    template_name = "sala_situacao_v2/form.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        if not user_can_manage_indicador(request.user, self.object):
+            return HttpResponseForbidden("Sem permissao para editar este indicador.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def has_permission(self):
+        return user_can_manage_indicador(self.request.user, self.get_object())
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["titulo"] = "Editar indicador"
+        context["cancel_url"] = reverse("sala_indicador_estrategico_detail", kwargs={"pk": self.object.pk})
+        form = context.get("form")
+        if form is not None:
+            context["variaveis_group_options"] = [
+                {"id": grupo.id, "nome": grupo.name}
+                for grupo in form.fields["grupos_responsaveis"].queryset.order_by("name")
+            ]
+        return context
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["writable_group_ids"] = self.get_writable_group_ids()
+        return kwargs
+
+    def get_success_url(self):
+        messages.success(self.request, "Indicador atualizado com sucesso.")
+        return reverse("sala_indicador_estrategico_detail", kwargs={"pk": self.object.pk})
+
+
+class IndicadorDeleteView(LoginRequiredMixin, PermissionRequiredMixin, WriteAccessObjectMixin, DeleteView):
+    permission_required = ("sala_situacao_v2.delete_indicador",)
+    model = Indicador
+    template_name = "sala_situacao_v2/confirm_delete.html"
+    success_url = reverse_lazy("sala_indicador_estrategico_list")
+
+    def dispatch(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        if not user_can_manage_indicador(request.user, self.object):
+            return HttpResponseForbidden("Sem permissao para excluir este indicador.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def has_permission(self):
+        return user_can_manage_indicador(self.request.user, self.get_object())
+
+
+class ProcessoListView(LoginRequiredMixin, ListView):
+    model = Processo
+    context_object_name = "processos"
+    template_name = "sala_situacao_v2/processo_list.html"
+
+    def get_queryset(self):
+        return Processo.objects.prefetch_related("indicadores").order_by("nome")
+
+
+class ProcessoDetailView(LoginRequiredMixin, ItemNotesContextMixin, AuditHistoryContextMixin, DetailView):
+    model = Processo
+    context_object_name = "processo"
+    template_name = "sala_situacao_v2/processo_detail.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        can_manage_by_creator_group = user_can_manage_processo(self.request.user, self.object)
+        context["can_edit"] = can_manage_by_creator_group
+        context["can_delete"] = can_manage_by_creator_group
+        context["entregas"] = self.object.entregas.order_by("nome")
+        return context
+
+
+class ProcessoCreateView(LoginRequiredMixin, PermissionRequiredMixin, WriteAccessObjectMixin, CreateView):
+    permission_required = ("sala_situacao_v2.add_processo",)
+    model = Processo
+    form_class = ProcessoForm
+    template_name = "sala_situacao_v2/form.html"
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["writable_group_ids"] = self.get_writable_group_ids()
+        return kwargs
+
+    def has_permission(self):
+        return _user_has_any_perm(self.request.user, ("sala_situacao_v2.add_processo", "sala_situacao.add_processo"))
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["titulo"] = "Novo processo"
+        context["cancel_url"] = reverse("sala_processo_list")
+        indicadores = Indicador.objects.prefetch_related("grupos_responsaveis").order_by("nome")
+        context["indicadores_grupos_map_json"] = {
+            str(indicador.id): list(indicador.grupos_responsaveis.values_list("id", flat=True))
+            for indicador in indicadores
+        }
+        context["indicadores_prazo_map_json"] = {
+            str(indicador.id): (
+                indicador.data_entrega_estipulada.isoformat() if indicador.data_entrega_estipulada else ""
+            )
+            for indicador in indicadores
+        }
+        return context
+
+    def get_success_url(self):
+        messages.success(self.request, "Processo criado com sucesso.")
+        return reverse("sala_processo_detail", kwargs={"pk": self.object.pk})
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        if self.object and not self.object.grupos_criadores.exists():
+            self.object.grupos_criadores.set(form.cleaned_data["grupos_responsaveis"])
+        return response
+
+
+class ProcessoUpdateView(LoginRequiredMixin, PermissionRequiredMixin, WriteAccessObjectMixin, UpdateView):
+    permission_required = ("sala_situacao_v2.change_processo",)
+    model = Processo
+    form_class = ProcessoForm
+    template_name = "sala_situacao_v2/form.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        if not user_can_manage_processo(request.user, self.object):
+            return HttpResponseForbidden("Sem permissao para editar este processo.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def has_permission(self):
+        return user_can_manage_processo(self.request.user, self.get_object())
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["titulo"] = "Editar processo"
+        context["cancel_url"] = reverse("sala_processo_detail", kwargs={"pk": self.object.pk})
+        indicadores = Indicador.objects.prefetch_related("grupos_responsaveis").order_by("nome")
+        context["indicadores_grupos_map_json"] = {
+            str(indicador.id): list(indicador.grupos_responsaveis.values_list("id", flat=True))
+            for indicador in indicadores
+        }
+        context["indicadores_prazo_map_json"] = {
+            str(indicador.id): (
+                indicador.data_entrega_estipulada.isoformat() if indicador.data_entrega_estipulada else ""
+            )
+            for indicador in indicadores
+        }
+        return context
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["writable_group_ids"] = self.get_writable_group_ids()
+        return kwargs
+
+    def get_success_url(self):
+        messages.success(self.request, "Processo atualizado com sucesso.")
+        return reverse("sala_processo_detail", kwargs={"pk": self.object.pk})
+
+
+class ProcessoDeleteView(LoginRequiredMixin, PermissionRequiredMixin, WriteAccessObjectMixin, DeleteView):
+    permission_required = ("sala_situacao_v2.delete_processo",)
+    model = Processo
+    template_name = "sala_situacao_v2/confirm_delete.html"
+    success_url = reverse_lazy("sala_processo_list")
+
+    def dispatch(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        if not user_can_delete_processo(request.user, self.object):
+            return HttpResponseForbidden("Sem permissao para excluir este processo.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def has_permission(self):
+        return user_can_delete_processo(self.request.user, self.get_object())
+
+
+class EntregaListView(LoginRequiredMixin, ListView):
+    model = Entrega
+    context_object_name = "entregas"
+    template_name = "sala_situacao_v2/entrega_list.html"
+
+    def get_queryset(self):
+        return Entrega.objects.prefetch_related("processos").order_by(
+            F("data_entrega_estipulada").asc(nulls_last=True),
+            "nome",
+            "id",
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["entregas_calendario_api_url"] = reverse("sala_entrega_calendario_api")
+        return context
+
+
+@login_required
+@require_GET
+def entrega_calendario_api(request):
+    hoje = timezone.localdate()
+    ano_raw = (request.GET.get("ano") or "").strip()
+    mes_raw = (request.GET.get("mes") or "").strip()
+    ano = int(ano_raw) if ano_raw.isdigit() else hoje.year
+    mes = int(mes_raw) if mes_raw.isdigit() else hoje.month
+    if mes < 1 or mes > 12:
+        return JsonResponse({"detail": "Mês inválido."}, status=400)
+
+    inicio = hoje.replace(year=ano, month=mes, day=1)
+    if mes == 12:
+        proximo_mes = inicio.replace(year=ano + 1, month=1, day=1)
+    else:
+        proximo_mes = inicio.replace(month=mes + 1, day=1)
+    fim = proximo_mes - timedelta(days=1)
+
+    entregas = (
+        Entrega.objects.filter(data_entrega_estipulada__gte=inicio, data_entrega_estipulada__lte=fim)
+        .select_related("ciclo_monitoramento", "variavel_monitoramento")
+        .order_by("data_entrega_estipulada", "nome", "id")
+    )
+    resultados = []
+    for entrega in entregas:
+        entregue = entrega.progresso_percentual >= 100
+        resultados.append(
+            {
+                "id": entrega.pk,
+                "data": entrega.data_entrega_estipulada.isoformat(),
+                "periodo_inicio": entrega.periodo_inicio.isoformat() if entrega.periodo_inicio else None,
+                "periodo_fim": entrega.periodo_fim.isoformat() if entrega.periodo_fim else None,
+                "nome": entrega.nome,
+                "descricao": (entrega.descricao or "").strip() or "Sem descrição.",
+                "entregue": entregue,
+                "status_label": "Entregue" if entregue else "Não entregue",
+                "url": reverse("sala_entrega_detail", kwargs={"pk": entrega.pk}),
+            }
+        )
+
+    return JsonResponse({"ano": ano, "mes": mes, "results": resultados})
+
+
+class EntregaDetailView(LoginRequiredMixin, ItemNotesContextMixin, AuditHistoryContextMixin, DetailView):
+    model = Entrega
+    context_object_name = "entrega"
+    template_name = "sala_situacao_v2/entrega_detail.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        can_manage = user_can_manage_entrega(self.request.user, self.object)
+        context["can_edit"] = can_manage
+        context["can_delete"] = can_manage
+        context["pode_monitorar"] = _user_has_any_perm(
+            self.request.user, ("sala_situacao_v2.monitorar_entrega", "sala_situacao.monitorar_entrega")
+        ) and can_manage
+        if context["pode_monitorar"]:
+            context["monitoramento_form"] = EntregaMonitoramentoForm(instance=self.object)
+        return context
+
+
+class EntregaCreateView(LoginRequiredMixin, PermissionRequiredMixin, WriteAccessObjectMixin, CreateView):
+    permission_required = ("sala_situacao_v2.add_entrega",)
+    model = Entrega
+    form_class = EntregaForm
+    template_name = "sala_situacao_v2/form.html"
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["writable_group_ids"] = self.get_writable_group_ids()
+        return kwargs
+
+    def has_permission(self):
+        return _user_has_any_perm(self.request.user, ("sala_situacao_v2.add_entrega", "sala_situacao.add_entrega"))
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["titulo"] = "Nova entrega"
+        context["cancel_url"] = reverse("sala_entrega_list")
+        form = context.get("form")
+        if form is not None:
+            ordered_field_names = [
+                "nome",
+                "descricao",
+                "processos",
+                "grupos_responsaveis",
+                "data_entrega_estipulada",
+                "evolucao_manual",
+            ]
+            context["ordered_form_fields"] = [
+                form[name] for name in ordered_field_names if name in form.fields
+            ]
+        processos = Processo.objects.prefetch_related("grupos_responsaveis").order_by("nome")
+        context["processos_grupos_map_json"] = {
+            str(processo.id): list(processo.grupos_responsaveis.values_list("id", flat=True))
+            for processo in processos
+        }
+        context["processos_prazo_map_json"] = {
+            str(processo.id): (
+                processo.data_entrega_estipulada.isoformat() if processo.data_entrega_estipulada else ""
+            )
+            for processo in processos
+        }
+        return context
+
+    def get_success_url(self):
+        messages.success(self.request, "Entrega criada com sucesso.")
+        return reverse("sala_entrega_detail", kwargs={"pk": self.object.pk})
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        if self.object and not self.object.grupos_criadores.exists():
+            self.object.grupos_criadores.set(form.cleaned_data["grupos_responsaveis"])
+        return response
+
+
+class EntregaUpdateView(LoginRequiredMixin, PermissionRequiredMixin, WriteAccessObjectMixin, UpdateView):
+    permission_required = ("sala_situacao_v2.change_entrega",)
+    model = Entrega
+    form_class = EntregaForm
+    template_name = "sala_situacao_v2/form.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        if not user_can_manage_entrega(request.user, self.object):
+            return HttpResponseForbidden("Sem permissao para editar esta entrega.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def has_permission(self):
+        return user_can_manage_entrega(self.request.user, self.get_object())
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["titulo"] = "Editar entrega"
+        context["cancel_url"] = reverse("sala_entrega_detail", kwargs={"pk": self.object.pk})
+        form = context.get("form")
+        if form is not None:
+            ordered_field_names = [
+                "nome",
+                "descricao",
+                "processos",
+                "grupos_responsaveis",
+                "data_entrega_estipulada",
+                "evolucao_manual",
+            ]
+            context["ordered_form_fields"] = [
+                form[name] for name in ordered_field_names if name in form.fields
+            ]
+        processos = Processo.objects.prefetch_related("grupos_responsaveis").order_by("nome")
+        context["processos_grupos_map_json"] = {
+            str(processo.id): list(processo.grupos_responsaveis.values_list("id", flat=True))
+            for processo in processos
+        }
+        context["processos_prazo_map_json"] = {
+            str(processo.id): (
+                processo.data_entrega_estipulada.isoformat() if processo.data_entrega_estipulada else ""
+            )
+            for processo in processos
+        }
+        return context
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["writable_group_ids"] = self.get_writable_group_ids()
+        return kwargs
+
+    def get_success_url(self):
+        messages.success(self.request, "Entrega atualizada com sucesso.")
+        return reverse("sala_entrega_detail", kwargs={"pk": self.object.pk})
+
+
+class EntregaDeleteView(LoginRequiredMixin, PermissionRequiredMixin, WriteAccessObjectMixin, DeleteView):
+    permission_required = ("sala_situacao_v2.delete_entrega",)
+    model = Entrega
+    template_name = "sala_situacao_v2/confirm_delete.html"
+    success_url = reverse_lazy("sala_entrega_list")
+
+    def dispatch(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        if not user_can_manage_entrega(request.user, self.object):
+            return HttpResponseForbidden("Sem permissao para excluir esta entrega.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def has_permission(self):
+        return user_can_manage_entrega(self.request.user, self.get_object())
+
+
+class EntregaMonitorarView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        entrega = get_object_or_404(Entrega, pk=pk)
+        if not _user_has_any_perm(
+            request.user, ("sala_situacao_v2.monitorar_entrega", "sala_situacao.monitorar_entrega")
+        ):
+            return HttpResponseForbidden("Sem permissao para monitorar entrega.")
+        if not user_can_manage_entrega(request.user, entrega):
+            return HttpResponseForbidden("Sem permissao para monitorar esta entrega.")
+
+        form = EntregaMonitoramentoForm(request.POST, request.FILES, instance=entrega, usuario=request.user)
+        if form.is_valid():
+            obj = form.save(commit=False)
+            obj.monitorado_em = timezone.now()
+            obj.save(update_fields=["valor_monitoramento", "evidencia_monitoramento", "monitorado_em", "atualizado_em"])
+            messages.success(request, "Monitoramento registrado.")
+        else:
+            messages.error(request, "Falha ao registrar monitoramento.")
+        return HttpResponseRedirect(reverse("sala_entrega_detail", kwargs={"pk": entrega.pk}))

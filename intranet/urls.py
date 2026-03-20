@@ -42,8 +42,10 @@ urlpatterns = [
     path('folha-ponto/', include('folha_ponto.urls')),
     # App de licitacoes.
     path('licitacoes/', include('licitacoes.urls')),
-    # App de sala de situacao.
-    path('sala-de-situacao/', include('sala_situacao.urls')),
+    # App de sala de situacao V2 (oficial).
+    path('sala-de-situacao/', include('sala_situacao_v2.urls')),
+    # App legado de sala de situacao.
+    path('sala-de-situacao-old/', include('sala_situacao.urls_old')),
     # App de lousa digital.
     path('lousa-digital/', include('lousa_digital.urls')),
 ]

@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/sala_situacao/sala_situacao.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="sala-detail-layout sala-detail-layout--wide">
+    <div>
+      <section class="page-header"><h2>Detalhes da entrega</h2></section>
+      <div class="detail sala-detail-panel">
+        <p><strong>Nome:</strong> {{ entrega.nome }}</p>
+        <p><strong>Descrição:</strong> {{ entrega.descricao|default:"-" }}</p>
+        {% if entrega.marcadores_efetivos %}
+          <p>
+            <strong>Marcadores:</strong>
+            {% for marcador in entrega.marcadores_efetivos %}
+              <span class="sala-marcador-chip" style="--marcador-cor: {{ marcador.cor }};">{{ marcador.nome }}</span>
+            {% endfor %}
+          </p>
+        {% endif %}
+        <p><strong>Prazo:</strong> {{ entrega.texto_prazo }}</p>
+        {% include "sala_situacao/_progresso_duplo.html" with item=entrega show_delta_tooltip=True %}
+        <div class="detail-actions">
+          {% if can_edit %}<a class="btn" href="{% url 'sala_entrega_update' entrega.pk %}">Editar</a>{% endif %}
+          {% if can_delete %}<a class="btn btn-secondary" href="{% url 'sala_entrega_delete' entrega.pk %}">Excluir</a>{% endif %}
+          <a class="btn btn-light" href="{% url 'sala_entrega_list' %}">Voltar</a>
+        </div>
+      </div>
+
+      {% if pode_monitorar and monitoramento_form %}
+        <section class="page-header"><h2>Monitoramento</h2></section>
+        <div class="detail sala-detail-panel">
+          <form method="post" enctype="multipart/form-data" action="{% url 'sala_entrega_monitorar' entrega.pk %}">
+            {% csrf_token %}
+            {{ monitoramento_form.as_p }}
+            <button class="btn" type="submit">Salvar monitoramento</button>
+          </form>
+        </div>
+      {% endif %}
+    </div>
+    <aside>
+      <section class="page-header"><h2>Notas e histórico</h2></section>
+      <div class="detail sala-detail-panel">
+        {% include "sala_situacao/_notas_item.html" %}
+        <h3 class="sala-side-title">Histórico de evoluções</h3>
+        {% include "sala_situacao_v2/_historico_alteracoes.html" %}
+      </div>
+    </aside>
+  </section>
+{% endblock %}

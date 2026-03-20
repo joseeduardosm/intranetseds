@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 import os
+import time
 from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
@@ -28,6 +29,12 @@ if _env_path.exists():
             "python-dotenv nao instalado, mas .env encontrado."
         ) from exc
     load_dotenv(_env_path)
+
+# Mantem o processo Python alinhado ao fuso horario oficial da aplicacao.
+PROJECT_TIME_ZONE = os.getenv("TZ", "America/Sao_Paulo")
+os.environ["TZ"] = PROJECT_TIME_ZONE
+if hasattr(time, "tzset"):
+    time.tzset()
 
 
 # Configurações rápidas para desenvolvimento (não usar em produção).
@@ -73,6 +80,7 @@ INSTALLED_APPS = [
     'folha_ponto.apps.FolhaPontoConfig',
     'licitacoes.apps.LicitacoesConfig',
     'sala_situacao.apps.SalaSituacaoConfig',
+    'sala_situacao_v2.apps.SalaSituacaoV2Config',
     'lousa_digital.apps.LousaDigitalConfig',
 ]
 
@@ -178,7 +186,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'pt-br'
 
-TIME_ZONE = 'America/Sao_Paulo'
+TIME_ZONE = PROJECT_TIME_ZONE
 
 USE_I18N = True
 

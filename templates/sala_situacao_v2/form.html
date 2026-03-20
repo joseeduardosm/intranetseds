@@ -1,0 +1,595 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/sala_situacao/sala_situacao.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>{{ titulo|default:"Formulário" }}</h2>
+  </section>
+
+  <div class="form">
+    <form method="post" enctype="multipart/form-data" novalidate>
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      <div class="sala-form-fields">
+        {% for field in ordered_form_fields|default:form %}
+          <div
+            class="sala-form-field{% if field.field.widget.allow_multiple_selected or field.name == 'descricao' or field.name == 'formula_expressao' or field.name == 'variaveis_config_map' %} sala-form-field--wide{% endif %}"
+            data-field-name="{{ field.name }}"
+            {% if field.name == "formula_expressao" %}data-math-only-field data-formula-field{% endif %}
+          >
+            {% if field.name == "variaveis_config_map" %}
+              <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {{ field }}
+              <div class="sala-variavel-reuso-editor" data-variaveis-config-editor>
+                <p class="sala-variavel-reuso-hint">
+                  Para cada variavel da formula, defina a periodicidade do monitoramento e os grupos responsaveis.
+                  Cada variavel cria um processo automatico e entregas por ciclo.
+                </p>
+                <div class="sala-variavel-reuso-lista" data-variaveis-config-lista></div>
+              </div>
+            {% elif field.field.widget.allow_multiple_selected %}
+              <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+              <input
+                type="text"
+                class="form-control"
+                id="{{ field.id_for_label }}-search"
+                placeholder="Buscar..."
+                data-multi-picker-search="{{ field.id_for_label }}"
+              />
+              {{ field }}
+              <div class="participants-picker" data-multi-picker="{{ field.id_for_label }}">
+                <div class="participants-column">
+                  <div class="participants-label">Disponíveis</div>
+                  <div class="participants-list" id="{{ field.id_for_label }}-available"></div>
+                </div>
+                <div class="participants-column">
+                  <div class="participants-label">Incluídos</div>
+                  <div class="participants-list is-selected" id="{{ field.id_for_label }}-selected"></div>
+                </div>
+              </div>
+            {% else %}
+              <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {{ field }}
+              {% if field.name == "formula_expressao" %}
+                <div class="formula-builder" data-formula-builder="{{ field.id_for_label }}">
+                  <button type="button" class="btn btn-light btn-small" data-formula-token="+">+</button>
+                  <button type="button" class="btn btn-light btn-small" data-formula-token="-">-</button>
+                  <button type="button" class="btn btn-light btn-small" data-formula-token="*">*</button>
+                  <button type="button" class="btn btn-light btn-small" data-formula-token="/">/</button>
+                  <button type="button" class="btn btn-light btn-small" data-formula-token="(">(</button>
+                  <button type="button" class="btn btn-light btn-small" data-formula-token=")">)</button>
+                </div>
+              {% endif %}
+            {% endif %}
+            {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+          </div>
+        {% endfor %}
+      </div>
+      <div class="form-actions">
+        <button class="btn" type="submit">Salvar</button>
+        {% if cancel_url %}
+          <a class="btn btn-light" href="{{ cancel_url }}">Cancelar</a>
+        {% else %}
+          <a class="btn btn-light" href="{% url 'sala_situacao_home' %}">Cancelar</a>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+  <div
+    class="profile-alert-backdrop"
+    id="sala-form-errors-backdrop"
+    aria-hidden="{% if form.errors %}false{% else %}true{% endif %}"
+    {% if not form.errors %}style="display:none;"{% endif %}
+  ></div>
+  <div
+    class="profile-alert-modal"
+    id="sala-form-errors-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Avisos de validação"
+    {% if not form.errors %}style="display:none;"{% endif %}
+  >
+    <h3>Atenção</h3>
+    <p>Não foi possível salvar. Corrija os itens abaixo:</p>
+    <ul id="sala-form-errors-list">
+      {% for error in form.non_field_errors %}
+        <li>{{ error }}</li>
+      {% endfor %}
+      {% for field in form %}
+        {% for error in field.errors %}
+          <li>{{ field.label }}: {{ error }}</li>
+        {% endfor %}
+      {% endfor %}
+    </ul>
+    <div class="profile-alert-actions">
+      <button class="btn" type="button" id="sala-form-errors-close">Fechar</button>
+    </div>
+  </div>
+  {% if indicadores_grupos_map_json %}
+    {{ indicadores_grupos_map_json|json_script:"indicadores-grupos-map-v2" }}
+  {% endif %}
+  {% if processos_grupos_map_json %}
+    {{ processos_grupos_map_json|json_script:"processos-grupos-map-v2" }}
+  {% endif %}
+  {% if indicadores_prazo_map_json %}
+    {{ indicadores_prazo_map_json|json_script:"indicadores-prazo-map-v2" }}
+  {% endif %}
+  {% if processos_prazo_map_json %}
+    {{ processos_prazo_map_json|json_script:"processos-prazo-map-v2" }}
+  {% endif %}
+  {% if variaveis_group_options %}
+    {{ variaveis_group_options|json_script:"variaveis-group-options-v2" }}
+  {% endif %}
+
+  <script>
+    const parseDateAny = (value) => {
+      const raw = (value || "").trim();
+      if (!raw) return null;
+      let year;
+      let month;
+      let day;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+        [year, month, day] = raw.split("-").map((item) => Number(item));
+      } else if (/^\d{2}\/\d{2}\/\d{4}$/.test(raw)) {
+        const parts = raw.split("/");
+        day = Number(parts[0]);
+        month = Number(parts[1]);
+        year = Number(parts[2]);
+      } else {
+        return null;
+      }
+      const date = new Date(year, month - 1, day);
+      if (Number.isNaN(date.getTime())) return null;
+      if (date.getFullYear() !== year || date.getMonth() !== (month - 1) || date.getDate() !== day) return null;
+      return date;
+    };
+
+    const formatDateBR = (date) => {
+      const day = String(date.getDate()).padStart(2, "0");
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const year = String(date.getFullYear());
+      return `${day}/${month}/${year}`;
+    };
+
+    const openValidationMsgBox = (messages) => {
+      const modal = document.getElementById("sala-form-errors-modal");
+      const backdrop = document.getElementById("sala-form-errors-backdrop");
+      const list = document.getElementById("sala-form-errors-list");
+      if (!modal || !backdrop || !list) return;
+      list.innerHTML = "";
+      (messages || []).forEach((message) => {
+        const li = document.createElement("li");
+        li.textContent = message;
+        list.appendChild(li);
+      });
+      modal.style.display = "";
+      backdrop.style.display = "";
+      backdrop.setAttribute("aria-hidden", "false");
+    };
+
+    document.querySelectorAll("[data-multi-picker]").forEach((picker) => {
+      const baseId = picker.getAttribute("data-multi-picker");
+      const select = document.getElementById(baseId);
+      const search = document.querySelector(`[data-multi-picker-search="${baseId}"]`);
+      const available = document.getElementById(`${baseId}-available`);
+      const selected = document.getElementById(`${baseId}-selected`);
+
+      if (!select || !search || !available || !selected) return;
+
+      select.classList.add("participants-select-hidden");
+
+      const getLockedValues = () =>
+        new Set(
+          (select.dataset.lockedValues || "")
+            .split(",")
+            .map((item) => item.trim())
+            .filter(Boolean)
+        );
+
+      const render = (filterText = "") => {
+        available.innerHTML = "";
+        selected.innerHTML = "";
+        const filter = filterText.trim().toLowerCase();
+        const lockedValues = getLockedValues();
+
+        Array.from(select.options).forEach((option) => {
+          const label = (option.textContent || "").trim();
+          const item = document.createElement("button");
+          item.type = "button";
+          item.className = "participants-item";
+          item.textContent = label || option.value;
+
+          if (option.selected) {
+            item.classList.add("is-selected");
+            if (lockedValues.has(option.value)) {
+              item.classList.add("is-locked");
+              item.title = "Herdado do indicador selecionado";
+            } else {
+              item.addEventListener("click", () => {
+                option.selected = false;
+                option.dataset.manualSelected = "0";
+                select.dispatchEvent(new Event("change"));
+                select.dispatchEvent(new Event("participants-picker:changed"));
+                render(search.value);
+              });
+            }
+            selected.appendChild(item);
+            return;
+          }
+
+          if (filter && !label.toLowerCase().includes(filter)) {
+            return;
+          }
+
+          item.addEventListener("click", () => {
+            option.selected = true;
+            option.dataset.manualSelected = "1";
+            if (!lockedValues.has(option.value)) {
+              option.dataset.autoInherited = "0";
+            }
+            select.dispatchEvent(new Event("change"));
+            select.dispatchEvent(new Event("participants-picker:changed"));
+            render(search.value);
+          });
+          available.appendChild(item);
+        });
+      };
+
+      search.addEventListener("input", () => render(search.value));
+      select.addEventListener("participants-picker:refresh", () => render(search.value));
+      render("");
+    });
+
+    document.querySelectorAll("[data-formula-builder]").forEach((builder) => {
+      const fieldId = builder.getAttribute("data-formula-builder");
+      const input = document.getElementById(fieldId);
+      if (!input) return;
+      builder.querySelectorAll("[data-formula-token]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const token = btn.getAttribute("data-formula-token");
+          const start = input.selectionStart ?? input.value.length;
+          const end = input.selectionEnd ?? input.value.length;
+          const before = input.value.slice(0, start);
+          const after = input.value.slice(end);
+          input.value = `${before} ${token} ${after}`.replace(/\s+/g, " ").trim();
+          input.focus();
+        });
+      });
+    });
+
+    document.querySelectorAll(".form form").forEach((formEl) => {
+      const hiddenInput = formEl.querySelector('input[name="variaveis_config_map"]');
+      const formulaInput = formEl.querySelector('[name="formula_expressao"]');
+      const tipoIndicador = formEl.querySelector('select[name="tipo_indicador"]');
+      const editor = formEl.querySelector("[data-variaveis-config-editor]");
+      const lista = formEl.querySelector("[data-variaveis-config-lista]");
+      const groupOptionsNode = document.getElementById("variaveis-group-options-v2");
+
+      if (!hiddenInput || !formulaInput || !tipoIndicador || !editor || !lista || !groupOptionsNode) return;
+
+      const groupOptions = JSON.parse(groupOptionsNode.textContent || "[]");
+
+      const parseMap = () => {
+        try {
+          const raw = (hiddenInput.value || "").trim();
+          if (!raw) return {};
+          const parsed = JSON.parse(raw);
+          return parsed && typeof parsed === "object" ? parsed : {};
+        } catch (err) {
+          return {};
+        }
+      };
+
+      const extractVars = () => {
+        const formula = (formulaInput.value || "").trim();
+        if (!formula) return [];
+        return Array.from(new Set((formula.match(/[A-Za-z_][A-Za-z0-9_]*/g) || []))).sort();
+      };
+
+      const syncHidden = () => {
+        const data = {};
+        lista.querySelectorAll("[data-variavel-config-item]").forEach((item) => {
+          const nome = item.getAttribute("data-variavel-config-item");
+          const periodicidade = item.querySelector("[data-variavel-periodicidade]")?.value || "";
+          const diaReferencia = Number(item.querySelector("[data-variavel-dia-referencia]")?.value || "");
+          const grupos = Array.from(item.querySelectorAll("[data-variavel-group]:checked")).map((checkbox) => Number(checkbox.value));
+          data[nome] = {
+            periodicidade_monitoramento: periodicidade,
+            dia_referencia_monitoramento: Number.isInteger(diaReferencia) && diaReferencia > 0 ? diaReferencia : null,
+            grupos_monitoramento_ids: grupos,
+          };
+        });
+        hiddenInput.value = JSON.stringify(data);
+      };
+
+      const render = () => {
+        const isMath = ["MATEMATICO", "MATEMATICO_ACUMULATIVO"].includes(tipoIndicador.value);
+        editor.style.display = isMath ? "" : "none";
+        if (!isMath) {
+          hiddenInput.value = "{}";
+          lista.innerHTML = "";
+          return;
+        }
+
+        const existing = parseMap();
+        const vars = extractVars();
+        lista.innerHTML = "";
+
+        vars.forEach((nome) => {
+          const conf = existing[nome] || {};
+          const card = document.createElement("div");
+          card.className = "sala-form-field";
+          card.setAttribute("data-variavel-config-item", nome);
+
+          const periodicidade = conf.periodicidade_monitoramento || "";
+          const diaReferencia = Number(conf.dia_referencia_monitoramento || "");
+          const grupos = new Set((conf.grupos_monitoramento_ids || []).map((item) => Number(item)));
+
+          card.innerHTML = `
+            <label>Variavel ${nome}</label>
+            <div class="participants-column" style="margin-bottom:12px;">
+              <div class="participants-label">Periodicidade</div>
+              <select class="form-select" data-variavel-periodicidade>
+                <option value="">Selecione...</option>
+                <option value="MENSAL">Mensal</option>
+                <option value="TRIMESTRAL">Trimestral</option>
+                <option value="SEMESTRAL">Semestral</option>
+                <option value="ANUAL">Anual</option>
+              </select>
+            </div>
+            <div class="participants-column" style="margin-bottom:12px;">
+              <div class="participants-label">Dia de referencia do monitoramento</div>
+              <input
+                type="number"
+                class="form-control"
+                min="1"
+                max="31"
+                step="1"
+                placeholder="Ex.: 10"
+                data-variavel-dia-referencia
+              />
+            </div>
+            <div class="participants-column">
+              <div class="participants-label">Grupos de monitoramento</div>
+              <div data-variavel-groups></div>
+            </div>
+          `;
+
+          const select = card.querySelector("[data-variavel-periodicidade]");
+          select.value = periodicidade;
+          const diaInput = card.querySelector("[data-variavel-dia-referencia]");
+          if (Number.isInteger(diaReferencia) && diaReferencia > 0) {
+            diaInput.value = String(diaReferencia);
+          }
+          const groupsWrap = card.querySelector("[data-variavel-groups]");
+          groupOptions.forEach((group) => {
+            const row = document.createElement("label");
+            row.style.display = "block";
+            row.style.marginBottom = "6px";
+            row.innerHTML = `<input type="checkbox" data-variavel-group value="${group.id}"> ${group.nome}`;
+            const checkbox = row.querySelector("input");
+            checkbox.checked = grupos.has(Number(group.id));
+            groupsWrap.appendChild(row);
+          });
+
+          card.querySelectorAll("select, input").forEach((input) => {
+            input.addEventListener("change", syncHidden);
+          });
+          lista.appendChild(card);
+        });
+
+        syncHidden();
+      };
+
+      formulaInput.addEventListener("input", render);
+      tipoIndicador.addEventListener("change", render);
+      render();
+    });
+
+    document.querySelectorAll(".form form").forEach((formEl) => {
+      const tipoIndicador = formEl.querySelector('select[name="tipo_indicador"]');
+      if (!tipoIndicador) return;
+
+      const formulaRow = formEl.querySelector("[data-formula-field]");
+      const formulaInput = formulaRow ? formulaRow.querySelector("textarea, input") : null;
+      const formulaBuilder = formulaRow ? formulaRow.querySelector("[data-formula-builder]") : null;
+
+      const syncFormulaVisibility = () => {
+        const isMatematico = ["MATEMATICO", "MATEMATICO_ACUMULATIVO"].includes(tipoIndicador.value);
+        if (formulaRow) {
+          formulaRow.style.display = isMatematico ? "" : "none";
+        }
+        if (formulaInput) formulaInput.disabled = !isMatematico;
+        if (formulaBuilder) {
+          formulaBuilder.querySelectorAll("button").forEach((btn) => {
+            btn.disabled = !isMatematico;
+          });
+        }
+      };
+
+      tipoIndicador.addEventListener("change", syncFormulaVisibility);
+      syncFormulaVisibility();
+    });
+
+    document.querySelectorAll(".form form").forEach((formEl) => {
+      const sourceSelect = formEl.querySelector('select[name="indicadores"], select[name="processos"]');
+      const gruposSelect = formEl.querySelector('select[name="grupos_responsaveis"]');
+      const mapEl = document.getElementById("indicadores-grupos-map-v2") || document.getElementById("processos-grupos-map-v2");
+      const prazoMapEl =
+        document.getElementById("indicadores-prazo-map-v2") || document.getElementById("processos-prazo-map-v2");
+      if (!sourceSelect || !gruposSelect || !mapEl) return;
+
+      let indicadoresMap = {};
+      let prazosMap = {};
+      try {
+        indicadoresMap = JSON.parse(mapEl.textContent || "{}");
+      } catch (error) {
+        indicadoresMap = {};
+      }
+      try {
+        prazosMap = JSON.parse((prazoMapEl && prazoMapEl.textContent) || "{}");
+      } catch (error) {
+        prazosMap = {};
+      }
+
+      const syncGruposHerdados = () => {
+        const herdados = new Set();
+        Array.from(sourceSelect.selectedOptions).forEach((option) => {
+          const grupoIds = indicadoresMap[String(option.value)] || [];
+          grupoIds.forEach((id) => herdados.add(String(id)));
+        });
+        gruposSelect.dataset.lockedValues = Array.from(herdados).join(",");
+        Array.from(gruposSelect.options).forEach((option) => {
+          const optionValue = String(option.value);
+          const isHerdado = herdados.has(optionValue);
+          const manualSelected = option.dataset.manualSelected === "1";
+          if (isHerdado) {
+            option.selected = true;
+            option.dataset.autoInherited = "1";
+          } else {
+            option.dataset.autoInherited = "0";
+            option.selected = manualSelected;
+          }
+        });
+        gruposSelect.dispatchEvent(new Event("participants-picker:refresh"));
+      };
+
+      sourceSelect.addEventListener("change", syncGruposHerdados);
+      sourceSelect.addEventListener("participants-picker:changed", syncGruposHerdados);
+      syncGruposHerdados();
+
+      formEl._indicadoresPrazoMap = prazosMap;
+      formEl._parseDateAny = parseDateAny;
+      formEl._formatDateBR = formatDateBR;
+    });
+
+    (function () {
+      const fieldLabel = (formEl, fieldName) => {
+        const fieldRow = formEl.querySelector(`[data-field-name="${fieldName}"]`);
+        const labelEl = fieldRow ? fieldRow.querySelector("label") : null;
+        return (labelEl ? labelEl.textContent : fieldName || "Campo").trim().replace(/:$/, "");
+      };
+
+      const validateRequiredFields = (formEl) => {
+        const messages = [];
+        const fields = formEl.querySelectorAll("input, textarea, select");
+        const radioCheckedByName = new Map();
+
+        fields.forEach((field) => {
+          if (!field.name || field.disabled) return;
+          if (["csrfmiddlewaretoken"].includes(field.name)) return;
+          if (field.type === "hidden") return;
+
+          const required = field.required;
+          if (!required) return;
+
+          const label = fieldLabel(formEl, field.name);
+          if (field.type === "radio") {
+            if (!radioCheckedByName.has(field.name)) {
+              const group = formEl.querySelectorAll(`input[type="radio"][name="${field.name}"]`);
+              const ok = Array.from(group).some((item) => item.checked);
+              radioCheckedByName.set(field.name, ok);
+              if (!ok) messages.push(`${label}: informe uma opção.`);
+            }
+            return;
+          }
+
+          if (field.type === "checkbox") {
+            if (!field.checked) messages.push(`${label}: marque este campo.`);
+            return;
+          }
+
+          if (field.tagName === "SELECT" && field.multiple) {
+            if (!Array.from(field.selectedOptions).length) {
+              messages.push(`${label}: selecione ao menos uma opção.`);
+            }
+            return;
+          }
+
+          if (!(field.value || "").trim()) {
+            messages.push(`${label}: campo obrigatório.`);
+          }
+        });
+
+        return messages;
+      };
+
+      const validateIndicadorFormula = (formEl) => {
+        const tipoIndicador = formEl.querySelector('select[name="tipo_indicador"]');
+        const formula = formEl.querySelector('[name="formula_expressao"]');
+        if (!tipoIndicador || !formula) return [];
+        const isMatematico = ["MATEMATICO", "MATEMATICO_ACUMULATIVO"].includes(tipoIndicador.value);
+        if (isMatematico && !(formula.value || "").trim()) {
+          return ["Campo de fórmula: campo obrigatório para indicador matemático."];
+        }
+        return [];
+      };
+
+      const validatePrazoProcessoVsIndicador = (formEl) => {
+        const sourceSelect = formEl.querySelector('select[name="indicadores"], select[name="processos"]');
+        const dataInput = formEl.querySelector('input[name="data_entrega_estipulada"]');
+        const prazosMap = formEl._indicadoresPrazoMap || {};
+        const parse = formEl._parseDateAny || (() => null);
+        const format = formEl._formatDateBR || ((date) => date);
+        if (!sourceSelect || !dataInput || !dataInput.value) return [];
+        const dataProcesso = parse(dataInput.value);
+        if (!dataProcesso) return [];
+
+        let menorPrazoIndicador = null;
+        Array.from(sourceSelect.selectedOptions).forEach((option) => {
+          const prazo = prazosMap[String(option.value)] || "";
+          const prazoDate = parse(prazo);
+          if (!prazoDate) return;
+          if (!menorPrazoIndicador || prazoDate.getTime() < menorPrazoIndicador.getTime()) {
+            menorPrazoIndicador = prazoDate;
+          }
+        });
+        if (menorPrazoIndicador && dataProcesso.getTime() > menorPrazoIndicador.getTime()) {
+          const nivelNome = sourceSelect.name === "processos" ? "Processo" : "Indicador";
+          return [
+            `A data de entrega estipulada deve ser igual ou anterior ao prazo do nível superior (${nivelNome}: ${format(menorPrazoIndicador)}).`,
+          ];
+        }
+        return [];
+      };
+
+      document.querySelectorAll(".form form").forEach((formEl) => {
+        formEl.addEventListener("submit", (event) => {
+          const messages = [
+            ...validateRequiredFields(formEl),
+            ...validateIndicadorFormula(formEl),
+            ...validatePrazoProcessoVsIndicador(formEl),
+          ];
+          if (messages.length) {
+            event.preventDefault();
+            openValidationMsgBox(messages);
+          }
+        });
+      });
+    })();
+
+    (function () {
+      const modal = document.getElementById("sala-form-errors-modal");
+      const backdrop = document.getElementById("sala-form-errors-backdrop");
+      const closeBtn = document.getElementById("sala-form-errors-close");
+      if (!modal || !backdrop || !closeBtn) return;
+
+      const closeModal = () => {
+        modal.style.display = "none";
+        backdrop.style.display = "none";
+        backdrop.setAttribute("aria-hidden", "true");
+      };
+
+      closeBtn.addEventListener("click", closeModal);
+      backdrop.addEventListener("click", closeModal);
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          closeModal();
+        }
+      });
+    })();
+  </script>
+{% endblock %}

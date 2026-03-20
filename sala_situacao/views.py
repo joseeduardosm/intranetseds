@@ -31,7 +31,7 @@ from django.db.models import Count, Exists, F, OuterRef, Q, Value, IntegerField,
 from django.db.models.functions import Coalesce
 from django.core.exceptions import PermissionDenied
 from django.http import HttpResponseRedirect, Http404, JsonResponse, HttpResponseNotAllowed
-from django.urls import reverse, reverse_lazy
+from django.urls import NoReverseMatch, reverse, reverse_lazy
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, RedirectView, TemplateView, UpdateView
@@ -72,6 +72,27 @@ from .models import (
 
 
 _CICLO_NOME_RE = re.compile(r"\bCiclo\s+(\d+)\b", re.IGNORECASE)
+
+
+def _reverse_sala_route(request, route_name, **kwargs):
+    """Resolve nomes de rota do legado no prefixo antigo quando necessário."""
+
+    resolver_match = getattr(request, "resolver_match", None)
+    route_candidates = [route_name]
+
+    if route_name.startswith("sala_"):
+        url_name = getattr(resolver_match, "url_name", "") or ""
+        view_name = getattr(resolver_match, "view_name", "") or ""
+        if url_name.startswith("sala_old_") or view_name.startswith("sala_old_"):
+            route_candidates.insert(0, f"sala_old_{route_name[5:]}")
+
+    for candidate in route_candidates:
+        try:
+            return reverse(candidate, **kwargs)
+        except NoReverseMatch:
+            continue
+
+    return reverse(route_name, **kwargs)
 
 
 def _extrair_numero_ciclo_por_nome(nome):
@@ -420,23 +441,20 @@ def _processos_queryset_para_usuario(user):
     return queryset.filter(Q(id__in=processos_ids) | Q(entregas__id__in=entregas_ids)).distinct()
 
 
+def _filtrar_processos_visiveis_para_usuario(queryset, user):
+    """Restringe um queryset de processos aos itens visíveis para o usuário."""
+
+    processos_permitidos = _processos_queryset_para_usuario(user).values_list("id", flat=True)
+    return queryset.filter(id__in=processos_permitidos).distinct()
+
+
 def _indicadores_estrategicos_queryset_para_usuario(user):
     """Executa uma rotina de apoio ao domínio de Sala de Situação."""
 
     queryset = IndicadorEstrategico.objects.all()
     if not getattr(user, "is_authenticated", False):
         return queryset.none()
-    if _usuario_admin_sala(user):
-        return queryset
-    grupos_usuario_ids = list(visible_group_ids_for_user(user))
-    if not grupos_usuario_ids:
-        return queryset.none()
-    content_type_ie = ContentType.objects.get_for_model(IndicadorEstrategico)
-    indicadores_ids = MarcadorVinculoAutomaticoGrupoItem.objects.filter(
-        content_type=content_type_ie,
-        grupo_id__in=grupos_usuario_ids,
-    ).values_list("object_id", flat=True)
-    return queryset.filter(id__in=indicadores_ids).distinct()
+    return queryset.distinct()
 
 
 def _indicadores_taticos_queryset_para_usuario(user):
@@ -445,17 +463,7 @@ def _indicadores_taticos_queryset_para_usuario(user):
     queryset = IndicadorTatico.objects.all()
     if not getattr(user, "is_authenticated", False):
         return queryset.none()
-    if _usuario_admin_sala(user):
-        return queryset
-    grupos_usuario_ids = list(visible_group_ids_for_user(user))
-    if not grupos_usuario_ids:
-        return queryset.none()
-    content_type_it = ContentType.objects.get_for_model(IndicadorTatico)
-    indicadores_ids = MarcadorVinculoAutomaticoGrupoItem.objects.filter(
-        content_type=content_type_it,
-        grupo_id__in=grupos_usuario_ids,
-    ).values_list("object_id", flat=True)
-    return queryset.filter(id__in=indicadores_ids).distinct()
+    return queryset.distinct()
 
 
 def _setores_visiveis_para_usuario(user):
@@ -1392,11 +1400,14 @@ class ProcessosPorIndicadorTaticoView(PermissionRequiredMixin, DetailView):
         """
 
         context = super().get_context_data(**kwargs)
-        context["processos"] = self.object.processos.prefetch_related(
+        context["processos"] = _filtrar_processos_visiveis_para_usuario(
+            self.object.processos.prefetch_related(
             "indicadores_estrategicos",
             "marcadores_vinculos__marcador",
             "indicadores_estrategicos__marcadores_vinculos__marcador",
-        ).order_by("nome")
+            ).order_by("nome"),
+            self.request.user,
+        )
         context["indicador_estrategico_retorno"] = self.object
         return context
 
@@ -1551,6 +1562,20 @@ class BaseFormContextMixin:
         obj = getattr(self, "object", None)
         context["marcador_item_id"] = obj.pk if obj and getattr(obj, "pk", None) else ""
         context["variavel_sugestoes_url"] = reverse("sala_variavel_sugestoes_api")
+        form = context.get("form")
+        if model_name == "entrega" and form is not None:
+            ordered_field_names = [
+                "nome",
+                "descricao",
+                "processos",
+                "marcadores_ids",
+                "data_entrega_estipulada",
+                "evolucao_manual",
+                "valor_monitoramento",
+            ]
+            context["ordered_form_fields"] = [
+                form[name] for name in ordered_field_names if name in form.fields
+            ]
         context["monitoramento_grupos"] = [
             {"id": grupo.id, "nome": grupo.name}
             for grupo in Group.objects.order_by("name")
@@ -2142,7 +2167,10 @@ class IndicadorEstrategicoDetailView(
             entregas__variavel_monitoramento__content_type=content_type_ie,
             entregas__variavel_monitoramento__object_id=self.object.pk,
         ).distinct()
-        processos = (processos_via_it | processos_monitoramento).distinct().order_by("nome")
+        processos = _filtrar_processos_visiveis_para_usuario(
+            (processos_via_it | processos_monitoramento).distinct().order_by("nome"),
+            self.request.user,
+        )
 
         entregas_via_it = Entrega.objects.filter(processos__indicadores_estrategicos=self.object).distinct()
         entregas_monitoramento = Entrega.objects.filter(
@@ -2505,7 +2533,10 @@ class IndicadorTaticoDetailView(
         - Valor ou estrutura esperada pelo chamador, preservando o contrato da classe.
         """
 
-        processos = self.object.processos.all().order_by("nome")
+        processos = _filtrar_processos_visiveis_para_usuario(
+            self.object.processos.all().order_by("nome"),
+            self.request.user,
+        )
         entregas = (
             Entrega.objects.filter(processos__indicadores_taticos=self.object)
             .distinct()
@@ -3336,7 +3367,9 @@ class EntregaListView(PermissionRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context["setores_disponiveis"] = list(_setores_visiveis_para_usuario(self.request.user))
         context["setor_selecionado_id"] = (self.request.GET.get("setor") or "").strip()
-        context["entregas_calendario_api_url"] = reverse("sala_entrega_calendario_api")
+        context["entregas_calendario_api_url"] = _reverse_sala_route(
+            self.request, "sala_entrega_calendario_api"
+        )
         return context
 
 
@@ -3507,7 +3540,10 @@ class EntregaDetailView(
         return [
             {
                 "titulo": "Processos relacionados",
-                "itens": self.object.processos.all().order_by("nome"),
+                "itens": _filtrar_processos_visiveis_para_usuario(
+                    self.object.processos.all().order_by("nome"),
+                    self.request.user,
+                ),
                 "url_name": "sala_processo_detail",
                 "vazio": "Nenhum processo relacionado.",
             }
@@ -3528,6 +3564,10 @@ class EntregaDetailView(
 
         context = super().get_context_data(**kwargs)
         pode_monitorar = _user_can_monitorar_entrega(self.request.user, self.object)
+        context["processos_visiveis"] = _filtrar_processos_visiveis_para_usuario(
+            self.object.processos.all().order_by("nome"),
+            self.request.user,
+        )
         context["pode_monitorar"] = pode_monitorar
         context["can_edit"] = (
             self.request.user.has_perm("sala_situacao.change_entrega")

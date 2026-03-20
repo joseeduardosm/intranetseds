@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/sala_situacao/sala_situacao.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header"><h2>Processos</h2></section>
+  <div class="card-actions">
+    {% if perms.sala_situacao_v2.add_processo or perms.sala_situacao.add_processo %}
+      <a class="btn" href="{% url 'sala_processo_create' %}">Novo processo</a>
+    {% endif %}
+  </div>
+  {% include "sala_situacao/_card_search.html" with search_id="processos-v2-lista" target_selector=".card-grid" item_selector=".card" placeholder="Pesquisar processos..." aria_label="Pesquisar processos" %}
+  <div class="card-grid card-grid-fixed">
+    {% for processo in processos %}
+      <article class="card card-bloco" data-search-text="{{ processo.nome }} {{ processo.descricao }} {% for marcador in processo.marcadores_efetivos %}{{ marcador.nome }} {% endfor %}">
+        <a class="card-link" href="{% url 'sala_processo_detail' processo.pk %}">
+          <div class="card-body">
+            <h3 class="card-title">{{ processo.nome }}</h3>
+            {% if processo.marcadores_efetivos %}
+              <div class="sala-marcadores-wrap">
+                {% for marcador in processo.marcadores_efetivos %}
+                  <span class="sala-marcador-chip" style="--marcador-cor: {{ marcador.cor }};">{{ marcador.nome }}</span>
+                {% endfor %}
+              </div>
+            {% endif %}
+            {% include "sala_situacao/_progresso_duplo.html" with item=processo %}
+          </div>
+        </a>
+      </article>
+    {% empty %}
+      <p>Nenhum processo cadastrado.</p>
+    {% endfor %}
+  </div>
+{% endblock %}

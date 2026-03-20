@@ -1,0 +1,37 @@
+<section class="audit-history">
+  {% if ultima_alteracao_usuario %}
+    <p class="audit-history-meta">
+      Última atualização por: <strong>{{ ultima_alteracao_usuario.get_full_name|default:ultima_alteracao_usuario.username }}</strong>
+    </p>
+  {% endif %}
+  {% if historico_alteracoes_formatado %}
+    <ul class="audit-history-list">
+      {% for item in historico_alteracoes_formatado %}
+        <li class="audit-history-item">
+          <div class="audit-history-head">
+            <strong>{{ item.registro.timestamp|date:'d/m/Y H:i' }}</strong>
+            <span>
+              {% if item.registro.user %}
+                {{ item.registro.user.get_full_name|default:item.registro.user.username }}
+              {% else %}
+                Sistema
+              {% endif %}
+            </span>
+          </div>
+          <p class="audit-history-text">{{ item.registro.acao_resumo }}</p>
+          {% if item.detalhes %}
+            <ul class="audit-history-list">
+              {% for detalhe in item.detalhes %}
+                <li class="audit-history-item">
+                  <p class="audit-history-text">{{ detalhe }}</p>
+                </li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="audit-history-meta">Nenhuma alteração registrada até o momento.</p>
+  {% endif %}
+</section>

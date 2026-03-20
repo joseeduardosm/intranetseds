@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/sala_situacao/sala_situacao.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Indicadores</h2>
+  </section>
+  <div class="card-actions">
+    {% if perms.sala_situacao_v2.add_indicador or perms.sala_situacao.add_indicadorestrategico %}
+      <a class="btn" href="{% url 'sala_indicador_estrategico_create' %}">Novo indicador</a>
+    {% endif %}
+  </div>
+  {% include "sala_situacao/_card_search.html" with search_id="sala-v2-home" target_selector=".card-grid" item_selector=".card" placeholder="Pesquisar indicadores..." aria_label="Pesquisar indicadores" %}
+  <div class="card-grid card-grid-fixed sala-home-card-grid">
+    {% for indicador in indicadores %}
+      <article class="card card-bloco" data-search-text="{{ indicador.nome }} {{ indicador.descricao }} {% for marcador in indicador.marcadores_efetivos %}{{ marcador.nome }} {% endfor %}">
+        <a class="card-link" href="{% url 'sala_indicador_estrategico_detail' indicador.pk %}">
+          <div class="card-body">
+            <h3 class="card-title">{{ indicador.nome }}</h3>
+            {% if indicador.marcadores_efetivos %}
+              <div class="sala-marcadores-wrap">
+                {% for marcador in indicador.marcadores_efetivos %}
+                  <span class="sala-marcador-chip" style="--marcador-cor: {{ marcador.cor }};">{{ marcador.nome }}</span>
+                {% endfor %}
+              </div>
+            {% endif %}
+            {% include "sala_situacao/_progresso_duplo.html" with item=indicador %}
+          </div>
+        </a>
+      </article>
+    {% empty %}
+      <p>Nenhum indicador cadastrado.</p>
+    {% endfor %}
+  </div>
+{% endblock %}

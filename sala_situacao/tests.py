@@ -17,7 +17,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from . import views as sala_views
-from .forms import MonitoramentoEntregaForm
+from .forms import EntregaForm, MonitoramentoEntregaForm
 from .models import (
     Entrega,
     IndicadorVariavelCicloMonitoramento,
@@ -103,6 +103,7 @@ class SalaSituacaoAccessTests(TestCase):
         self.client.login(username=self.user_sem_permissao.username, password=self.password)
         response = self.client.get(reverse("sala_situacao_home"))
         self.assertEqual(response.status_code, 403)
+
 
     def test_usuario_de_grupo_monitoramento_acessa_modulo_sem_permissao_global(self):
         """Implementa parte do fluxo de negócio deste componente.
@@ -437,6 +438,23 @@ class SalaSituacaoAccessTests(TestCase):
 
         response = self.client.get(reverse("sala_painel_consolidado"))
         self.assertRedirects(response, reverse("sala_situacao_home"))
+
+
+class EntregaFormTests(TestCase):
+    def test_ordem_campos_da_entrega_prioriza_nome_descricao_processo_marcadores(self):
+        form = EntregaForm()
+
+        self.assertEqual(
+            list(form.fields.keys())[:6],
+            [
+                "nome",
+                "descricao",
+                "processos",
+                "marcadores_ids",
+                "data_entrega_estipulada",
+                "evolucao_manual",
+            ],
+        )
 
 
 class SalaSituacaoCadeiaTests(TestCase):
@@ -1550,10 +1568,46 @@ class SalaSituacaoHierarquiaAcessoTests(TestCase):
         self.assertIn(self.entrega_x.nome, nomes)
         self.assertNotIn(self.entrega_y.nome, nomes)
 
+    def test_lista_entregas_legada_expoe_api_de_calendario_legada(self):
+        self.client.login(username=self.creator.username, password=self.password)
+
+        response = self.client.get(reverse("sala_old_entrega_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.context["entregas_calendario_api_url"],
+            reverse("sala_old_entrega_calendario_api"),
+        )
+
+    def test_fluxo_processos_do_indicador_filtra_processos_nao_visiveis(self):
+        processo_y = Processo.objects.filter(
+            nome__contains='Monitoramento de "Y" do indicador'
+        ).first()
+        self.assertIsNotNone(processo_y)
+        self._grant(self.monitor_user, ["view_processo"])
+
+        self.client.login(username=self.monitor_user.username, password=self.password)
+        response = self.client.get(reverse("sala_fluxo_processos", kwargs={"pk": self.indicador.pk}))
+
+        self.assertEqual(response.status_code, 200)
+        processos_ids = list(response.context["processos"].values_list("id", flat=True))
+        self.assertIn(self.processo_x.id, processos_ids)
+        self.assertNotIn(processo_y.id, processos_ids)
+
     def test_usuario_com_permissao_global_sem_participacao_nao_visualiza_itens(self):
         self._grant(self.other_user, ["view_processo", "view_entrega"])
 
         self.client.login(username=self.other_user.username, password=self.password)
+        indicadores_ids = list(
+            sala_views._indicadores_estrategicos_queryset_para_usuario(self.other_user).values_list("id", flat=True)
+        )
+        self.assertIn(self.indicador.id, indicadores_ids)
+
+        response_indicador_detail = self.client.get(
+            reverse("sala_indicador_estrategico_detail", kwargs={"pk": self.indicador.pk})
+        )
+        self.assertEqual(response_indicador_detail.status_code, 200)
+
         response_processos = self.client.get(reverse("sala_processo_list"))
         self.assertEqual(response_processos.status_code, 200)
         processos_ids = list(response_processos.context["processos"].values_list("id", flat=True))
