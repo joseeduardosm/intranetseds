@@ -35,7 +35,9 @@
           <article class="card card-bloco">
             <a class="card-link" href="{% url 'sala_entrega_detail' entrega.pk %}">
               <div class="card-body">
-                <h3 class="card-title">{{ entrega.nome }}</h3>
+                <h3 class="card-title">
+                  {% if entrega.rotulo_numero_processo_atual %}{{ entrega.rotulo_numero_processo_atual }} - {% endif %}{{ entrega.nome }}
+                </h3>
                 {% if entrega.marcadores_efetivos %}
                   <div class="sala-marcadores-wrap">
                     {% for marcador in entrega.marcadores_efetivos %}

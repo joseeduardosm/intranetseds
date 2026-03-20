@@ -1,0 +1,82 @@
+<script>
+  (function () {
+    if (window.__salaSetorFilterLoaded) return;
+    window.__salaSetorFilterLoaded = true;
+
+    const normalize = (value) =>
+      (value || "")
+        .toString()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .trim();
+
+    const visibleOptions = (select) =>
+      Array.from(select.options).filter((option) => !option.hidden);
+
+    const applyFilter = (input, select) => {
+      const term = normalize(input.value);
+      const options = Array.from(select.options);
+
+      options.forEach((option, index) => {
+        if (index === 0) {
+          option.hidden = Boolean(term);
+          return;
+        }
+        option.hidden = term && !normalize(option.textContent).includes(term);
+      });
+
+      if (!term) {
+        select.size = 1;
+        return;
+      }
+
+      const count = Math.max(1, visibleOptions(select).length);
+      select.size = Math.min(Math.max(count, 2), 8);
+    };
+
+    const initSetorFilter = (root) => {
+      const input = root.querySelector("[data-setor-filter-input]");
+      const select = root.querySelector("[data-setor-filter-select]");
+      if (!input || !select) return;
+
+      input.addEventListener("input", () => applyFilter(input, select));
+
+      input.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        const firstVisible = visibleOptions(select).find((option) => option.value) || visibleOptions(select)[0];
+        if (!firstVisible) return;
+        select.value = firstVisible.value;
+        select.form.submit();
+      });
+
+      input.addEventListener("blur", () => {
+        window.setTimeout(() => {
+          select.size = 1;
+        }, 120);
+      });
+
+      select.addEventListener("change", () => {
+        const selectedOption = select.options[select.selectedIndex];
+        input.value = selectedOption && selectedOption.value ? selectedOption.textContent.trim() : "";
+        if (select.form) select.form.submit();
+      });
+
+      const selectedOption = select.options[select.selectedIndex];
+      if (selectedOption && selectedOption.value) {
+        input.value = selectedOption.textContent.trim();
+      }
+    };
+
+    const boot = () => {
+      document.querySelectorAll("[data-setor-filter-form]").forEach(initSetorFilter);
+    };
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", boot);
+    } else {
+      boot();
+    }
+  })();
+</script>

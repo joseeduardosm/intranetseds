@@ -14,16 +14,26 @@
     {% if perms.sala_situacao.add_entrega %}
       <a class="btn" href="{% url 'sala_entrega_create' %}">Nova entrega</a>
     {% endif %}
-    <form method="get" class="sala-setor-filter-form">
-      <label for="entrega-setor-filter" class="sala-setor-filter-label">Setor</label>
-      <select id="entrega-setor-filter" name="setor" class="sala-setor-filter-select" onchange="this.form.submit()">
-        <option value="">Todos os setores</option>
-        {% for setor in setores_disponiveis %}
-          <option value="{{ setor.id }}" {% if setor_selecionado_id == setor.id|stringformat:'s' %}selected{% endif %}>
-            {{ setor.get_path_labels|join:" / " }}
-          </option>
-        {% endfor %}
-      </select>
+    <form method="get" class="sala-setor-filter-form" data-setor-filter-form>
+      <label for="entrega-setor-search" class="sala-setor-filter-label">Setor</label>
+      <div class="sala-setor-filter-combobox">
+        <input
+          id="entrega-setor-search"
+          type="search"
+          class="sala-setor-filter-input"
+          data-setor-filter-input
+          placeholder="Digite para filtrar setores..."
+          autocomplete="off"
+        />
+        <select id="entrega-setor-filter" name="setor" class="sala-setor-filter-select" data-setor-filter-select>
+          <option value="">Todos os setores</option>
+          {% for setor in setores_disponiveis %}
+            <option value="{{ setor.id }}" {% if setor_selecionado_id == setor.id|stringformat:'s' %}selected{% endif %}>
+              {{ setor.get_path_labels|join:" / " }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
     </form>
   </div>
 
@@ -280,5 +290,6 @@
       renderMonth();
     })();
   </script>
+  {% include "sala_situacao/_setor_filter_search.html" %}
   </div>
 {% endblock %}

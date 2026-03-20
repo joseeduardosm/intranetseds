@@ -1,14 +1,24 @@
 import json
 import re
+from functools import lru_cache
 
 from django import forms
 from django.contrib.auth.models import Group
-from django.db import transaction
+from django.db import connection, transaction
 from django.utils import timezone
 
 from .models import Entrega, Indicador, IndicadorCicloValor, Processo
 
 _FORMULA_TOKEN_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+
+
+@lru_cache(maxsize=1)
+def _db_tem_dia_referencia_monitoramento():
+    table_name = "sala_situacao_v2_indicadorvariavel"
+    column_name = "dia_referencia_monitoramento"
+    with connection.cursor() as cursor:
+        descricao = connection.introspection.get_table_description(cursor, table_name)
+    return any((col.name if hasattr(col, "name") else col[0]) == column_name for col in descricao)
 
 
 def _validar_data_alvo_com_superiores(form, superiores, descricao_superior):
@@ -46,6 +56,27 @@ class BaseV2Form(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         writable_group_ids = kwargs.pop("writable_group_ids", None)
         super().__init__(*args, **kwargs)
+        instance = getattr(self, "instance", None)
+        if "data_entrega_estipulada" in self.fields:
+            existing_attrs = dict(getattr(self.fields["data_entrega_estipulada"].widget, "attrs", {}))
+            existing_attrs.update(
+                {
+                    "type": "date",
+                    "class": "form-control",
+                    "autocomplete": "off",
+                }
+            )
+            self.fields["data_entrega_estipulada"].widget = forms.DateInput(
+                format="%Y-%m-%d",
+                attrs=existing_attrs,
+            )
+        if (
+            instance
+            and getattr(instance, "pk", None)
+            and getattr(instance, "tem_filhos_relacionados", False)
+            and "evolucao_manual" in self.fields
+        ):
+            self.fields.pop("evolucao_manual")
         if "nome" in self.fields:
             self.fields["nome"].required = True
         if "descricao" in self.fields:
@@ -114,11 +145,22 @@ class IndicadorForm(BaseV2Form):
 
     def clean(self):
         cleaned_data = super().clean()
-        if cleaned_data.get("tipo_indicador") not in {
+        tipo_indicador = cleaned_data.get("tipo_indicador")
+        if tipo_indicador not in {
             Indicador.TipoIndicador.MATEMATICO,
             Indicador.TipoIndicador.MATEMATICO_ACUMULATIVO,
         }:
             cleaned_data["variaveis_config_map"] = "{}"
+            return cleaned_data
+
+        if not _db_tem_dia_referencia_monitoramento():
+            self.add_error(
+                "variaveis_config_map",
+                (
+                    "O monitoramento por variaveis ainda nao esta disponivel neste ambiente. "
+                    "Aplique a migration pendente de sala_situacao_v2 e tente novamente."
+                ),
+            )
             return cleaned_data
 
         formula = cleaned_data.get("formula_expressao")
@@ -181,7 +223,7 @@ class IndicadorForm(BaseV2Form):
     def save(self, commit=True):
         with transaction.atomic():
             indicador = super().save(commit=commit)
-            if commit and indicador.eh_indicador_matematico:
+            if commit and indicador.eh_indicador_matematico and _db_tem_dia_referencia_monitoramento():
                 indicador.sincronizar_variaveis_da_formula()
                 mapa = json.loads(self.cleaned_data.get("variaveis_config_map") or "{}")
                 self._aplicar_config_variaveis(indicador, mapa)
@@ -287,7 +329,8 @@ class EntregaMonitoramentoForm(forms.ModelForm):
         valor = self.cleaned_data.get("valor_monitoramento")
         if valor is not None:
             entrega.valor_monitoramento = valor
-            entrega.evolucao_manual = 100
+        # Toda entrega de monitoramento passa a constar como concluida apos o registro.
+        entrega.evolucao_manual = 100
         entrega.monitorado_em = timezone.now()
         if commit:
             entrega.save(

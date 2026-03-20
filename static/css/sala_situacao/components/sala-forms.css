@@ -208,8 +208,61 @@
   font-weight: 600;
 }
 
+.sala-date-picker-inline {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.sala-date-picker-inline input[type="date"] {
+  flex: 1;
+}
+
+.sala-date-calendar-modal {
+  width: min(1100px, 94vw);
+  max-width: 1100px;
+}
+
+.sala-form-calendar-shell {
+  --calendar-shell-height: min(70vh, 760px);
+  padding-bottom: 18px;
+}
+
+.sala-date-calendar-hint {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.sala-date-calendar-actions {
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.sala-date-calendar-cell {
+  appearance: none;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.sala-date-calendar-cell:hover {
+  border-color: rgba(217, 79, 4, 0.5);
+  box-shadow: 0 8px 18px rgba(31, 42, 68, 0.08);
+  transform: translateY(-1px);
+}
+
+.sala-date-calendar-cell.is-selected-date {
+  border-color: rgba(217, 79, 4, 0.7);
+  box-shadow: 0 0 0 2px rgba(217, 79, 4, 0.18);
+}
+
 @media (max-width: 900px) {
   .sala-indicador-form .sala-form-fields {
     grid-template-columns: 1fr;
+  }
+
+  .sala-date-picker-inline {
+    flex-direction: column;
+    align-items: stretch;
   }
 }

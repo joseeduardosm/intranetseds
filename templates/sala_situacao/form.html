@@ -26,7 +26,7 @@
       {% csrf_token %}
       {{ form.non_field_errors }}
       <div class="sala-form-fields">
-      {% for field in form %}
+      {% for field in ordered_form_fields|default:form %}
         <div
           class="sala-form-field{% if field.field.widget.allow_multiple_selected or field.name == 'descricao' or field.name == 'formula_expressao' or field.name == 'variaveis_reuso_map' or field.name == 'marcadores_ids' %} sala-form-field--wide{% endif %}"
           data-field-name="{{ field.name }}"

@@ -9,7 +9,9 @@ from django.contrib.auth.models import Group
 from django.test import TestCase
 
 from usuarios.models import SetorNode, UserSetorMembership
+from usuarios.permissions import ADMIN_GROUP_NAME
 
+from .forms import PessoaRamalForm
 from .models import PessoaRamal
 
 
@@ -51,3 +53,17 @@ class PessoaRamalSetorAcessoSyncTests(TestCase):
 
         self.assertTrue(UserSetorMembership.objects.filter(user=self.user, setor=outro_setor).exists())
         self.assertFalse(UserSetorMembership.objects.filter(user=self.user, setor=self.setor_node).exists())
+
+
+class PessoaRamalFormTests(TestCase):
+    def test_campo_setor_nao_lista_grupo_admin(self):
+        admin_group, _created = Group.objects.get_or_create(name=ADMIN_GROUP_NAME)
+        financeiro_group, _created = Group.objects.get_or_create(name="Financeiro")
+        SetorNode.objects.get_or_create(group=admin_group)
+        SetorNode.objects.get_or_create(group=financeiro_group)
+
+        form = PessoaRamalForm()
+
+        choices = [value for value, _label in form.fields["setor"].choices]
+        self.assertIn("Financeiro", choices)
+        self.assertNotIn(ADMIN_GROUP_NAME, choices)

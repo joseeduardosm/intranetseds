@@ -9,6 +9,7 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.db.models import F
 from django.db.models.signals import m2m_changed
 from django.dispatch import receiver
 from django.core.exceptions import ValidationError
@@ -263,13 +264,37 @@ class BaseTimelineModel(models.Model):
     def dias_para_vencer(self):
         if not self.data_entrega_estipulada:
             return None
-        return (self.data_entrega_estipulada - timezone.localdate()).days
+        data_referencia = self._data_referencia_prazo
+        return (self.data_entrega_estipulada - data_referencia).days
+
+    @property
+    def esta_concluido(self):
+        return self.progresso_percentual >= 100
+
+    @property
+    def _instante_conclusao_prazo(self):
+        if not self.esta_concluido:
+            return None
+        return self.atualizado_em or self.data_lancamento_em or timezone.now()
+
+    @property
+    def _data_referencia_prazo(self):
+        instante_conclusao = self._instante_conclusao_prazo
+        if instante_conclusao is not None:
+            return timezone.localtime(instante_conclusao).date()
+        return timezone.localdate()
 
     @property
     def texto_prazo(self):
         dias = self.dias_para_vencer
         if dias is None:
-            return "Prazo nao definido"
+            return "Concluido" if self.esta_concluido else "Prazo nao definido"
+        if self.esta_concluido:
+            if dias > 0:
+                return f"Concluido com {dias} dias de antecedencia"
+            if dias == 0:
+                return "Concluido no prazo"
+            return f"Concluido com {abs(dias)} dias de atraso"
         if dias > 0:
             return f"{dias} dias para vencer"
         if dias == 0:
@@ -280,7 +305,7 @@ class BaseTimelineModel(models.Model):
     def progresso_prazo(self):
         if not self.data_entrega_estipulada:
             return 0.0
-        agora = timezone.now()
+        agora = self._instante_conclusao_prazo or timezone.now()
         inicio = self.data_lancamento_em
         if not inicio:
             data_base = self.data_lancamento or timezone.localdate()
@@ -392,6 +417,24 @@ class Indicador(BaseTimelineModel):
         return list(self.processos.all())
 
     @property
+    def atingimento_meta_percentual(self):
+        if not self.meta_valor:
+            return 0
+        if self.valor_atual is None:
+            return 0
+        percentual = (Decimal(self.valor_atual) / Decimal(self.meta_valor)) * 100
+        return float(max(Decimal("0"), min(percentual, Decimal("100"))))
+
+    @property
+    def desempenho_meta_classe(self):
+        percentual = self.atingimento_meta_percentual
+        if percentual < 50:
+            return "progresso-vermelho"
+        if percentual < 75:
+            return "progresso-amarelo"
+        return "progresso-verde"
+
+    @property
     def eh_indicador_matematico(self):
         return self.tipo_indicador in {
             self.TipoIndicador.MATEMATICO,
@@ -401,6 +444,38 @@ class Indicador(BaseTimelineModel):
     @property
     def eh_indicador_matematico_acumulativo(self):
         return self.tipo_indicador == self.TipoIndicador.MATEMATICO_ACUMULATIVO
+
+    @property
+    def progresso_percentual(self):
+        if self.eh_indicador_matematico:
+            return self.atingimento_meta_percentual
+        return super().progresso_percentual
+
+    @property
+    def progresso_snapshot(self):
+        snapshot = super().progresso_snapshot
+        if not self.eh_indicador_matematico:
+            return snapshot
+        conclusao_percentual = float(self.atingimento_meta_percentual or 0)
+        prazo_percentual = float(self.progresso_prazo or 0)
+        delta = round(conclusao_percentual - prazo_percentual, 2)
+        sinal = "+" if delta > 0 else ""
+        if delta > 0:
+            delta_classe = "delta-positivo"
+        elif delta < 0:
+            delta_classe = "delta-negativo"
+        else:
+            delta_classe = "delta-neutro"
+        snapshot.update(
+            {
+                "titulo_conclusao": "Atingimento da Meta",
+                "conclusao_percentual": conclusao_percentual,
+                "conclusao_classe": self.desempenho_meta_classe,
+                "delta_classe": delta_classe,
+                "delta_texto": f"{sinal}{delta:.2f} p.p.",
+            }
+        )
+        return snapshot
 
     def nomes_variaveis_formula(self):
         if not self.formula_expressao:
@@ -676,6 +751,65 @@ class Entrega(BaseTimelineModel):
     @property
     def eh_entrega_monitoramento(self):
         return bool(self.variavel_monitoramento_id and self.ciclo_monitoramento_id)
+
+    @property
+    def eh_entrega_manual(self):
+        return not self.eh_entrega_monitoramento
+
+    def _entregas_manuais_ordenadas_no_processo(self, processo):
+        if not processo or not getattr(processo, "pk", None):
+            return Entrega.objects.none()
+        return processo.entregas.filter(
+            variavel_monitoramento__isnull=True,
+            ciclo_monitoramento__isnull=True,
+        ).order_by(
+            F("data_entrega_estipulada").asc(nulls_last=True),
+            "nome",
+            "id",
+        )
+
+    def numero_no_processo(self, processo):
+        if not self.pk or not self.eh_entrega_manual:
+            return None
+        ids_ordenados = list(self._entregas_manuais_ordenadas_no_processo(processo).values_list("id", flat=True))
+        if self.pk not in ids_ordenados:
+            return None
+        return ids_ordenados.index(self.pk) + 1
+
+    def total_no_processo(self, processo):
+        return self._entregas_manuais_ordenadas_no_processo(processo).count()
+
+    def rotulo_numeracao_no_processo(self, processo):
+        numero = self.numero_no_processo(processo)
+        if numero is None:
+            return ""
+        total = self.total_no_processo(processo)
+        return f"{numero}/{total}"
+
+    @property
+    def numeracao_processos(self):
+        if not self.pk or not self.eh_entrega_manual:
+            return []
+        dados = []
+        for processo in self.processos.order_by("nome"):
+            rotulo = self.rotulo_numeracao_no_processo(processo)
+            if not rotulo:
+                continue
+            dados.append(
+                {
+                    "processo": processo,
+                    "rotulo": rotulo,
+                    "numero": self.numero_no_processo(processo),
+                    "total": self.total_no_processo(processo),
+                }
+            )
+        return dados
+
+    @property
+    def _instante_conclusao_prazo(self):
+        if not self.esta_concluido:
+            return None
+        return self.monitorado_em or super()._instante_conclusao_prazo
 
     def __str__(self):
         return self.nome

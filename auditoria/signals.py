@@ -9,14 +9,17 @@ Integra-se com:
 - ContentType para referenciar qualquer entidade do sistema.
 """
 
-from django.apps import apps
+from datetime import date, datetime
 from decimal import Decimal
+
+from django.apps import apps
 from django.contrib.contenttypes.models import ContentType
 from django.db import connection
 from django.db.utils import OperationalError, ProgrammingError, IntegrityError
 from django.db.models.signals import m2m_changed, post_delete, post_save, pre_save
 from django.db.models.fields.files import FieldFile
 from django.dispatch import receiver
+from django.utils import timezone
 
 from .models import AuditLog
 from .threadlocal import get_current_user
@@ -109,7 +112,11 @@ def _serialize_value(value):
         return float(value)
     if isinstance(value, FieldFile):
         return value.name or None
-    if hasattr(value, "isoformat"):
+    if isinstance(value, datetime):
+        if timezone.is_aware(value):
+            return timezone.localtime(value).isoformat()
+        return value.isoformat()
+    if isinstance(value, date):
         return value.isoformat()
     if hasattr(value, "pk"):
         return value.pk
@@ -274,9 +281,29 @@ def audit_m2m(sender, instance, action, reverse, model, pk_set, **kwargs):
         "post_clear": AuditLog.Action.M2M_CLEAR,
     }
     field = kwargs.get("field")
-    field_name = field.name if field else "m2m"
+    field_name = field.name if field else None
+    if not field_name:
+        # Fallback robusto: identifica o campo M2M pelo model "through".
+        for m2m_field in instance._meta.many_to_many:
+            if m2m_field.remote_field.through is sender:
+                field_name = m2m_field.name
+                break
+    field_name = field_name or "m2m"
+
+    related_items = []
+    if pk_set:
+        try:
+            for obj in model.objects.filter(pk__in=pk_set):
+                related_items.append({"id": obj.pk, "repr": str(obj)})
+        except Exception:
+            related_items = [{"id": pk, "repr": None} for pk in pk_set]
     # `changes` armazena contexto mínimo para explicar qual relação foi afetada.
-    changes = {"field": field_name, "related_pks": list(pk_set)}
+    changes = {
+        "field": field_name,
+        "related_pks": list(pk_set),
+        "related_model": model._meta.label_lower if hasattr(model, "_meta") else "",
+        "related_items": related_items,
+    }
     AuditLog.objects.create(
         user=user if getattr(user, "is_authenticated", False) else None,
         action=action_map[action],

@@ -52,7 +52,21 @@
               </div>
             {% else %}
               <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-              {{ field }}
+              {% if field.name == "data_entrega_estipulada" %}
+                <div class="sala-date-picker-inline">
+                  {{ field }}
+                  <button
+                    type="button"
+                    class="btn btn-light"
+                    data-open-date-calendar="{{ field.id_for_label }}"
+                  >
+                    Calendário
+                  </button>
+                </div>
+                <small>Clique em "Calendário" para escolher visualmente a data e ver as entregas já previstas no mês.</small>
+              {% else %}
+                {{ field }}
+              {% endif %}
               {% if field.name == "formula_expressao" %}
                 <div class="formula-builder" data-formula-builder="{{ field.id_for_label }}">
                   <button type="button" class="btn btn-light btn-small" data-formula-token="+">+</button>
@@ -122,6 +136,45 @@
   {% endif %}
   {% if variaveis_group_options %}
     {{ variaveis_group_options|json_script:"variaveis-group-options-v2" }}
+  {% endif %}
+  {% if entregas_calendario_api_url %}
+    <div class="profile-alert-backdrop" id="sala-date-calendar-backdrop" aria-hidden="true" style="display:none;"></div>
+    <div
+      class="profile-alert-modal sala-date-calendar-modal"
+      id="sala-date-calendar-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Selecionar data pelo calendário"
+      style="display:none;"
+    >
+      <div class="calendar-shell sala-form-calendar-shell" data-calendar-url="{{ entregas_calendario_api_url }}">
+        <div class="calendar-toolbar">
+          <div class="calendar-controls">
+            <strong>Selecionar data</strong>
+            <span class="sala-date-calendar-hint">Clique em um dia para preencher o campo.</span>
+          </div>
+          <div class="calendar-nav">
+            <button class="btn btn-light btn-small" type="button" data-date-calendar-action="today">Hoje</button>
+            <button class="btn btn-light btn-icon" type="button" data-date-calendar-action="prev" aria-label="Voltar">&#8249;</button>
+            <div class="calendar-title" id="sala-date-calendar-title"></div>
+            <button class="btn btn-light btn-icon" type="button" data-date-calendar-action="next" aria-label="Avançar">&#8250;</button>
+          </div>
+        </div>
+        <div class="calendar-weekdays">
+          <span>Dom</span>
+          <span>Seg</span>
+          <span>Ter</span>
+          <span>Qua</span>
+          <span>Qui</span>
+          <span>Sex</span>
+          <span>Sab</span>
+        </div>
+        <div class="calendar-body calendar-grid" id="sala-date-calendar-body"></div>
+        <div class="profile-alert-actions sala-date-calendar-actions">
+          <button class="btn btn-light" type="button" id="sala-date-calendar-close">Fechar</button>
+        </div>
+      </div>
+    </div>
   {% endif %}
 
   <script>
@@ -289,13 +342,66 @@
         return Array.from(new Set((formula.match(/[A-Za-z_][A-Za-z0-9_]*/g) || []))).sort();
       };
 
+      const initVariableGroupsPicker = (card) => {
+        const search = card.querySelector("[data-variavel-group-search]");
+        const select = card.querySelector("[data-variavel-groups-select]");
+        const available = card.querySelector("[data-variavel-groups-available]");
+        const selected = card.querySelector("[data-variavel-groups-selected]");
+        if (!search || !select || !available || !selected) return;
+
+        select.classList.add("participants-select-hidden");
+
+        const renderPicker = (filterText = "") => {
+          available.innerHTML = "";
+          selected.innerHTML = "";
+          const filter = filterText.trim().toLowerCase();
+
+          Array.from(select.options).forEach((option) => {
+            const label = (option.textContent || "").trim();
+            const item = document.createElement("button");
+            item.type = "button";
+            item.className = "participants-item";
+            item.textContent = label || option.value;
+
+            if (option.selected) {
+              item.classList.add("is-selected");
+              item.addEventListener("click", () => {
+                option.selected = false;
+                select.dispatchEvent(new Event("change"));
+                renderPicker(search.value);
+              });
+              selected.appendChild(item);
+              return;
+            }
+
+            if (filter && !label.toLowerCase().includes(filter)) {
+              return;
+            }
+
+            item.addEventListener("click", () => {
+              option.selected = true;
+              select.dispatchEvent(new Event("change"));
+              renderPicker(search.value);
+            });
+            available.appendChild(item);
+          });
+        };
+
+        search.addEventListener("input", () => renderPicker(search.value));
+        select.addEventListener("participants-picker:refresh", () => renderPicker(search.value));
+        renderPicker("");
+      };
+
       const syncHidden = () => {
         const data = {};
         lista.querySelectorAll("[data-variavel-config-item]").forEach((item) => {
           const nome = item.getAttribute("data-variavel-config-item");
           const periodicidade = item.querySelector("[data-variavel-periodicidade]")?.value || "";
           const diaReferencia = Number(item.querySelector("[data-variavel-dia-referencia]")?.value || "");
-          const grupos = Array.from(item.querySelectorAll("[data-variavel-group]:checked")).map((checkbox) => Number(checkbox.value));
+          const gruposSelect = item.querySelector("[data-variavel-groups-select]");
+          const grupos = gruposSelect
+            ? Array.from(gruposSelect.selectedOptions).map((option) => Number(option.value))
+            : [];
           data[nome] = {
             periodicidade_monitoramento: periodicidade,
             dia_referencia_monitoramento: Number.isInteger(diaReferencia) && diaReferencia > 0 ? diaReferencia : null,
@@ -354,7 +460,23 @@
             </div>
             <div class="participants-column">
               <div class="participants-label">Grupos de monitoramento</div>
-              <div data-variavel-groups></div>
+              <input
+                type="text"
+                class="form-control"
+                placeholder="Buscar setor..."
+                data-variavel-group-search
+              />
+              <select multiple class="form-select" data-variavel-groups-select></select>
+              <div class="participants-picker">
+                <div class="participants-column">
+                  <div class="participants-label">Disponiveis</div>
+                  <div class="participants-list" data-variavel-groups-available></div>
+                </div>
+                <div class="participants-column">
+                  <div class="participants-label">Incluidos</div>
+                  <div class="participants-list is-selected" data-variavel-groups-selected></div>
+                </div>
+              </div>
             </div>
           `;
 
@@ -364,17 +486,16 @@
           if (Number.isInteger(diaReferencia) && diaReferencia > 0) {
             diaInput.value = String(diaReferencia);
           }
-          const groupsWrap = card.querySelector("[data-variavel-groups]");
+          const groupsSelect = card.querySelector("[data-variavel-groups-select]");
           groupOptions.forEach((group) => {
-            const row = document.createElement("label");
-            row.style.display = "block";
-            row.style.marginBottom = "6px";
-            row.innerHTML = `<input type="checkbox" data-variavel-group value="${group.id}"> ${group.nome}`;
-            const checkbox = row.querySelector("input");
-            checkbox.checked = grupos.has(Number(group.id));
-            groupsWrap.appendChild(row);
+            const option = document.createElement("option");
+            option.value = String(group.id);
+            option.textContent = group.nome;
+            option.selected = grupos.has(Number(group.id));
+            groupsSelect.appendChild(option);
           });
 
+          initVariableGroupsPicker(card);
           card.querySelectorAll("select, input").forEach((input) => {
             input.addEventListener("change", syncHidden);
           });
@@ -587,6 +708,223 @@
       backdrop.addEventListener("click", closeModal);
       document.addEventListener("keydown", (event) => {
         if (event.key === "Escape") {
+          closeModal();
+        }
+      });
+    })();
+
+    (function () {
+      const modal = document.getElementById("sala-date-calendar-modal");
+      const backdrop = document.getElementById("sala-date-calendar-backdrop");
+      const closeBtn = document.getElementById("sala-date-calendar-close");
+      const calendarBody = document.getElementById("sala-date-calendar-body");
+      const calendarTitle = document.getElementById("sala-date-calendar-title");
+      const calendarShell = modal ? modal.querySelector("[data-calendar-url]") : null;
+      const calendarUrl = calendarShell ? (calendarShell.dataset.calendarUrl || "") : "";
+      if (!modal || !backdrop || !closeBtn || !calendarBody || !calendarTitle || !calendarUrl) return;
+
+      const locale = "pt-BR";
+      const today = new Date();
+      let currentDate = new Date();
+      let targetInput = null;
+      let entregas = [];
+      let entregaIndex = {};
+
+      const pad = (value) => value.toString().padStart(2, "0");
+      const dateKey = (date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+      const formatDateISO = (date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+      const escapeHtml = (value) =>
+        String(value || "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      const truncateText = (value, maxLength = 120) => {
+        const text = String(value || "").trim();
+        if (!text) return "";
+        if (text.length <= maxLength) return text;
+        return `${text.slice(0, maxLength).trimEnd()}...`;
+      };
+
+      const openModal = () => {
+        modal.style.display = "";
+        backdrop.style.display = "";
+        backdrop.setAttribute("aria-hidden", "false");
+      };
+
+      const closeModal = () => {
+        modal.style.display = "none";
+        backdrop.style.display = "none";
+        backdrop.setAttribute("aria-hidden", "true");
+      };
+
+      const rebuildIndex = () => {
+        entregaIndex = {};
+        entregas.forEach((entrega) => {
+          const key = dateKey(entrega.date);
+          if (!entregaIndex[key]) entregaIndex[key] = [];
+          entregaIndex[key].push(entrega);
+        });
+      };
+
+      const getEntregasForDate = (date) => entregaIndex[dateKey(date)] || [];
+
+      const setTitle = (date) => {
+        calendarTitle.textContent = date.toLocaleDateString(locale, {
+          month: "long",
+          year: "numeric",
+        });
+      };
+
+      const buildDot = (entrega) => {
+        const element = document.createElement("a");
+        element.className = "event-dot";
+        element.href = entrega.url;
+        element.target = "_blank";
+        element.rel = "noopener";
+        element.style.setProperty(
+          "--event-color",
+          entrega.entregue ? "var(--calendar-entrega-ok, #2e9d44)" : "var(--calendar-entrega-pendente, #c73b2e)"
+        );
+
+        const tooltip = document.createElement("span");
+        tooltip.className = "event-tooltip";
+        const processos = Array.isArray(entrega.processos) && entrega.processos.length
+          ? entrega.processos.join(", ")
+          : "Sem processo vinculado";
+        tooltip.innerHTML = `
+          <strong>${escapeHtml(processos)}</strong>
+          <span>${escapeHtml(entrega.nome)}</span>
+          <span>${escapeHtml(truncateText(entrega.descricao, 120))}</span>
+        `;
+        element.appendChild(tooltip);
+        return element;
+      };
+
+      const selectDate = (date) => {
+        if (!targetInput) return;
+        targetInput.value = formatDateISO(date);
+        targetInput.dispatchEvent(new Event("input", { bubbles: true }));
+        targetInput.dispatchEvent(new Event("change", { bubbles: true }));
+        closeModal();
+      };
+
+      const buildCell = (dateObj, label, muted = false) => {
+        const cell = document.createElement("button");
+        cell.type = "button";
+        cell.className = "calendar-cell sala-date-calendar-cell";
+        if (muted) cell.classList.add("is-muted");
+        if (dateKey(dateObj) === dateKey(today)) cell.classList.add("is-today");
+        if (targetInput && targetInput.value === formatDateISO(dateObj)) cell.classList.add("is-selected-date");
+
+        const header = document.createElement("span");
+        header.className = "day-number";
+        header.textContent = label;
+
+        const body = document.createElement("div");
+        body.className = "day-body";
+
+        const eventos = getEntregasForDate(dateObj);
+        if (eventos.length) {
+          const list = document.createElement("div");
+          list.className = "day-events";
+          eventos.forEach((entrega) => list.appendChild(buildDot(entrega)));
+          body.appendChild(list);
+        } else {
+          body.textContent = "Sem entregas";
+        }
+
+        cell.appendChild(header);
+        cell.appendChild(body);
+        cell.addEventListener("click", () => selectDate(dateObj));
+        return cell;
+      };
+
+      const renderCalendar = () => {
+        calendarBody.innerHTML = "";
+        setTitle(currentDate);
+
+        const start = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+        const end = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+        const startWeekday = start.getDay();
+        const daysInMonth = end.getDate();
+        const prevMonthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth(), 0).getDate();
+
+        for (let index = startWeekday - 1; index >= 0; index -= 1) {
+          const dateObj = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, prevMonthEnd - index);
+          calendarBody.appendChild(buildCell(dateObj, dateObj.getDate(), true));
+        }
+
+        for (let day = 1; day <= daysInMonth; day += 1) {
+          const dateObj = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+          calendarBody.appendChild(buildCell(dateObj, day));
+        }
+
+        const totalCells = calendarBody.children.length;
+        const nextDays = (7 - (totalCells % 7)) % 7;
+        for (let day = 1; day <= nextDays; day += 1) {
+          const dateObj = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, day);
+          calendarBody.appendChild(buildCell(dateObj, day, true));
+        }
+      };
+
+      const carregarEntregasMes = async (date) => {
+        const params = new URLSearchParams({
+          ano: String(date.getFullYear()),
+          mes: String(date.getMonth() + 1),
+        });
+        const response = await fetch(`${calendarUrl}?${params.toString()}`, {
+          headers: { "X-Requested-With": "XMLHttpRequest" },
+        });
+        if (!response.ok) {
+          entregas = [];
+          rebuildIndex();
+          return;
+        }
+        const payload = await response.json();
+        const lista = Array.isArray(payload.results) ? payload.results : [];
+        entregas = lista.map((item) => ({
+          ...item,
+          date: new Date(`${item.data}T00:00:00`),
+        }));
+        rebuildIndex();
+      };
+
+      const syncAndRender = async () => {
+        await carregarEntregasMes(currentDate);
+        renderCalendar();
+      };
+
+      document.querySelectorAll("[data-open-date-calendar]").forEach((button) => {
+        button.addEventListener("click", async () => {
+          const fieldId = button.getAttribute("data-open-date-calendar");
+          targetInput = document.getElementById(fieldId);
+          const selectedDate = targetInput ? parseDateAny(targetInput.value) : null;
+          currentDate = selectedDate || new Date();
+          openModal();
+          await syncAndRender();
+        });
+      });
+
+      modal.querySelectorAll("[data-date-calendar-action]").forEach((button) => {
+        button.addEventListener("click", async () => {
+          const action = button.getAttribute("data-date-calendar-action");
+          if (action === "today") {
+            currentDate = new Date();
+          } else if (action === "prev") {
+            currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
+          } else if (action === "next") {
+            currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
+          }
+          await syncAndRender();
+        });
+      });
+
+      closeBtn.addEventListener("click", closeModal);
+      backdrop.addEventListener("click", closeModal);
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && modal.style.display !== "none") {
           closeModal();
         }
       });

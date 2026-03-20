@@ -13,7 +13,7 @@
         <p><strong>Nome:</strong> {{ entrega.nome }}</p>
         <p>
           <strong>Processos:</strong>
-          {% for processo in entrega.processos.all %}
+          {% for processo in processos_visiveis %}
             <a href="{% url 'sala_processo_detail' processo.pk %}">{{ processo.nome }}</a>{% if not forloop.last %}, {% endif %}
           {% empty %}
             -

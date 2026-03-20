@@ -3898,3 +3898,27 @@ class NotaItem(models.Model):
         """
 
         return f"Nota #{self.pk} - {self.content_type} {self.object_id}"
+
+
+class NotaItemAnexo(models.Model):
+    nota = models.ForeignKey(
+        NotaItem,
+        on_delete=models.CASCADE,
+        related_name="anexos",
+    )
+    arquivo = models.FileField(upload_to="sala_situacao/notas/")
+    nome_original = models.CharField(max_length=255, blank=True, default="")
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["id"]
+        verbose_name = "Anexo da nota"
+        verbose_name_plural = "Anexos das notas"
+
+    def save(self, *args, **kwargs):
+        if self.arquivo and not self.nome_original:
+            self.nome_original = getattr(self.arquivo, "name", "") or ""
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.nome_original or f"Anexo #{self.pk}"

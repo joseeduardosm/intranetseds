@@ -1,11 +1,16 @@
 import json
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.contrib.auth.models import Group, Permission, User
+from django.contrib.contenttypes.models import ContentType
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import resolve, reverse
+from django.utils import timezone
 
+from auditoria.models import AuditLog
 from usuarios.models import SetorNode, UserSetorMembership
 
 from .access import (
@@ -16,6 +21,9 @@ from .access import (
 )
 from .forms import EntregaForm, EntregaMonitoramentoForm, IndicadorForm, ProcessoForm
 from .models import Entrega, Indicador, IndicadorCicloValor, Processo
+from .views import _variaveis_queryset_para_detalhe
+from sala_situacao.forms import NotaItemForm
+from sala_situacao.models import NotaItem, NotaItemAnexo
 
 
 class SalaSituacaoV2AccessTests(TestCase):
@@ -181,6 +189,13 @@ class SalaSituacaoV2EntregaFormOrderTests(TestCase):
         )
 
 
+class SalaSituacaoV2DateFieldWidgetTests(TestCase):
+    def test_formularios_renderizam_data_entrega_com_widget_date(self):
+        self.assertEqual(IndicadorForm().fields["data_entrega_estipulada"].widget.input_type, "date")
+        self.assertEqual(ProcessoForm().fields["data_entrega_estipulada"].widget.input_type, "date")
+        self.assertEqual(EntregaForm().fields["data_entrega_estipulada"].widget.input_type, "date")
+
+
 class SalaSituacaoV2ProcessoGruposHerdadosTests(TestCase):
     def test_grupos_do_indicador_entram_automaticamente_no_processo(self):
         grupo_herdado = Group.objects.create(name="Setor Herdado")
@@ -202,6 +217,29 @@ class SalaSituacaoV2ProcessoGruposHerdadosTests(TestCase):
         grupos_ids = set(form.cleaned_data["grupos_responsaveis"].values_list("id", flat=True))
         self.assertIn(grupo_herdado.id, grupos_ids)
         self.assertIn(grupo_extra.id, grupos_ids)
+
+
+class SalaSituacaoV2EvolucaoManualFormTests(TestCase):
+    def test_indicador_com_filhos_nao_exibe_evolucao_manual_no_formulario(self):
+        indicador = Indicador.objects.create(
+            nome="Indicador com filhos",
+            tipo_indicador=Indicador.TipoIndicador.PROCESSUAL,
+        )
+        processo = Processo.objects.create(nome="Processo filho")
+        processo.indicadores.set([indicador])
+
+        form = IndicadorForm(instance=indicador)
+
+        self.assertNotIn("evolucao_manual", form.fields)
+
+    def test_processo_com_filhos_nao_exibe_evolucao_manual_no_formulario(self):
+        processo = Processo.objects.create(nome="Processo com entregas")
+        entrega = Entrega.objects.create(nome="Entrega filha")
+        entrega.processos.set([processo])
+
+        form = ProcessoForm(instance=processo)
+
+        self.assertNotIn("evolucao_manual", form.fields)
 
 
 class SalaSituacaoV2DeleteProcessoTests(TestCase):
@@ -251,6 +289,76 @@ class SalaSituacaoV2ManageIndicadorTests(TestCase):
         self.assertTrue(user_can_manage_indicador(user_criador, indicador))
         self.assertFalse(user_can_manage_indicador(user_outro, indicador))
 
+    def test_excluir_indicador_remove_processos_e_entregas_filhos(self):
+        password = "senha-123"
+        grupo_criador = Group.objects.create(name="Criador Indicador Exclusao")
+        user_criador = User.objects.create_user(username="uiexclusao", password=password)
+        user_criador.groups.add(grupo_criador)
+        UserSetorMembership.objects.create(
+            user=user_criador,
+            setor=SetorNode.objects.create(group=grupo_criador),
+        )
+        perm = Permission.objects.get(codename="delete_indicador", content_type__app_label="sala_situacao_v2")
+        user_criador.user_permissions.add(perm)
+
+        indicador = Indicador.objects.create(nome="Indicador para excluir")
+        indicador.grupos_responsaveis.set([grupo_criador])
+        indicador.grupos_criadores.set([grupo_criador])
+
+        processo = Processo.objects.create(nome="Processo filho")
+        processo.indicadores.set([indicador])
+        entrega = Entrega.objects.create(nome="Entrega filha")
+        entrega.processos.set([processo])
+
+        self.client.login(username=user_criador.username, password=password)
+        response = self.client.post(reverse("sala_indicador_estrategico_delete", kwargs={"pk": indicador.pk}))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(Indicador.objects.filter(pk=indicador.pk).exists())
+        self.assertFalse(Processo.objects.filter(pk=processo.pk).exists())
+        self.assertFalse(Entrega.objects.filter(pk=entrega.pk).exists())
+
+    def test_excluir_indicador_remove_entregas_de_monitoramento_remanescentes(self):
+        password = "senha-123"
+        grupo_criador = Group.objects.create(name="Criador Indicador Exclusao Monitoramento")
+        user_criador = User.objects.create_user(username="uiexclusaomonitor", password=password)
+        user_criador.groups.add(grupo_criador)
+        UserSetorMembership.objects.create(
+            user=user_criador,
+            setor=SetorNode.objects.create(group=grupo_criador),
+        )
+        perm = Permission.objects.get(codename="delete_indicador", content_type__app_label="sala_situacao_v2")
+        user_criador.user_permissions.add(perm)
+
+        indicador = Indicador.objects.create(
+            nome="Indicador monitorado para excluir",
+            tipo_indicador=Indicador.TipoIndicador.MATEMATICO,
+            formula_expressao="parte",
+            data_entrega_estipulada=date(2026, 12, 31),
+        )
+        indicador.grupos_responsaveis.set([grupo_criador])
+        indicador.grupos_criadores.set([grupo_criador])
+        indicador.sincronizar_variaveis_da_formula()
+        variavel = indicador.variaveis.get(nome="parte")
+        variavel.periodicidade_monitoramento = "MENSAL"
+        variavel.dia_referencia_monitoramento = 10
+        variavel.save(update_fields=["periodicidade_monitoramento", "dia_referencia_monitoramento", "atualizado_em"])
+        variavel.grupos_monitoramento.set([grupo_criador])
+        indicador.sincronizar_estrutura_processual_monitoramento()
+
+        entrega_remanescente = Entrega.objects.create(
+            nome="Entrega remanescente",
+            ciclo_monitoramento=variavel.ciclos_monitoramento.first(),
+            variavel_monitoramento=variavel,
+        )
+
+        self.client.login(username=user_criador.username, password=password)
+        response = self.client.post(reverse("sala_indicador_estrategico_delete", kwargs={"pk": indicador.pk}))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(Entrega.objects.filter(pk=entrega_remanescente.pk).exists())
+        self.assertFalse(Indicador.objects.filter(pk=indicador.pk).exists())
+
 
 class SalaSituacaoV2ManageEntregaTests(TestCase):
     def test_somente_grupo_criador_pode_gerenciar_entrega(self):
@@ -273,6 +381,59 @@ class SalaSituacaoV2ManageEntregaTests(TestCase):
 
         self.assertTrue(user_can_manage_entrega(user_criador, entrega))
         self.assertFalse(user_can_manage_entrega(user_outro, entrega))
+
+
+class SalaSituacaoV2EntregaDetailMonitoramentoTests(TestCase):
+    def test_entrega_comum_nao_exibe_bloco_de_monitoramento(self):
+        password = "senha-123"
+        user = User.objects.create_user(username="entrega-comum", password=password)
+        grupo = Group.objects.create(name="Grupo Entrega Comum")
+        user.groups.add(grupo)
+        setor = SetorNode.objects.create(group=grupo)
+        UserSetorMembership.objects.create(user=user, setor=setor)
+        for codename in ("view_entrega", "monitorar_entrega"):
+            perm = Permission.objects.get(codename=codename, content_type__app_label="sala_situacao_v2")
+            user.user_permissions.add(perm)
+
+        entrega = Entrega.objects.create(nome="Entrega comum")
+        entrega.grupos_responsaveis.set([grupo])
+        entrega.grupos_criadores.set([grupo])
+
+        self.client.login(username=user.username, password=password)
+        response = self.client.get(reverse("sala_entrega_detail", kwargs={"pk": entrega.pk}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.context["pode_monitorar"])
+        self.assertNotContains(response, "Salvar monitoramento")
+
+
+class SalaSituacaoV2HistoricoIndicadorTests(TestCase):
+    def test_log_de_recalculo_matematico_fica_mais_claro(self):
+        user = User.objects.create_user(username="historico-ind", password="senha-123")
+        indicador = Indicador.objects.create(
+            nome="Indicador historico",
+            tipo_indicador=Indicador.TipoIndicador.MATEMATICO,
+            formula_expressao="(x/y)*100",
+        )
+        AuditLog.objects.create(
+            user=user,
+            action=AuditLog.Action.UPDATE,
+            content_type=ContentType.objects.get_for_model(Indicador),
+            object_id=str(indicador.pk),
+            object_repr=indicador.nome,
+            changes={
+                "atualizado_em": {"from": "2026-03-20T14:41:00+00:00", "to": "2026-03-20T14:43:00+00:00"},
+                "valor_atual": {"from": "83.3333", "to": "125.0"},
+            },
+        )
+
+        self.client.force_login(user)
+        response = self.client.get(reverse("sala_indicador_estrategico_detail", kwargs={"pk": indicador.pk}))
+
+        self.assertEqual(response.status_code, 200)
+        historico = response.context["historico_alteracoes_formatado"][0]
+        self.assertEqual(historico["resumo"], "Recalculou o indicador matemático com base nos monitoramentos.")
+        self.assertEqual(historico["detalhes"], ["Valor calculado: 83.3333 -> 125"])
 
 
 class SalaSituacaoV2EntregaGruposHerdadosTests(TestCase):
@@ -323,6 +484,96 @@ class SalaSituacaoV2ProgressoProcessualTests(TestCase):
 
         self.assertEqual(processo.progresso_percentual, 33.33)
         self.assertEqual(indicador.progresso_percentual, 33.33)
+
+    def test_entrega_concluida_congela_contagem_do_prazo(self):
+        entrega = Entrega.objects.create(
+            nome="Entrega concluida",
+            data_lancamento=date(2026, 3, 1),
+            data_entrega_estipulada=date(2026, 3, 20),
+            evolucao_manual=100,
+        )
+        entrega.data_lancamento_em = timezone.make_aware(datetime(2026, 3, 1, 9, 0, 0))
+        entrega.atualizado_em = timezone.make_aware(datetime(2026, 3, 10, 15, 0, 0))
+
+        with patch("sala_situacao_v2.models.timezone.now", return_value=timezone.make_aware(datetime(2026, 3, 18, 18, 0, 0))), patch(
+            "sala_situacao_v2.models.timezone.localdate", return_value=date(2026, 3, 18)
+        ):
+            self.assertEqual(entrega.dias_para_vencer, 10)
+            self.assertEqual(entrega.texto_prazo, "Concluido com 10 dias de antecedencia")
+            self.assertAlmostEqual(entrega.progresso_prazo, 47.13, places=2)
+
+
+class SalaSituacaoV2NumeracaoEntregaTests(TestCase):
+    def test_entrega_manual_recebe_numeracao_automatica_por_processo_e_prazo(self):
+        processo = Processo.objects.create(nome="Processo Numerado")
+        entrega_1 = Entrega.objects.create(
+            nome="Entrega 1",
+            data_entrega_estipulada=date(2026, 3, 10),
+        )
+        entrega_2 = Entrega.objects.create(
+            nome="Entrega 2",
+            data_entrega_estipulada=date(2026, 3, 20),
+        )
+        entrega_3 = Entrega.objects.create(
+            nome="Entrega 3",
+            data_entrega_estipulada=date(2026, 3, 20),
+        )
+        processo.entregas.set([entrega_1, entrega_2, entrega_3])
+
+        self.assertEqual(entrega_1.rotulo_numeracao_no_processo(processo), "1/3")
+        self.assertEqual(entrega_2.rotulo_numeracao_no_processo(processo), "2/3")
+        self.assertEqual(entrega_3.rotulo_numeracao_no_processo(processo), "3/3")
+
+    def test_edicao_de_prazo_revisa_indice_da_entrega_no_processo(self):
+        processo = Processo.objects.create(nome="Processo Reordenado")
+        entrega_1 = Entrega.objects.create(
+            nome="Entrega A",
+            data_entrega_estipulada=date(2026, 3, 10),
+        )
+        entrega_2 = Entrega.objects.create(
+            nome="Entrega B",
+            data_entrega_estipulada=date(2026, 3, 20),
+        )
+        entrega_3 = Entrega.objects.create(
+            nome="Entrega C",
+            data_entrega_estipulada=date(2026, 3, 25),
+        )
+        processo.entregas.set([entrega_1, entrega_2, entrega_3])
+
+        entrega_3.data_entrega_estipulada = date(2026, 3, 5)
+        entrega_3.save(update_fields=["data_entrega_estipulada", "atualizado_em"])
+
+        self.assertEqual(entrega_3.rotulo_numeracao_no_processo(processo), "1/3")
+        self.assertEqual(entrega_1.rotulo_numeracao_no_processo(processo), "2/3")
+        self.assertEqual(entrega_2.rotulo_numeracao_no_processo(processo), "3/3")
+
+    def test_entrega_de_monitoramento_nao_entra_na_numeracao_manual(self):
+        processo = Processo.objects.create(nome="Processo Manual")
+        indicador = Indicador.objects.create(
+            nome="Indicador Monitorado",
+            tipo_indicador=Indicador.TipoIndicador.MATEMATICO,
+            formula_expressao="x",
+            data_entrega_estipulada=date(2026, 12, 31),
+        )
+        indicador.sincronizar_variaveis_da_formula()
+        variavel = indicador.variaveis.get(nome="x")
+        variavel.gerar_ciclos_monitoramento()
+        ciclo = variavel.ciclos_monitoramento.order_by("numero").first()
+
+        entrega_manual = Entrega.objects.create(
+            nome="Entrega Manual",
+            data_entrega_estipulada=date(2026, 3, 10),
+        )
+        entrega_monitoramento = Entrega.objects.create(
+            nome="Entrega Monitoramento",
+            data_entrega_estipulada=date(2026, 3, 5),
+            variavel_monitoramento=variavel,
+            ciclo_monitoramento=ciclo,
+        )
+        processo.entregas.set([entrega_manual, entrega_monitoramento])
+
+        self.assertEqual(entrega_manual.rotulo_numeracao_no_processo(processo), "1/1")
+        self.assertEqual(entrega_monitoramento.rotulo_numeracao_no_processo(processo), "")
 
 
 class SalaSituacaoV2IndicadorMatematicoTests(TestCase):
@@ -420,6 +671,12 @@ class SalaSituacaoV2IndicadorMatematicoTests(TestCase):
             2,
         )
         self.assertEqual(indicador.valor_atual, Decimal("50"))
+        self.assertEqual(indicador.progresso_percentual, 50.0)
+        self.assertEqual(indicador.progresso_snapshot["titulo_conclusao"], "Atingimento da Meta")
+        entrega_parte.refresh_from_db()
+        entrega_total.refresh_from_db()
+        self.assertEqual(entrega_parte.evolucao_manual, Decimal("100"))
+        self.assertEqual(entrega_total.evolucao_manual, Decimal("100"))
 
     def test_monitoramento_cria_ciclo_inicial_e_prazos_por_dia_referencia(self):
         form = IndicadorForm(
@@ -453,6 +710,47 @@ class SalaSituacaoV2IndicadorMatematicoTests(TestCase):
         self.assertEqual(entregas[0].data_entrega_estipulada, date(2026, 3, 20))
         self.assertEqual(entregas[1].data_entrega_estipulada, date(2026, 4, 10))
 
+    def test_queryset_de_variaveis_do_detalhe_nao_seleciona_dia_referencia(self):
+        indicador = Indicador.objects.create(
+            nome="Indicador detalhe compat",
+            tipo_indicador=Indicador.TipoIndicador.MATEMATICO,
+            formula_expressao="parte",
+            data_entrega_estipulada=date(2026, 12, 31),
+        )
+        indicador.sincronizar_variaveis_da_formula()
+
+        queryset = _variaveis_queryset_para_detalhe(indicador)
+        sql = str(queryset.query)
+
+        self.assertNotIn("dia_referencia_monitoramento", sql)
+        self.assertEqual(list(queryset.values_list("nome", flat=True)), ["parte"])
+
+    @patch("sala_situacao_v2.forms._db_tem_dia_referencia_monitoramento", return_value=False)
+    def test_form_matematico_exibe_erro_amigavel_quando_coluna_ainda_nao_existe(self, _db_check):
+        form = IndicadorForm(
+            data={
+                "nome": "Indicador bloqueado por migration",
+                "descricao": "Descricao",
+                "grupos_responsaveis": [self.group_a.id],
+                "tipo_indicador": Indicador.TipoIndicador.MATEMATICO,
+                "formula_expressao": "parte",
+                "data_entrega_estipulada": "2026-12-31",
+                "evolucao_manual": "0",
+                "variaveis_config_map": json.dumps(
+                    {
+                        "parte": {
+                            "periodicidade_monitoramento": "MENSAL",
+                            "dia_referencia_monitoramento": 10,
+                            "grupos_monitoramento_ids": [self.group_a.id],
+                        }
+                    }
+                ),
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("variaveis_config_map", form.errors)
+
 
 class SalaSituacaoV2EntregaListTests(TestCase):
     def test_lista_entregas_ordena_por_prazo_e_expoe_api_calendario(self):
@@ -485,12 +783,14 @@ class SalaSituacaoV2EntregaListTests(TestCase):
     def test_api_calendario_retorna_entregas_do_mes(self):
         user = User.objects.create_user(username="cal-v2", password="senha-forte-123")
         self.client.login(username=user.username, password="senha-forte-123")
+        processo = Processo.objects.create(nome="Processo Tooltip")
         entrega = Entrega.objects.create(
             nome="Entrega Calendario",
             descricao="Calendario",
             data_entrega_estipulada=date(2026, 3, 10),
             evolucao_manual=100,
         )
+        entrega.processos.set([processo])
 
         response = self.client.get(reverse("sala_entrega_calendario_api"), {"ano": 2026, "mes": 3})
 
@@ -498,3 +798,24 @@ class SalaSituacaoV2EntregaListTests(TestCase):
         payload = response.json()
         self.assertEqual(payload["results"][0]["id"], entrega.id)
         self.assertEqual(payload["results"][0]["data"], "2026-03-10")
+        self.assertEqual(payload["results"][0]["processos"], [processo.nome])
+
+
+class SalaSituacaoNotasAnexosTests(TestCase):
+    def test_form_nota_salva_um_ou_varios_anexos(self):
+        indicador = Indicador.objects.create(nome="Indicador para nota")
+        nota = NotaItem.objects.create(
+            content_type=ContentType.objects.get_for_model(Indicador),
+            object_id=indicador.pk,
+            texto="Nota com anexos",
+        )
+        form = NotaItemForm(data={"texto": "Atualizada"})
+
+        self.assertTrue(form.is_valid())
+        arquivos = [
+            SimpleUploadedFile("arquivo-1.txt", b"um"),
+            SimpleUploadedFile("arquivo-2.txt", b"dois"),
+        ]
+        form.save_anexos(nota, arquivos)
+
+        self.assertEqual(NotaItemAnexo.objects.filter(nota=nota).count(), 2)

@@ -80,14 +80,31 @@
   font-weight: 700;
 }
 
-.sala-setor-filter-select {
-  min-width: 280px;
+.sala-setor-filter-combobox {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 320px;
+}
+
+.sala-setor-filter-input {
   padding: 10px 14px;
   border: 1px solid var(--border);
   border-radius: 999px;
   background: #fff;
   color: var(--text);
   font: inherit;
+}
+
+.sala-setor-filter-select {
+  min-width: 320px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #fff;
+  color: var(--text);
+  font: inherit;
+  max-height: 240px;
 }
 
 .sala-detail-layout {
@@ -189,6 +206,12 @@
     margin-left: 0;
   }
 
+  .sala-setor-filter-combobox {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .sala-setor-filter-input,
   .sala-setor-filter-select {
     min-width: 0;
     width: 100%;

@@ -28,6 +28,7 @@ from .models import (
     IndicadorVariavel,
     IndicadorTatico,
     NotaItem,
+    NotaItemAnexo,
     Processo,
 )
 
@@ -36,6 +37,10 @@ _PROCESSO_INDICADOR_RE = re.compile(
     r'^Monitoramento de "([^"]+)" do indicador(?: estratégico| tático)? "([^"]+)"$'
 )
 _FORMULA_TOKEN_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+
+
+class MultipleFileInput(forms.ClearableFileInput):
+    allow_multiple_selected = True
 
 
 def _normalizar_unidade(unidade):
@@ -755,8 +760,8 @@ class EntregaForm(BaseSalaSituacaoForm):
     processos = forms.ModelMultipleChoiceField(
         queryset=Processo.objects.all().order_by("nome"),
         required=True,
-        label="Processos vinculados",
-        help_text="Selecione um ou mais processos.",
+        label="Indicador",
+        help_text="Selecione um ou mais itens vinculados.",
     )
 
     class Meta:
@@ -770,9 +775,9 @@ class EntregaForm(BaseSalaSituacaoForm):
 
         model = Entrega
         fields = [
-            "processos",
             "nome",
             "descricao",
+            "processos",
             "marcadores_ids",
             "data_entrega_estipulada",
             "evolucao_manual",
@@ -794,6 +799,18 @@ class EntregaForm(BaseSalaSituacaoForm):
 
         self.usuario = usuario
         super().__init__(*args, **kwargs)
+        self.fields["marcadores_ids"].label = "Grupo"
+        self.order_fields(
+            [
+                "nome",
+                "descricao",
+                "processos",
+                "marcadores_ids",
+                "data_entrega_estipulada",
+                "evolucao_manual",
+                "valor_monitoramento",
+            ]
+        )
         instance = getattr(self, "instance", None)
         if instance and instance.pk and not instance.eh_entrega_monitoramento:
             self._tentar_vincular_monitoramento(instance)
@@ -1063,6 +1080,17 @@ class NotaItemForm(forms.ModelForm):
     - Organiza regras de negócio e integração com ORM, permissões e templates.
     """
 
+    anexos = forms.FileField(
+        required=False,
+        widget=MultipleFileInput(
+            attrs={
+                "class": "form-control",
+                "multiple": True,
+            }
+        ),
+        label="Anexos",
+    )
+
     class Meta:
         """Classe `NotaItemForm.Meta` do domínio Sala de Situação.
 
@@ -1082,6 +1110,16 @@ class NotaItemForm(forms.ModelForm):
                 }
             )
         }
+
+    def save_anexos(self, nota, arquivos):
+        if not nota or not getattr(nota, "pk", None):
+            return
+        for arquivo in arquivos or []:
+            NotaItemAnexo.objects.create(
+                nota=nota,
+                arquivo=arquivo,
+                nome_original=getattr(arquivo, "name", "") or "",
+            )
 
 
 class IndicadorVariavelForm(forms.ModelForm):

@@ -329,7 +329,11 @@ def introspect_database_schema(config: ConexaoBancoMonitoramento) -> dict:
             table_map[table_name]["relations"].append(relation)
 
         tables = list(table_map.values())
-        return {"tables": tables, "relations": relations, "generated_at": timezone.now().isoformat()}
+        return {
+            "tables": tables,
+            "relations": relations,
+            "generated_at": timezone.localtime(timezone.now()).isoformat(),
+        }
     finally:
         connection.close()
 

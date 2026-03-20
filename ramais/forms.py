@@ -6,6 +6,8 @@ CRUD de `PessoaRamal`, controlando widgets e regras de edição por perfil.
 """
 from django import forms
 
+from usuarios.permissions import ADMIN_GROUP_NAME
+
 from .models import PessoaRamal
 
 
@@ -68,6 +70,7 @@ class PessoaRamalForm(forms.ModelForm):
             setor_names = list(
                 SetorNode.objects.select_related("group")
                 .filter(ativo=True)
+                .exclude(group__name__iexact=ADMIN_GROUP_NAME)
                 .order_by("group__name")
                 .values_list("group__name", flat=True)
             )

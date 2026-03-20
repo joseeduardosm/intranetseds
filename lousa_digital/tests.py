@@ -546,5 +546,7 @@ class ProcessoDashboardViewTests(TestCase):
         self.assertContains(response, "100,00%")
         self.assertContains(response, "Alertas enviados")
         self.assertContains(response, "Processos por destino atual")
-        self.assertContains(response, "Usuários com maior volume tratado")
+        self.assertContains(response, "Processos com encaminhamento ativo")
+        self.assertNotContains(response, "Usuários com maior volume tratado")
+        self.assertContains(response, "Evolução diária, sempre dos últimos 30 dias.")
         self.assertContains(response, "grafico-processos-destino-atual")

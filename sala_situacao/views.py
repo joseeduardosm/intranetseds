@@ -1767,7 +1767,7 @@ class ItemNotesContextMixin:
 
         content_type = ContentType.objects.get_for_model(self.object.__class__)
         return (
-            NotaItem.objects.select_related("criado_por")
+            NotaItem.objects.select_related("criado_por").prefetch_related("anexos")
             .filter(content_type=content_type, object_id=self.object.pk)
             .order_by("-criado_em")[: self.notas_limit]
         )
@@ -1804,15 +1804,16 @@ class ItemNotesContextMixin:
         """
 
         self.object = self.get_object()
-        nota_form = self.nota_form_class(request.POST)
+        nota_form = self.nota_form_class(request.POST, request.FILES)
         if nota_form.is_valid():
             content_type = ContentType.objects.get_for_model(self.object.__class__)
-            NotaItem.objects.create(
+            nota = NotaItem.objects.create(
                 content_type=content_type,
                 object_id=self.object.pk,
                 texto=nota_form.cleaned_data["texto"].strip(),
                 criado_por=request.user if request.user.is_authenticated else None,
             )
+            nota_form.save_anexos(nota, request.FILES.getlist("anexos"))
             messages.success(request, "Nota adicionada com sucesso.")
             return HttpResponseRedirect(request.path)
 

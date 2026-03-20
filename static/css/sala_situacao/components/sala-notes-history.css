@@ -33,6 +33,22 @@
   padding: 10px 12px;
 }
 
+.audit-history-item .audit-history-list {
+  margin-top: 8px;
+  gap: 4px;
+}
+
+.audit-history-item .audit-history-item {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.audit-history-item .audit-history-item .audit-history-text {
+  margin: 0;
+}
+
 .audit-history-head {
   display: flex;
   justify-content: space-between;

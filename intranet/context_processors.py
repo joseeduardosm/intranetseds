@@ -168,8 +168,9 @@ def diario_bordo_alert(request):
 
 def sala_situacao_access(request):
     user = getattr(request, "user", None)
+    authenticated = bool(user and getattr(user, "is_authenticated", False))
     return {
-        "sala_situacao_access": user_has_sala_situacao_access(user),
+        "sala_situacao_access": authenticated or user_has_sala_situacao_access(user),
         "sala_situacao_monitoring_member": user_is_monitoring_group_member(user),
     }
 

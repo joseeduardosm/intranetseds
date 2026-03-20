@@ -14,7 +14,7 @@ Integra-se com:
 """
 
 import math
-from collections import Counter, defaultdict
+from collections import Counter
 from datetime import datetime, timedelta
 
 from django.contrib.auth import get_user_model
@@ -103,22 +103,30 @@ def _nome_usuario_dashboard(usuario) -> str:
     return usuario.get_full_name() or usuario.username or "Sistema"
 
 
-def _serie_mensal(queryset, campo_data: str) -> dict:
-    """Gera série mensal simples para alimentar gráficos Plotly."""
+def _serie_diaria_ultimos_30_dias(queryset, campo_data: str) -> dict:
+    """Gera série diária fixa dos últimos 30 dias (incluindo hoje)."""
 
+    hoje = timezone.localdate()
+    inicio = hoje - timedelta(days=29)
     agregados = Counter()
+
     for valor in queryset.values_list(campo_data, flat=True):
         if not valor:
             continue
         if hasattr(valor, "hour"):
-            valor = timezone.localtime(valor)
-        chave = (valor.year, valor.month)
-        agregados[chave] += 1
-    itens_ordenados = sorted(agregados.items())
-    return {
-        "labels": [f"{mes:02d}/{ano}" for (ano, mes), _ in itens_ordenados],
-        "values": [total for _, total in itens_ordenados],
-    }
+            valor = timezone.localtime(valor).date()
+        if valor < inicio or valor > hoje:
+            continue
+        agregados[valor] += 1
+
+    labels = []
+    values = []
+    cursor = inicio
+    while cursor <= hoje:
+        labels.append(cursor.strftime("%d/%m"))
+        values.append(agregados.get(cursor, 0))
+        cursor += timedelta(days=1)
+    return {"labels": labels, "values": values}
 
 
 def _faixa_prazo_dashboard(prazo_data) -> tuple[str, str]:
@@ -666,39 +674,6 @@ class ProcessoDashboardView(LoginRequiredMixin, TemplateView):
             if usuarios_cadastro_por_id.get(item["criado_por_id"])
         ]
 
-        tratados = defaultdict(lambda: {"criados": 0, "devolvidos": 0, "total": 0})
-        for item in (
-            encaminhamentos_base.filter(criado_por__isnull=False)
-            .values("criado_por_id")
-            .annotate(total=Count("id"))
-        ):
-            tratados[item["criado_por_id"]]["criados"] = item["total"]
-            tratados[item["criado_por_id"]]["total"] += item["total"]
-        for item in (
-            encaminhamentos_base.filter(concluido_por__isnull=False)
-            .values("concluido_por_id")
-            .annotate(total=Count("id"))
-        ):
-            tratados[item["concluido_por_id"]]["devolvidos"] = item["total"]
-            tratados[item["concluido_por_id"]]["total"] += item["total"]
-
-        ranking_tratados_ids = sorted(
-            tratados.keys(),
-            key=lambda user_id: (-tratados[user_id]["total"], user_id),
-        )[:10]
-        usuarios_tratados = User.objects.filter(id__in=ranking_tratados_ids)
-        usuarios_tratados_por_id = {usuario.id: usuario for usuario in usuarios_tratados}
-        ranking_tratados = [
-            {
-                "nome": _nome_usuario_dashboard(usuarios_tratados_por_id.get(user_id)),
-                "criados": tratados[user_id]["criados"],
-                "devolvidos": tratados[user_id]["devolvidos"],
-                "total": tratados[user_id]["total"],
-            }
-            for user_id in ranking_tratados_ids
-            if usuarios_tratados_por_id.get(user_id)
-        ]
-
         context.update(
             {
                 "total_processos_monitorados": total_processos,
@@ -714,9 +689,11 @@ class ProcessoDashboardView(LoginRequiredMixin, TemplateView):
                     "labels": [label for _, label in faixas_ordem],
                     "values": [encaminhamentos_por_faixa.get((key, label), 0) for key, label in faixas_ordem],
                 },
-                "grafico_processos_criados_periodo": _serie_mensal(processos_base, "criado_em"),
-                "grafico_encaminhamentos_criados_periodo": _serie_mensal(encaminhamentos_base, "data_inicio"),
-                "grafico_devolucoes_periodo": _serie_mensal(
+                "grafico_processos_criados_periodo": _serie_diaria_ultimos_30_dias(processos_base, "criado_em"),
+                "grafico_encaminhamentos_criados_periodo": _serie_diaria_ultimos_30_dias(
+                    encaminhamentos_base, "data_inicio"
+                ),
+                "grafico_devolucoes_periodo": _serie_diaria_ultimos_30_dias(
                     encaminhamentos_base.filter(data_conclusao__isnull=False),
                     "data_conclusao",
                 ),
@@ -725,7 +702,6 @@ class ProcessoDashboardView(LoginRequiredMixin, TemplateView):
                     "values": [item["total"] for item in destinos_mais_utilizados],
                 },
                 "ranking_cadastro": ranking_cadastro,
-                "ranking_tratados": ranking_tratados,
             }
         )
         return context

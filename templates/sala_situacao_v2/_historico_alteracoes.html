@@ -9,7 +9,7 @@
       {% for item in historico_alteracoes_formatado %}
         <li class="audit-history-item">
           <div class="audit-history-head">
-            <strong>{{ item.registro.timestamp|date:'d/m/Y H:i' }}</strong>
+            <strong>{{ item.registro.timestamp|date:'d/m/Y H:i:s' }}</strong>
             <span>
               {% if item.registro.user %}
                 {{ item.registro.user.get_full_name|default:item.registro.user.username }}
@@ -18,7 +18,7 @@
               {% endif %}
             </span>
           </div>
-          <p class="audit-history-text">{{ item.registro.acao_resumo }}</p>
+          <p class="audit-history-text">{{ item.resumo }}</p>
           {% if item.detalhes %}
             <ul class="audit-history-list">
               {% for detalhe in item.detalhes %}

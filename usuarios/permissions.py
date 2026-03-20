@@ -142,6 +142,9 @@ PROFILE_DEFINITIONS = {
             "sala_situacao.IndicadorCicloMonitoramento",
             "sala_situacao.IndicadorCicloValor",
             "sala_situacao.IndicadorCicloHistorico",
+            "sala_situacao_v2.Indicador",
+            "sala_situacao_v2.Processo",
+            "sala_situacao_v2.Entrega",
         ],
         "levels": [
             ("Leitura", ["view"]),

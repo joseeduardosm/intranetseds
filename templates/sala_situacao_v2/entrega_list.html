@@ -30,7 +30,15 @@
           >
             <a class="card-link" href="{% url 'sala_entrega_detail' entrega.pk %}">
               <div class="card-body">
-                <h3 class="card-title">{{ entrega.nome }}</h3>
+                <h3 class="card-title">
+                  {% if entrega.numeracao_processos %}
+                    {% for item in entrega.numeracao_processos %}
+                      {{ item.rotulo }}{% if not forloop.last %} | {% endif %}
+                    {% endfor %}
+                    -
+                  {% endif %}
+                  {{ entrega.nome }}
+                </h3>
                 <div class="entrega-card-marcadores">
                   <div class="sala-marcadores-wrap">
                     {% for marcador in entrega.marcadores_efetivos %}
@@ -123,6 +131,12 @@
             .replaceAll(">", "&gt;")
             .replaceAll('"', "&quot;")
             .replaceAll("'", "&#039;");
+        const truncateText = (value, maxLength = 120) => {
+          const text = String(value || "").trim();
+          if (!text) return "";
+          if (text.length <= maxLength) return text;
+          return `${text.slice(0, maxLength).trimEnd()}...`;
+        };
 
         const rebuildIndex = () => {
           entregaIndex = {};
@@ -173,7 +187,15 @@
 
           const tooltip = document.createElement("span");
           tooltip.className = "event-tooltip";
-          tooltip.innerHTML = `<strong>${escapeHtml(entrega.nome)}</strong><span>${escapeHtml(entrega.descricao)}</span><span>${escapeHtml(entrega.status_label || "")}</span>`;
+          const processos = Array.isArray(entrega.processos) && entrega.processos.length
+            ? entrega.processos.join(", ")
+            : "Sem processo vinculado";
+          const descricaoCurta = truncateText(entrega.descricao, 140);
+          tooltip.innerHTML = `
+            <strong>${escapeHtml(processos)}</strong>
+            <span>${escapeHtml(entrega.nome)}</span>
+            <span>${escapeHtml(descricaoCurta)}</span>
+          `;
           element.appendChild(tooltip);
           return element;
         };
