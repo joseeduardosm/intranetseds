@@ -802,11 +802,18 @@ class SalaSituacaoV2EntregaListTests(TestCase):
 
 
 class SalaSituacaoNotasAnexosTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="nota-v2", password="senha-123")
+        self.indicador = Indicador.objects.create(nome="Indicador para nota")
+        self.processo = Processo.objects.create(nome="Processo para nota")
+        self.processo.indicadores.set([self.indicador])
+        self.entrega = Entrega.objects.create(nome="Entrega para nota")
+        self.entrega.processos.set([self.processo])
+
     def test_form_nota_salva_um_ou_varios_anexos(self):
-        indicador = Indicador.objects.create(nome="Indicador para nota")
         nota = NotaItem.objects.create(
             content_type=ContentType.objects.get_for_model(Indicador),
-            object_id=indicador.pk,
+            object_id=self.indicador.pk,
             texto="Nota com anexos",
         )
         form = NotaItemForm(data={"texto": "Atualizada"})
@@ -819,3 +826,125 @@ class SalaSituacaoNotasAnexosTests(TestCase):
         form.save_anexos(nota, arquivos)
 
         self.assertEqual(NotaItemAnexo.objects.filter(nota=nota).count(), 2)
+
+    @patch("sala_situacao.forms.nota_item_anexo_storage_ready", return_value=False)
+    def test_form_nota_omite_campo_e_ignora_salvar_anexos_sem_tabela(self, _storage_ready):
+        indicador = Indicador.objects.create(nome="Indicador sem tabela de anexo")
+        nota = NotaItem.objects.create(
+            content_type=ContentType.objects.get_for_model(Indicador),
+            object_id=indicador.pk,
+            texto="Nota sem anexo persistente",
+        )
+        form = NotaItemForm(data={"texto": "Atualizada"})
+
+        self.assertTrue(form.is_valid())
+        self.assertNotIn("anexos", form.fields)
+        form.save_anexos(nota, [SimpleUploadedFile("arquivo.txt", b"conteudo")])
+
+        self.assertEqual(NotaItemAnexo.objects.filter(nota=nota).count(), 0)
+
+    @patch("sala_situacao_v2.views.nota_item_anexo_storage_ready", return_value=False)
+    def test_detail_de_indicador_funciona_sem_tabela_de_anexos(self, _storage_ready):
+        user = User.objects.create_user(username="indicador-sem-anexo", password="senha-123")
+        indicador = Indicador.objects.create(nome="Indicador sem anexo")
+        NotaItem.objects.create(
+            content_type=ContentType.objects.get_for_model(Indicador),
+            object_id=indicador.pk,
+            texto="Nota sem tabela de anexo",
+            criado_por=user,
+        )
+
+        self.client.force_login(user)
+        response = self.client.get(reverse("sala_indicador_estrategico_detail", kwargs={"pk": indicador.pk}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Nota sem tabela de anexo")
+
+    def test_indicador_aceita_nota_sem_anexo(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("sala_indicador_estrategico_detail", kwargs={"pk": self.indicador.pk}),
+            {"texto": "Nota sem arquivo"},
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("sala_indicador_estrategico_detail", kwargs={"pk": self.indicador.pk}),
+            fetch_redirect_response=False,
+        )
+        nota = NotaItem.objects.get(
+            content_type=ContentType.objects.get_for_model(Indicador),
+            object_id=self.indicador.pk,
+        )
+        self.assertEqual(nota.texto, "Nota sem arquivo")
+        self.assertEqual(nota.criado_por, self.user)
+        self.assertEqual(nota.anexos.count(), 0)
+
+    def test_processo_aceita_nota_com_multiplos_anexos(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("sala_processo_detail", kwargs={"pk": self.processo.pk}),
+            {
+                "texto": "Nota com dois anexos",
+                "anexos": [
+                    SimpleUploadedFile("processo-1.txt", b"um"),
+                    SimpleUploadedFile("processo-2.txt", b"dois"),
+                ],
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("sala_processo_detail", kwargs={"pk": self.processo.pk}),
+            fetch_redirect_response=False,
+        )
+        nota = NotaItem.objects.get(
+            content_type=ContentType.objects.get_for_model(Processo),
+            object_id=self.processo.pk,
+        )
+        self.assertEqual(nota.texto, "Nota com dois anexos")
+        self.assertEqual(nota.anexos.count(), 2)
+
+    def test_entrega_aceita_nota_sem_anexo(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("sala_entrega_detail", kwargs={"pk": self.entrega.pk}),
+            {"texto": "Entrega sem anexo"},
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("sala_entrega_detail", kwargs={"pk": self.entrega.pk}),
+            fetch_redirect_response=False,
+        )
+        nota = NotaItem.objects.get(
+            content_type=ContentType.objects.get_for_model(Entrega),
+            object_id=self.entrega.pk,
+        )
+        self.assertEqual(nota.texto, "Entrega sem anexo")
+        self.assertEqual(nota.anexos.count(), 0)
+
+    @patch("sala_situacao.forms.NotaItemForm.save_anexos", side_effect=PermissionError("sem permissao"))
+    def test_indicador_exibe_erro_quando_upload_falha_por_permissao(self, _save_anexos):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("sala_indicador_estrategico_detail", kwargs={"pk": self.indicador.pk}),
+            {
+                "texto": "Nota com anexo bloqueado",
+                "anexos": [SimpleUploadedFile("bloqueado.txt", b"arquivo")],
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Nao foi possivel salvar o arquivo enviado")
+        self.assertFalse(
+            NotaItem.objects.filter(
+                content_type=ContentType.objects.get_for_model(Indicador),
+                object_id=self.indicador.pk,
+                texto="Nota com anexo bloqueado",
+            ).exists()
+        )

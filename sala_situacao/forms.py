@@ -30,6 +30,7 @@ from .models import (
     NotaItem,
     NotaItemAnexo,
     Processo,
+    nota_item_anexo_storage_ready,
 )
 
 _ENTREGA_MONITOR_RE = re.compile(r'^Registro de monitoramento "([^"]+)" - (\d{2})/(\d{4})(?: \(Inicial\))?$')
@@ -41,6 +42,18 @@ _FORMULA_TOKEN_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
 class MultipleFileInput(forms.ClearableFileInput):
     allow_multiple_selected = True
+
+
+class MultipleFileField(forms.FileField):
+    widget = MultipleFileInput
+
+    def clean(self, data, initial=None):
+        single_file_clean = super().clean
+        if data in self.empty_values:
+            return []
+        if isinstance(data, (list, tuple)):
+            return [single_file_clean(item, initial) for item in data]
+        return [single_file_clean(data, initial)]
 
 
 def _normalizar_unidade(unidade):
@@ -1080,7 +1093,7 @@ class NotaItemForm(forms.ModelForm):
     - Organiza regras de negócio e integração com ORM, permissões e templates.
     """
 
-    anexos = forms.FileField(
+    anexos = MultipleFileField(
         required=False,
         widget=MultipleFileInput(
             attrs={
@@ -1111,8 +1124,13 @@ class NotaItemForm(forms.ModelForm):
             )
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not nota_item_anexo_storage_ready():
+            self.fields.pop("anexos", None)
+
     def save_anexos(self, nota, arquivos):
-        if not nota or not getattr(nota, "pk", None):
+        if not nota or not getattr(nota, "pk", None) or not nota_item_anexo_storage_ready():
             return
         for arquivo in arquivos or []:
             NotaItemAnexo.objects.create(

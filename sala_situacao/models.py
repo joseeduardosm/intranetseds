@@ -13,6 +13,7 @@ Integração com arquitetura Django:
 """
 
 import ast
+from functools import lru_cache
 import re
 import secrets
 from datetime import datetime, time, timedelta
@@ -24,7 +25,7 @@ from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelatio
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
-from django.db import models
+from django.db import connection, models
 from django.utils import timezone
 
 
@@ -41,6 +42,13 @@ _MARCADORES_PALETA = [
     "#bcbd22",
     "#7f7f7f",
 ]
+
+
+@lru_cache(maxsize=1)
+def nota_item_anexo_storage_ready():
+    """Indica se a tabela física de anexos de nota existe no banco atual."""
+
+    return NotaItemAnexo._meta.db_table in connection.introspection.table_names()
 
 
 def normalizar_nome_marcador(valor):

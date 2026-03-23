@@ -2898,6 +2898,14 @@ class ItemSessaoDeleteView(LicitacoesAccessMixin, DeleteView):
         )
         return context
 
+    def post(self, request, *args, **kwargs):
+        """Torna a exclusão idempotente quando o mesmo POST é reenviado."""
+
+        try:
+            return super().post(request, *args, **kwargs)
+        except Http404:
+            return redirect(self.get_success_url())
+
     def form_valid(self, form):
         """Método `ItemSessaoDeleteView.form_valid` no fluxo do app `licitacoes`.
 

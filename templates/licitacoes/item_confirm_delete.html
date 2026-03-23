@@ -18,7 +18,7 @@
       {% csrf_token %}
       <input type="hidden" name="next" value="{{ next_url }}" />
       <div class="form-actions">
-        <button class="btn btn-danger" type="submit">Excluir</button>
+        <button class="btn btn-danger" type="submit" id="item-delete-submit">Excluir</button>
         <a class="btn btn-light" href="{{ next_url }}">Cancelar</a>
       </div>
     </form>
@@ -26,10 +26,25 @@
   <script>
     (function () {
       const form = document.getElementById("item-delete-form");
+      const submitButton = document.getElementById("item-delete-submit");
+      let submitting = false;
       if (!form) return;
+
+      form.addEventListener("submit", (event) => {
+        if (submitting) {
+          event.preventDefault();
+          return;
+        }
+        submitting = true;
+        if (submitButton) {
+          submitButton.disabled = true;
+        }
+      });
+
       document.addEventListener("keydown", (event) => {
         if (event.key !== "Enter") return;
         if (event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) return;
+        if (submitting) return;
         event.preventDefault();
         form.requestSubmit();
       });

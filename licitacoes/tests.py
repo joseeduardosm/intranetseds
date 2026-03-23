@@ -178,6 +178,40 @@ class ItemSessaoFormTests(TestCase):
         )
 
 
+class ItemSessaoDeleteViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="licit-user", password="123")
+        perm = Permission.objects.get(codename="delete_itemsessao")
+        self.user.user_permissions.add(perm)
+        self.client.login(username="licit-user", password="123")
+
+        self.termo = TermoReferencia.objects.create(
+            apelido="TR exclusao",
+            processo_sei="001/2026",
+        )
+        self.sessao = SessaoTermo.objects.create(
+            termo=self.termo,
+            titulo="Sessao teste",
+            ordem=1,
+        )
+        self.item = ItemSessao.objects.create(
+            sessao=self.sessao,
+            texto="Item a excluir",
+            ordem=1,
+        )
+
+    def test_post_repetido_redireciona_ao_invés_de_404(self):
+        url = reverse("licitacoes_item_delete", args=[self.sessao.pk, self.item.pk])
+        next_url = f"{reverse('licitacoes_termo_detail', args=[self.termo.pk])}#sessao-{self.sessao.pk}"
+
+        first_response = self.client.post(url, {"next": next_url})
+        self.assertRedirects(first_response, next_url, fetch_redirect_response=False)
+        self.assertFalse(ItemSessao.objects.filter(pk=self.item.pk).exists())
+
+        second_response = self.client.post(url, {"next": next_url})
+        self.assertRedirects(second_response, next_url, fetch_redirect_response=False)
+
+
 class EtpTicTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="etp-user", password="123")

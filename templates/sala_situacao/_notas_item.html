@@ -10,13 +10,15 @@
         <div class="form-error">{{ error }}</div>
       {% endfor %}
     </div>
-    <div class="form-group">
-      {{ nota_form.anexos.label_tag }}
-      {{ nota_form.anexos }}
-      {% for error in nota_form.anexos.errors %}
-        <div class="form-error">{{ error }}</div>
-      {% endfor %}
-    </div>
+    {% if nota_anexos_disponiveis %}
+      <div class="form-group">
+        {{ nota_form.anexos.label_tag }}
+        {{ nota_form.anexos }}
+        {% for error in nota_form.anexos.errors %}
+          <div class="form-error">{{ error }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
     <button type="submit" class="btn btn-primary">Adicionar nota</button>
   </form>
 
@@ -28,7 +30,7 @@
           <span>{{ nota.criado_em|date:'d/m/Y H:i' }}</span>
         </header>
         <p>{{ nota.texto|linebreaksbr }}</p>
-        {% if nota.anexos.all %}
+        {% if nota_anexos_disponiveis and nota.anexos.all %}
           <div class="audit-history-meta">
             {% for anexo in nota.anexos.all %}
               <div><a href="{{ anexo.arquivo.url }}" target="_blank" rel="noopener">{{ anexo.nome_original|default:anexo.arquivo.name }}</a></div>

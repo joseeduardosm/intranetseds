@@ -67,6 +67,7 @@ from .models import (
     NotaItem,
     Processo,
     escolher_cor_marcador,
+    nota_item_anexo_storage_ready,
     normalizar_nome_marcador,
 )
 
@@ -1766,11 +1767,12 @@ class ItemNotesContextMixin:
         """
 
         content_type = ContentType.objects.get_for_model(self.object.__class__)
-        return (
-            NotaItem.objects.select_related("criado_por").prefetch_related("anexos")
-            .filter(content_type=content_type, object_id=self.object.pk)
-            .order_by("-criado_em")[: self.notas_limit]
-        )
+        queryset = NotaItem.objects.select_related("criado_por")
+        if nota_item_anexo_storage_ready():
+            queryset = queryset.prefetch_related("anexos")
+        return queryset.filter(content_type=content_type, object_id=self.object.pk).order_by("-criado_em")[
+            : self.notas_limit
+        ]
 
     def get_context_data(self, **kwargs):
         """Implementa parte do fluxo de negócio deste componente.
@@ -1787,6 +1789,7 @@ class ItemNotesContextMixin:
 
         context = super().get_context_data(**kwargs)
         context["nota_form"] = kwargs.get("nota_form") or self.nota_form_class()
+        context["nota_anexos_disponiveis"] = nota_item_anexo_storage_ready()
         context["notas_item"] = list(self._get_notas())
         return context
 
@@ -1806,16 +1809,21 @@ class ItemNotesContextMixin:
         self.object = self.get_object()
         nota_form = self.nota_form_class(request.POST, request.FILES)
         if nota_form.is_valid():
-            content_type = ContentType.objects.get_for_model(self.object.__class__)
-            nota = NotaItem.objects.create(
-                content_type=content_type,
-                object_id=self.object.pk,
-                texto=nota_form.cleaned_data["texto"].strip(),
-                criado_por=request.user if request.user.is_authenticated else None,
-            )
-            nota_form.save_anexos(nota, request.FILES.getlist("anexos"))
-            messages.success(request, "Nota adicionada com sucesso.")
-            return HttpResponseRedirect(request.path)
+            try:
+                with transaction.atomic():
+                    content_type = ContentType.objects.get_for_model(self.object.__class__)
+                    nota = NotaItem.objects.create(
+                        content_type=content_type,
+                        object_id=self.object.pk,
+                        texto=nota_form.cleaned_data["texto"].strip(),
+                        criado_por=request.user if request.user.is_authenticated else None,
+                    )
+                    nota_form.save_anexos(nota, request.FILES.getlist("anexos"))
+            except OSError:
+                nota_form.add_error("anexos", "Nao foi possivel salvar o arquivo enviado. Verifique as permissoes da pasta de upload.")
+            else:
+                messages.success(request, "Nota adicionada com sucesso.")
+                return HttpResponseRedirect(request.path)
 
         messages.error(request, "Não foi possível salvar a nota. Verifique o conteúdo informado.")
         context = self.get_context_data(nota_form=nota_form)

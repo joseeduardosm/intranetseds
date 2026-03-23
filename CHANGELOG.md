@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-03-22
+
+### Licitacoes
+- evitado erro 404 em exclusao repetida de itens de sessao, com protecao contra duplo envio no formulario e tratamento idempotente no backend;
+- adicionados testes cobrindo reenvio do `POST` de exclusao sem quebra do fluxo.
+
+### Sala de Situacao
+- ajustado o fluxo de notas para aceitar anotacoes sem anexo e tambem multiplos anexos reais no mesmo envio;
+- reforcado o fallback de anexos em ambientes sem a tabela `NotaItemAnexo`, ocultando o campo e evitando consultas que quebravam as telas;
+- tratado erro de permissao na gravacao de anexos com retorno amigavel ao formulario e rollback da nota, sem pagina 500;
+- ampliada a cobertura de testes para notas com e sem anexo, multiplos uploads e falha de escrita no storage.
+
 ## 2026-03-20
 
 ### Sala de Situacao V2
