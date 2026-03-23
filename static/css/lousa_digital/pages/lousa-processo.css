@@ -1,1 +1,64 @@
 /* Estilos específicos das telas de processo da Lousa */
+
+.lousa-tabstrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0 0 18px;
+}
+
+.lousa-tabstrip__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border: 1px solid #d7d4cc;
+  border-radius: 999px;
+  background: #fff;
+  color: #4c4032;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.lousa-tabstrip__item:hover {
+  border-color: #b39b7f;
+  color: #76542d;
+}
+
+.lousa-tabstrip__item.is-active {
+  border-color: #8b5e34;
+  background: #8b5e34;
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(139, 94, 52, 0.18);
+}
+
+.lousa-origem-fixa {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 42px;
+  padding: 10px 12px;
+  margin-top: 29px;
+  border: 1px solid #d7d4cc;
+  border-radius: 10px;
+  background: #f7f3ed;
+}
+
+.lousa-origem-fixa__label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #8b5e34;
+}
+
+.lousa-origem-fixa__value {
+  color: #3b2d20;
+}
+
+@media (max-width: 1000px) {
+  .lousa-origem-fixa {
+    margin-top: 0;
+  }
+}

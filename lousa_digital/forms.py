@@ -15,6 +15,23 @@ from .models import Encaminhamento, EventoTimeline, Processo
 class ProcessoForm(forms.ModelForm):
     """Formulário de criação/edição dos dados básicos do processo."""
 
+    def __init__(self, *args, origem_fixa=None, **kwargs):
+        """Oculta a origem e a mantém sincronizada com a aba ativa."""
+
+        self.origem_fixa = Processo.normalizar_aba_origem(origem_fixa)
+        super().__init__(*args, **kwargs)
+        self.fields["caixa_origem"].widget = forms.HiddenInput()
+        self.fields["caixa_origem"].required = False
+        if self.origem_fixa:
+            self.initial["caixa_origem"] = self.origem_fixa
+
+        origem_atual = (
+            self.initial.get("caixa_origem")
+            or getattr(self.instance, "caixa_origem", "")
+            or self.origem_fixa
+        )
+        self.origem_exibicao = origem_atual or "-"
+
     class Meta:
         """Define campos editáveis e widgets para UI da lousa."""
 
@@ -27,6 +44,19 @@ class ProcessoForm(forms.ModelForm):
             "caixa_origem": forms.TextInput(attrs={"class": "form-control"}),
             "arquivo_morto": forms.CheckboxInput(attrs={"class": "lousa-checkbox-input"}),
         }
+
+    def clean_caixa_origem(self):
+        """Mantém a origem preenchida mesmo com campo oculto."""
+
+        caixa_origem = (
+            self.cleaned_data.get("caixa_origem")
+            or self.origem_fixa
+            or getattr(self.instance, "caixa_origem", "")
+        )
+        caixa_origem = (caixa_origem or "").strip().upper()
+        if not caixa_origem:
+            raise forms.ValidationError("A origem do processo é obrigatória.")
+        return caixa_origem
 
 
 class EncaminhamentoForm(forms.ModelForm):

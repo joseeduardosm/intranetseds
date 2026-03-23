@@ -17,6 +17,7 @@ from .forms import EncaminhamentoForm
 from .models import Encaminhamento, EventoTimeline, Processo
 from .views import (
     CriarEncaminhamentoView,
+    ProcessoCreateView,
     ProcessoListView,
     ProcessoUpdateView,
     _arquivar_processos_sem_encaminhamento,
@@ -55,7 +56,7 @@ class NotificarPrazosLousaCommandTests(TestCase):
         self.processo = Processo.objects.create(
             numero_sei="012.00000001/2026-00",
             assunto="Processo teste",
-            caixa_origem="GABINETE",
+            caixa_origem="SGC",
             criado_por=user,
             atualizado_por=user,
             status=Processo.Status.EM_ABERTO,
@@ -228,7 +229,7 @@ class CriarEncaminhamentoViewEmailTests(TestCase):
         self.processo = Processo.objects.create(
             numero_sei="012.00000002/2026-00",
             assunto="Teste encaminhamento imediato",
-            caixa_origem="GABINETE",
+            caixa_origem="SGC",
             criado_por=self.user,
             atualizado_por=self.user,
             status=Processo.Status.EM_ABERTO,
@@ -290,7 +291,7 @@ class ProcessoUpdateArquivoMortoTimelineTests(TestCase):
         self.processo = Processo.objects.create(
             numero_sei="012.00000003/2026-00",
             assunto="Teste arquivo morto",
-            caixa_origem="GABINETE",
+            caixa_origem="SGC",
             criado_por=self.user,
             atualizado_por=self.user,
             status=Processo.Status.EM_ABERTO,
@@ -323,11 +324,38 @@ class ProcessoUpdateArquivoMortoTimelineTests(TestCase):
         )
         self.assertTrue(mock_success.called)
 
+
+class ProcessoCreateAbasTests(TestCase):
+    def setUp(self):
+        self.factory = RequestFactory()
+        self.user = get_user_model().objects.create_user(username="criador_aba", password="123456")
+
+    @patch("lousa_digital.views.messages.success")
+    def test_cria_processo_com_origem_da_aba(self, mock_success):
+        request = self.factory.post(
+            reverse("lousa_digital_create"),
+            data={
+                "numero_sei": "012.00000030/2026-00",
+                "assunto": "Cadastro por aba",
+                "link_sei": "",
+                "caixa_origem": "",
+            },
+            QUERY_STRING="aba=TCE",
+        )
+        request.user = self.user
+
+        response = ProcessoCreateView.as_view()(request)
+
+        self.assertEqual(response.status_code, 302)
+        processo = Processo.objects.get(numero_sei="012.00000030/2026-00")
+        self.assertEqual(processo.caixa_origem, "TCE")
+        self.assertTrue(mock_success.called)
+
     def test_arquiva_automaticamente_processo_com_20_dias_sem_encaminhamento(self):
         processo = Processo.objects.create(
             numero_sei="012.00000003/2026-01",
             assunto="Auto arquivo morto",
-            caixa_origem="GABINETE",
+            caixa_origem="SGC",
             criado_por=self.user,
             atualizado_por=self.user,
             status=Processo.Status.EM_ABERTO,
@@ -353,7 +381,7 @@ class ProcessoUpdateArquivoMortoTimelineTests(TestCase):
         processo = Processo.objects.create(
             numero_sei="012.00000003/2026-02",
             assunto="Nao arquivar",
-            caixa_origem="GABINETE",
+            caixa_origem="SGC",
             criado_por=self.user,
             atualizado_por=self.user,
             status=Processo.Status.EM_ABERTO,
@@ -383,7 +411,7 @@ class ProcessoListAlertaPrazoTests(TestCase):
         self.processo = Processo.objects.create(
             numero_sei="012.00000004/2026-00",
             assunto="Processo com alerta visual",
-            caixa_origem="GABINETE",
+            caixa_origem="SGC",
             criado_por=self.user,
             atualizado_por=self.user,
             status=Processo.Status.EM_ABERTO,
@@ -404,7 +432,7 @@ class ProcessoListAlertaPrazoTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Faltam 3 dias")
-        self.assertContains(response, "lousa-progress-alert")
+        self.assertContains(response, "lousa-progress-note")
 
     def test_lista_exibe_alerta_mesmo_quando_prazo_esta_mais_distante(self):
         Encaminhamento.objects.create(
@@ -421,7 +449,57 @@ class ProcessoListAlertaPrazoTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Faltam 10 dias")
-        self.assertContains(response, "lousa-progress-alert")
+        self.assertContains(response, "lousa-progress-note")
+
+
+class ProcessoListAbasTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(username="abas", password="123456")
+        self.factory = RequestFactory()
+        self.processo_sgc = Processo.objects.create(
+            numero_sei="012.00000020/2026-00",
+            assunto="Processo SGC",
+            caixa_origem="SGC",
+            criado_por=self.user,
+            atualizado_por=self.user,
+        )
+        self.processo_cei = Processo.objects.create(
+            numero_sei="012.00000021/2026-00",
+            assunto="Processo CEI",
+            caixa_origem="CEI",
+            criado_por=self.user,
+            atualizado_por=self.user,
+        )
+        self.processo_tce = Processo.objects.create(
+            numero_sei="012.00000022/2026-00",
+            assunto="Processo TCE",
+            caixa_origem="TCE",
+            criado_por=self.user,
+            atualizado_por=self.user,
+        )
+
+    def test_lista_filtra_pela_aba_informada(self):
+        request = self.factory.get(reverse("lousa_digital_list"), {"aba": "CEI"})
+        request.user = self.user
+        response = ProcessoListView.as_view()(request)
+        response.render()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "CEI - 1 processo")
+        self.assertContains(response, self.processo_cei.numero_sei)
+        self.assertNotContains(response, self.processo_sgc.numero_sei)
+        self.assertNotContains(response, self.processo_tce.numero_sei)
+
+    def test_lista_exibe_contadores_das_abas(self):
+        request = self.factory.get(reverse("lousa_digital_list"), {"aba": "SGC"})
+        request.user = self.user
+        response = ProcessoListView.as_view()(request)
+        response.render()
+
+        self.assertContains(response, "SGC")
+        self.assertContains(response, "(1)")
+        self.assertContains(response, "CEI")
+        self.assertContains(response, "TCE")
 
 
 class ProcessoVisibilidadePorGrupoTests(TestCase):
@@ -439,7 +517,7 @@ class ProcessoVisibilidadePorGrupoTests(TestCase):
         processo = Processo.objects.create(
             numero_sei="012.10000001/2026-00",
             assunto="Visível por grupo",
-            caixa_origem="GABINETE",
+            caixa_origem="SGC",
             criado_por=self.criador,
             atualizado_por=self.criador,
             grupo_insercao=self.grupo_a,
@@ -453,7 +531,7 @@ class ProcessoVisibilidadePorGrupoTests(TestCase):
         processo = Processo.objects.create(
             numero_sei="012.10000002/2026-00",
             assunto="Dinâmica por grupo atual",
-            caixa_origem="GABINETE",
+            caixa_origem="SGC",
             criado_por=self.criador,
             atualizado_por=self.criador,
             grupo_insercao=self.grupo_a,
@@ -470,7 +548,7 @@ class ProcessoVisibilidadePorGrupoTests(TestCase):
         processo = Processo.objects.create(
             numero_sei="012.10000003/2026-00",
             assunto="Restrito por grupo",
-            caixa_origem="GABINETE",
+            caixa_origem="SGC",
             criado_por=self.criador,
             atualizado_por=self.criador,
             grupo_insercao=self.grupo_a,
@@ -495,7 +573,7 @@ class ProcessoDashboardViewTests(TestCase):
         self.processo_a = Processo.objects.create(
             numero_sei="012.00000010/2026-00",
             assunto="Processo A",
-            caixa_origem="GABINETE",
+            caixa_origem="SGC",
             criado_por=self.user,
             atualizado_por=self.user,
             status=Processo.Status.EM_ABERTO,
@@ -503,7 +581,7 @@ class ProcessoDashboardViewTests(TestCase):
         self.processo_b = Processo.objects.create(
             numero_sei="012.00000011/2026-00",
             assunto="Processo B",
-            caixa_origem="GABINETE",
+            caixa_origem="SGC",
             criado_por=self.user,
             atualizado_por=self.user,
             status=Processo.Status.EM_ABERTO,

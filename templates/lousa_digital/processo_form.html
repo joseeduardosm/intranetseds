@@ -13,6 +13,7 @@
   <div class="form">
     <form method="post">
       {% csrf_token %}
+      {{ form.caixa_origem }}
       {{ form.non_field_errors }}
       <div class="{% if form.sequencia %}lousa-form-grid-3{% else %}lousa-form-grid-2{% endif %}">
         {% if form.sequencia %}
@@ -39,11 +40,10 @@
           {{ form.assunto }}
           {{ form.assunto.errors }}
         </p>
-        <p>
-          <label for="{{ form.caixa_origem.id_for_label }}">{{ form.caixa_origem.label }}</label>
-          {{ form.caixa_origem }}
-          {{ form.caixa_origem.errors }}
-        </p>
+        <div class="lousa-origem-fixa">
+          <span class="lousa-origem-fixa__label">Origem</span>
+          <strong class="lousa-origem-fixa__value">{{ processo_origem_exibicao }}</strong>
+        </div>
       </div>
       <div class="lousa-checkbox-row">
         <label for="{{ form.arquivo_morto.id_for_label }}" class="lousa-checkbox-label">
@@ -57,7 +57,7 @@
         {% if object %}
           <a class="btn btn-light" href="{% url 'lousa_digital_detail' object.pk %}">Cancelar</a>
         {% else %}
-          <a class="btn btn-light" href="{% url 'lousa_digital_list' %}">Cancelar</a>
+          <a class="btn btn-light" href="{{ voltar_lousa_url }}">Cancelar</a>
         {% endif %}
       </div>
     </form>

@@ -9,20 +9,30 @@
 
 {% block content %}
   <section class="page-header">
-    <h2>Lousa Digital - {{ total_processos }} processo{{ total_processos|pluralize }}</h2>
+    <h2>{{ active_aba }} - {{ total_processos }} processo{{ total_processos|pluralize }}</h2>
   </section>
 
+  <nav class="lousa-tabstrip" aria-label="Abas da lousa digital">
+    {% for aba in abas_lousa %}
+      <a class="lousa-tabstrip__item{% if aba.ativa %} is-active{% endif %}" href="{{ aba.url }}">
+        <span>{{ aba.nome }}</span>
+        <strong>({{ aba.total }})</strong>
+      </a>
+    {% endfor %}
+  </nav>
+
   <div class="card-actions">
-    <a class="btn" href="{% url 'lousa_digital_create' %}">Novo processo</a>
+    <a class="btn" href="{{ novo_processo_url }}">Novo processo</a>
     <a class="btn btn-light" href="{% url 'lousa_digital_dashboard' %}">Dashboard</a>
     {% if view_mode == 'cards' %}
-      <a class="btn btn-light" href="?view=table{% if query %}&q={{ query|urlencode }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if ordem_prazo %}&ordem_prazo={{ ordem_prazo }}{% endif %}{% if arquivo_morto_filter %}&arquivo_morto={{ arquivo_morto_filter|urlencode }}{% endif %}{% if sort_by %}&sort_by={{ sort_by|urlencode }}{% endif %}{% if sort_dir %}&sort_dir={{ sort_dir|urlencode }}{% endif %}{% if col_sei %}&col_sei={{ col_sei|urlencode }}{% endif %}{% if col_assunto %}&col_assunto={{ col_assunto|urlencode }}{% endif %}{% if col_origem %}&col_origem={{ col_origem|urlencode }}{% endif %}{% if col_destino %}&col_destino={{ col_destino|urlencode }}{% endif %}{% if col_ativos %}&col_ativos={{ col_ativos|urlencode }}{% endif %}{% if col_prazo %}&col_prazo={{ col_prazo|urlencode }}{% endif %}{% if col_atualizado %}&col_atualizado={{ col_atualizado|urlencode }}{% endif %}">Ver tabela</a>
+      <a class="btn btn-light" href="?aba={{ active_aba }}&view=table{% if query %}&q={{ query|urlencode }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if ordem_prazo %}&ordem_prazo={{ ordem_prazo }}{% endif %}{% if arquivo_morto_filter %}&arquivo_morto={{ arquivo_morto_filter|urlencode }}{% endif %}{% if sort_by %}&sort_by={{ sort_by|urlencode }}{% endif %}{% if sort_dir %}&sort_dir={{ sort_dir|urlencode }}{% endif %}{% if col_sei %}&col_sei={{ col_sei|urlencode }}{% endif %}{% if col_assunto %}&col_assunto={{ col_assunto|urlencode }}{% endif %}{% if col_origem %}&col_origem={{ col_origem|urlencode }}{% endif %}{% if col_destino %}&col_destino={{ col_destino|urlencode }}{% endif %}{% if col_ativos %}&col_ativos={{ col_ativos|urlencode }}{% endif %}{% if col_prazo %}&col_prazo={{ col_prazo|urlencode }}{% endif %}{% if col_atualizado %}&col_atualizado={{ col_atualizado|urlencode }}{% endif %}">Ver tabela</a>
     {% else %}
-      <a class="btn btn-light" href="?view=cards{% if query %}&q={{ query|urlencode }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if ordem_prazo %}&ordem_prazo={{ ordem_prazo }}{% endif %}{% if arquivo_morto_filter %}&arquivo_morto={{ arquivo_morto_filter|urlencode }}{% endif %}{% if sort_by %}&sort_by={{ sort_by|urlencode }}{% endif %}{% if sort_dir %}&sort_dir={{ sort_dir|urlencode }}{% endif %}{% if col_sei %}&col_sei={{ col_sei|urlencode }}{% endif %}{% if col_assunto %}&col_assunto={{ col_assunto|urlencode }}{% endif %}{% if col_origem %}&col_origem={{ col_origem|urlencode }}{% endif %}{% if col_destino %}&col_destino={{ col_destino|urlencode }}{% endif %}{% if col_ativos %}&col_ativos={{ col_ativos|urlencode }}{% endif %}{% if col_prazo %}&col_prazo={{ col_prazo|urlencode }}{% endif %}{% if col_atualizado %}&col_atualizado={{ col_atualizado|urlencode }}{% endif %}">Ver cards</a>
+      <a class="btn btn-light" href="?aba={{ active_aba }}&view=cards{% if query %}&q={{ query|urlencode }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if ordem_prazo %}&ordem_prazo={{ ordem_prazo }}{% endif %}{% if arquivo_morto_filter %}&arquivo_morto={{ arquivo_morto_filter|urlencode }}{% endif %}{% if sort_by %}&sort_by={{ sort_by|urlencode }}{% endif %}{% if sort_dir %}&sort_dir={{ sort_dir|urlencode }}{% endif %}{% if col_sei %}&col_sei={{ col_sei|urlencode }}{% endif %}{% if col_assunto %}&col_assunto={{ col_assunto|urlencode }}{% endif %}{% if col_origem %}&col_origem={{ col_origem|urlencode }}{% endif %}{% if col_destino %}&col_destino={{ col_destino|urlencode }}{% endif %}{% if col_ativos %}&col_ativos={{ col_ativos|urlencode }}{% endif %}{% if col_prazo %}&col_prazo={{ col_prazo|urlencode }}{% endif %}{% if col_atualizado %}&col_atualizado={{ col_atualizado|urlencode }}{% endif %}">Ver cards</a>
     {% endif %}
   </div>
 
   <form method="get" action="{% url 'lousa_digital_list' %}" class="lousa-search-form">
+    <input type="hidden" name="aba" value="{{ active_aba }}" />
     <input type="hidden" name="view" value="{{ view_mode }}" />
     {% if status_filter %}
       <input type="hidden" name="status" value="{{ status_filter }}" />
@@ -63,47 +73,47 @@
     <input type="search" name="q" value="{{ query }}" placeholder="Pesquisar por SEI, assunto, origem ou destino" />
     <button class="btn" type="submit">Pesquisar</button>
     {% if query %}
-      <a class="btn btn-light" href="?view={{ view_mode }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if arquivo_morto_filter %}&arquivo_morto={{ arquivo_morto_filter|urlencode }}{% endif %}">Limpar</a>
+      <a class="btn btn-light" href="?aba={{ active_aba }}&view={{ view_mode }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if arquivo_morto_filter %}&arquivo_morto={{ arquivo_morto_filter|urlencode }}{% endif %}">Limpar</a>
     {% endif %}
   </form>
   <div class="sala-marcadores-wrap lousa-status-filtros">
     <a
       class="sala-marcador-chip{% if status_filter == 'EM_ABERTO' %} sala-marcador-chip--filtro-ativo{% endif %}"
       style="--marcador-cor: #d9a400;"
-      href="?view={{ view_mode }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if ordem_prazo %}&ordem_prazo={{ ordem_prazo }}{% endif %}{% if arquivo_morto_filter %}&arquivo_morto={{ arquivo_morto_filter|urlencode }}{% endif %}{% if sort_by %}&sort_by={{ sort_by|urlencode }}{% endif %}{% if sort_dir %}&sort_dir={{ sort_dir|urlencode }}{% endif %}{% if col_sei %}&col_sei={{ col_sei|urlencode }}{% endif %}{% if col_assunto %}&col_assunto={{ col_assunto|urlencode }}{% endif %}{% if col_origem %}&col_origem={{ col_origem|urlencode }}{% endif %}{% if col_destino %}&col_destino={{ col_destino|urlencode }}{% endif %}{% if col_ativos %}&col_ativos={{ col_ativos|urlencode }}{% endif %}{% if col_prazo %}&col_prazo={{ col_prazo|urlencode }}{% endif %}{% if col_atualizado %}&col_atualizado={{ col_atualizado|urlencode }}{% endif %}&status=EM_ABERTO"
+      href="?aba={{ active_aba }}&view={{ view_mode }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if ordem_prazo %}&ordem_prazo={{ ordem_prazo }}{% endif %}{% if arquivo_morto_filter %}&arquivo_morto={{ arquivo_morto_filter|urlencode }}{% endif %}{% if sort_by %}&sort_by={{ sort_by|urlencode }}{% endif %}{% if sort_dir %}&sort_dir={{ sort_dir|urlencode }}{% endif %}{% if col_sei %}&col_sei={{ col_sei|urlencode }}{% endif %}{% if col_assunto %}&col_assunto={{ col_assunto|urlencode }}{% endif %}{% if col_origem %}&col_origem={{ col_origem|urlencode }}{% endif %}{% if col_destino %}&col_destino={{ col_destino|urlencode }}{% endif %}{% if col_ativos %}&col_ativos={{ col_ativos|urlencode }}{% endif %}{% if col_prazo %}&col_prazo={{ col_prazo|urlencode }}{% endif %}{% if col_atualizado %}&col_atualizado={{ col_atualizado|urlencode }}{% endif %}&status=EM_ABERTO"
     >
       Em aberto
     </a>
     <a
       class="sala-marcador-chip{% if status_filter == 'CONCLUIDO' %} sala-marcador-chip--filtro-ativo{% endif %}"
       style="--marcador-cor: #2e9d44;"
-      href="?view={{ view_mode }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if ordem_prazo %}&ordem_prazo={{ ordem_prazo }}{% endif %}{% if arquivo_morto_filter %}&arquivo_morto={{ arquivo_morto_filter|urlencode }}{% endif %}{% if sort_by %}&sort_by={{ sort_by|urlencode }}{% endif %}{% if sort_dir %}&sort_dir={{ sort_dir|urlencode }}{% endif %}{% if col_sei %}&col_sei={{ col_sei|urlencode }}{% endif %}{% if col_assunto %}&col_assunto={{ col_assunto|urlencode }}{% endif %}{% if col_origem %}&col_origem={{ col_origem|urlencode }}{% endif %}{% if col_destino %}&col_destino={{ col_destino|urlencode }}{% endif %}{% if col_ativos %}&col_ativos={{ col_ativos|urlencode }}{% endif %}{% if col_prazo %}&col_prazo={{ col_prazo|urlencode }}{% endif %}{% if col_atualizado %}&col_atualizado={{ col_atualizado|urlencode }}{% endif %}&status=CONCLUIDO"
+      href="?aba={{ active_aba }}&view={{ view_mode }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if ordem_prazo %}&ordem_prazo={{ ordem_prazo }}{% endif %}{% if arquivo_morto_filter %}&arquivo_morto={{ arquivo_morto_filter|urlencode }}{% endif %}{% if sort_by %}&sort_by={{ sort_by|urlencode }}{% endif %}{% if sort_dir %}&sort_dir={{ sort_dir|urlencode }}{% endif %}{% if col_sei %}&col_sei={{ col_sei|urlencode }}{% endif %}{% if col_assunto %}&col_assunto={{ col_assunto|urlencode }}{% endif %}{% if col_origem %}&col_origem={{ col_origem|urlencode }}{% endif %}{% if col_destino %}&col_destino={{ col_destino|urlencode }}{% endif %}{% if col_ativos %}&col_ativos={{ col_ativos|urlencode }}{% endif %}{% if col_prazo %}&col_prazo={{ col_prazo|urlencode }}{% endif %}{% if col_atualizado %}&col_atualizado={{ col_atualizado|urlencode }}{% endif %}&status=CONCLUIDO"
     >
       Concluido
     </a>
     <a
       class="sala-marcador-chip{% if ordem_prazo == 'prazo_mais_proximo' %} sala-marcador-chip--filtro-ativo{% endif %}"
       style="--marcador-cor: #0d6efd;"
-      href="?view={{ view_mode }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if arquivo_morto_filter %}&arquivo_morto={{ arquivo_morto_filter|urlencode }}{% endif %}{% if sort_by %}&sort_by={{ sort_by|urlencode }}{% endif %}{% if sort_dir %}&sort_dir={{ sort_dir|urlencode }}{% endif %}{% if col_sei %}&col_sei={{ col_sei|urlencode }}{% endif %}{% if col_assunto %}&col_assunto={{ col_assunto|urlencode }}{% endif %}{% if col_origem %}&col_origem={{ col_origem|urlencode }}{% endif %}{% if col_destino %}&col_destino={{ col_destino|urlencode }}{% endif %}{% if col_ativos %}&col_ativos={{ col_ativos|urlencode }}{% endif %}{% if col_prazo %}&col_prazo={{ col_prazo|urlencode }}{% endif %}{% if col_atualizado %}&col_atualizado={{ col_atualizado|urlencode }}{% endif %}&ordem_prazo=prazo_mais_proximo"
+      href="?aba={{ active_aba }}&view={{ view_mode }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if arquivo_morto_filter %}&arquivo_morto={{ arquivo_morto_filter|urlencode }}{% endif %}{% if sort_by %}&sort_by={{ sort_by|urlencode }}{% endif %}{% if sort_dir %}&sort_dir={{ sort_dir|urlencode }}{% endif %}{% if col_sei %}&col_sei={{ col_sei|urlencode }}{% endif %}{% if col_assunto %}&col_assunto={{ col_assunto|urlencode }}{% endif %}{% if col_origem %}&col_origem={{ col_origem|urlencode }}{% endif %}{% if col_destino %}&col_destino={{ col_destino|urlencode }}{% endif %}{% if col_ativos %}&col_ativos={{ col_ativos|urlencode }}{% endif %}{% if col_prazo %}&col_prazo={{ col_prazo|urlencode }}{% endif %}{% if col_atualizado %}&col_atualizado={{ col_atualizado|urlencode }}{% endif %}&ordem_prazo=prazo_mais_proximo"
     >
       Prazo crescente
     </a>
     <a
       class="sala-marcador-chip{% if ordem_prazo == 'prazo_mais_distante' %} sala-marcador-chip--filtro-ativo{% endif %}"
       style="--marcador-cor: #6f42c1;"
-      href="?view={{ view_mode }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if arquivo_morto_filter %}&arquivo_morto={{ arquivo_morto_filter|urlencode }}{% endif %}{% if sort_by %}&sort_by={{ sort_by|urlencode }}{% endif %}{% if sort_dir %}&sort_dir={{ sort_dir|urlencode }}{% endif %}{% if col_sei %}&col_sei={{ col_sei|urlencode }}{% endif %}{% if col_assunto %}&col_assunto={{ col_assunto|urlencode }}{% endif %}{% if col_origem %}&col_origem={{ col_origem|urlencode }}{% endif %}{% if col_destino %}&col_destino={{ col_destino|urlencode }}{% endif %}{% if col_ativos %}&col_ativos={{ col_ativos|urlencode }}{% endif %}{% if col_prazo %}&col_prazo={{ col_prazo|urlencode }}{% endif %}{% if col_atualizado %}&col_atualizado={{ col_atualizado|urlencode }}{% endif %}&ordem_prazo=prazo_mais_distante"
+      href="?aba={{ active_aba }}&view={{ view_mode }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if arquivo_morto_filter %}&arquivo_morto={{ arquivo_morto_filter|urlencode }}{% endif %}{% if sort_by %}&sort_by={{ sort_by|urlencode }}{% endif %}{% if sort_dir %}&sort_dir={{ sort_dir|urlencode }}{% endif %}{% if col_sei %}&col_sei={{ col_sei|urlencode }}{% endif %}{% if col_assunto %}&col_assunto={{ col_assunto|urlencode }}{% endif %}{% if col_origem %}&col_origem={{ col_origem|urlencode }}{% endif %}{% if col_destino %}&col_destino={{ col_destino|urlencode }}{% endif %}{% if col_ativos %}&col_ativos={{ col_ativos|urlencode }}{% endif %}{% if col_prazo %}&col_prazo={{ col_prazo|urlencode }}{% endif %}{% if col_atualizado %}&col_atualizado={{ col_atualizado|urlencode }}{% endif %}&ordem_prazo=prazo_mais_distante"
     >
       Prazo decrescente
     </a>
     <a
       class="sala-marcador-chip{% if arquivo_morto_filter == '1' or arquivo_morto_filter == 'true' or arquivo_morto_filter == 'sim' %} sala-marcador-chip--filtro-ativo{% endif %}"
       style="--marcador-cor: #111111;"
-      href="?view={{ view_mode }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if ordem_prazo %}&ordem_prazo={{ ordem_prazo }}{% endif %}{% if sort_by %}&sort_by={{ sort_by|urlencode }}{% endif %}{% if sort_dir %}&sort_dir={{ sort_dir|urlencode }}{% endif %}{% if col_sei %}&col_sei={{ col_sei|urlencode }}{% endif %}{% if col_assunto %}&col_assunto={{ col_assunto|urlencode }}{% endif %}{% if col_origem %}&col_origem={{ col_origem|urlencode }}{% endif %}{% if col_destino %}&col_destino={{ col_destino|urlencode }}{% endif %}{% if col_ativos %}&col_ativos={{ col_ativos|urlencode }}{% endif %}{% if col_prazo %}&col_prazo={{ col_prazo|urlencode }}{% endif %}{% if col_atualizado %}&col_atualizado={{ col_atualizado|urlencode }}{% endif %}&arquivo_morto=1"
+      href="?aba={{ active_aba }}&view={{ view_mode }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if ordem_prazo %}&ordem_prazo={{ ordem_prazo }}{% endif %}{% if sort_by %}&sort_by={{ sort_by|urlencode }}{% endif %}{% if sort_dir %}&sort_dir={{ sort_dir|urlencode }}{% endif %}{% if col_sei %}&col_sei={{ col_sei|urlencode }}{% endif %}{% if col_assunto %}&col_assunto={{ col_assunto|urlencode }}{% endif %}{% if col_origem %}&col_origem={{ col_origem|urlencode }}{% endif %}{% if col_destino %}&col_destino={{ col_destino|urlencode }}{% endif %}{% if col_ativos %}&col_ativos={{ col_ativos|urlencode }}{% endif %}{% if col_prazo %}&col_prazo={{ col_prazo|urlencode }}{% endif %}{% if col_atualizado %}&col_atualizado={{ col_atualizado|urlencode }}{% endif %}&arquivo_morto=1"
     >
       Arquivo morto
     </a>
     {% if status_filter or ordem_prazo or arquivo_morto_filter %}
-      <a class="btn btn-light btn-small" href="?view={{ view_mode }}{% if query %}&q={{ query|urlencode }}{% endif %}">Limpar filtros</a>
+      <a class="btn btn-light btn-small" href="?aba={{ active_aba }}&view={{ view_mode }}{% if query %}&q={{ query|urlencode }}{% endif %}">Limpar filtros</a>
     {% endif %}
   </div>
 
@@ -116,6 +126,7 @@
       </div>
     {% else %}
       <form method="get" action="{% url 'lousa_digital_list' %}" id="lousa-table-filter-form">
+        <input type="hidden" name="aba" value="{{ active_aba }}" />
         <input type="hidden" name="view" value="table" />
         {% if query %}
           <input type="hidden" name="q" value="{{ query }}" />
@@ -176,7 +187,7 @@
         <button class="btn" type="submit">Aplicar filtros da tabela</button>
         <a
           class="btn btn-light"
-          href="?view=table{% if query %}&q={{ query|urlencode }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if ordem_prazo %}&ordem_prazo={{ ordem_prazo }}{% endif %}{% if arquivo_morto_filter %}&arquivo_morto={{ arquivo_morto_filter|urlencode }}{% endif %}"
+          href="?aba={{ active_aba }}&view=table{% if query %}&q={{ query|urlencode }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if ordem_prazo %}&ordem_prazo={{ ordem_prazo }}{% endif %}{% if arquivo_morto_filter %}&arquivo_morto={{ arquivo_morto_filter|urlencode }}{% endif %}"
         >
           Limpar filtros da tabela
         </a>

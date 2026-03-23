@@ -33,6 +33,8 @@ class Processo(models.Model):
         EM_ABERTO = "EM_ABERTO", "Em aberto"
         CONCLUIDO = "CONCLUIDO", "Concluido"
 
+    ABAS_ORIGEM = ("SGC", "CEI", "TCE")
+
     numero_sei = models.CharField("Numero SEI", max_length=120, unique=True)
     assunto = models.CharField(max_length=255)
     link_sei = models.URLField("Link SEI", max_length=500, blank=True)
@@ -67,6 +69,21 @@ class Processo(models.Model):
         """Mantém processos mais recentes no topo da listagem principal."""
 
         ordering = ["-atualizado_em"]
+
+    @classmethod
+    def abas_origem(cls):
+        """Retorna as caixas de origem válidas para navegação por abas."""
+
+        return cls.ABAS_ORIGEM
+
+    @classmethod
+    def normalizar_aba_origem(cls, valor, default=""):
+        """Normaliza a aba/origem informada para um valor suportado."""
+
+        valor_normalizado = (valor or "").strip().upper()
+        if valor_normalizado in cls.ABAS_ORIGEM:
+            return valor_normalizado
+        return default
 
     def __str__(self) -> str:
         """Retorna identificação legível para admin e seleções."""

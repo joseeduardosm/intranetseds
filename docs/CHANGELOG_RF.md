@@ -2,6 +2,15 @@
 
 Este arquivo e atualizado pela equipe de implementacao a cada iteracao (nova funcionalidade, ajuste ou correcao).
 
+## 23/03/2026 18:45:00
+- Sistema: Lousa Digital
+- Alteracao: Listagem de processos segmentada por abas `SGC`, `CEI` e `TCE`.
+- Detalhes:
+  - A tela principal passou a exibir um tabstrip com contadores por aba no formato `SGC (n)`, `CEI (n)` e `TCE (n)`.
+  - O cadastro de processo passou a assumir automaticamente a origem conforme a aba ativa, removendo a necessidade de preenchimento manual de `caixa_origem`.
+  - A navegacao de criar, editar, detalhar, alternar cards/tabela e aplicar filtros passou a preservar a aba selecionada.
+  - Mantidos os RFs existentes de cadastro, encaminhamentos e identidade visual.
+
 ## 23/02/2026 13:35:00
 - Sistema: Administracao
 - Alteracao: Criada pagina `Administracao > RFs`.

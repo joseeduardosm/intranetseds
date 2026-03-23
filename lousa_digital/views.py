@@ -32,6 +32,7 @@ from .models import Encaminhamento, EventoTimeline, Processo
 
 
 User = get_user_model()
+LOUSA_ABAS = Processo.abas_origem()
 
 
 def _registrar_evento(processo, tipo, descricao, usuario=None, encaminhamento=None):
@@ -101,6 +102,30 @@ def _nome_usuario_dashboard(usuario) -> str:
     if not usuario:
         return "Sistema"
     return usuario.get_full_name() or usuario.username or "Sistema"
+
+
+def _aba_lousa_ativa(valor, default=None) -> str:
+    """Resolve a aba válida da lousa a partir do valor informado."""
+
+    aba_padrao = default or LOUSA_ABAS[0]
+    return Processo.normalizar_aba_origem(valor, default=aba_padrao)
+
+
+def _contagem_processos_por_aba(usuario, arquivo_morto=False) -> dict:
+    """Agrupa a quantidade de processos por aba/origem."""
+
+    contagens = {aba: 0 for aba in LOUSA_ABAS}
+    processos = (
+        _processos_visiveis_para_usuario(usuario)
+        .filter(arquivo_morto=arquivo_morto, caixa_origem__in=LOUSA_ABAS)
+        .values("caixa_origem")
+        .annotate(total=Count("id"))
+    )
+    for item in processos:
+        aba = _aba_lousa_ativa(item["caixa_origem"], default="")
+        if aba:
+            contagens[aba] = item["total"]
+    return contagens
 
 
 def _serie_diaria_ultimos_30_dias(queryset, campo_data: str) -> dict:
@@ -281,6 +306,11 @@ class ProcessoListView(LoginRequiredMixin, ListView):
     context_object_name = "processos"
     paginate_by = 24
 
+    def _get_aba_ativa(self):
+        """Retorna a aba atualmente selecionada na lousa."""
+
+        return _aba_lousa_ativa(self.request.GET.get("aba"))
+
     def get_queryset(self):
         """Monta queryset otimizado com indicadores de prazo e filtros de busca.
 
@@ -296,6 +326,7 @@ class ProcessoListView(LoginRequiredMixin, ListView):
         ).order_by("prazo_data", "data_inicio")
         queryset = (
             _processos_visiveis_para_usuario(self.request.user)
+            .filter(caixa_origem=self._get_aba_ativa())
             .annotate(
                 possui_ativo=Exists(encaminhamentos_ativos),
                 prazo_ativo_ordenacao=Subquery(encaminhamentos_ativos.values("prazo_data")[:1]),
@@ -480,8 +511,10 @@ class ProcessoListView(LoginRequiredMixin, ListView):
         """
 
         context = super().get_context_data(**kwargs)
+        active_aba = self._get_aba_ativa()
         view_mode = self.request.GET.get("view") or "cards"
         context["view_mode"] = "table" if view_mode == "table" else "cards"
+        context["active_aba"] = active_aba
         context["query"] = (self.request.GET.get("q") or "").strip()
         context["status_filter"] = (self.request.GET.get("status") or "").strip()
         context["ordem_prazo"] = (self.request.GET.get("ordem_prazo") or "").strip()
@@ -497,6 +530,10 @@ class ProcessoListView(LoginRequiredMixin, ListView):
         context["col_atualizado"] = (self.request.GET.get("col_atualizado") or "").strip()
         context["total_processos"] = context.get("paginator").count if context.get("paginator") else len(context["processos"])
         context["querystring"] = self._querystring_without_page()
+        context["novo_processo_url"] = f"{reverse('lousa_digital_create')}?aba={active_aba}"
+        context["abas_lousa"] = self._montar_abas_contexto(
+            arquivo_morto=context["arquivo_morto_filter"] in {"1", "true", "sim"},
+        )
 
         for processo in context["processos"]:
             if processo.atualizado_por:
@@ -572,6 +609,31 @@ class ProcessoListView(LoginRequiredMixin, ListView):
             processo.ativos = len(ativos_list)
 
         return context
+
+    def _montar_abas_contexto(self, arquivo_morto=False):
+        """Monta links e contadores das abas da lousa."""
+
+        contagens = _contagem_processos_por_aba(self.request.user, arquivo_morto=arquivo_morto)
+        params = self.request.GET.copy()
+        if "aba" in params:
+            params.pop("aba")
+        if "page" in params:
+            params.pop("page")
+        sufixo = params.urlencode()
+        abas = []
+        for aba in LOUSA_ABAS:
+            querystring = f"aba={aba}"
+            if sufixo:
+                querystring = f"{querystring}&{sufixo}"
+            abas.append(
+                {
+                    "nome": aba,
+                    "total": contagens.get(aba, 0),
+                    "ativa": aba == self._get_aba_ativa(),
+                    "url": f"{reverse('lousa_digital_list')}?{querystring}",
+                }
+            )
+        return abas
 
     def _querystring_without_page(self):
         """Remove parâmetro `page` para preservar filtros ao paginar/navegar."""
@@ -702,6 +764,7 @@ class ProcessoDashboardView(LoginRequiredMixin, TemplateView):
                     "values": [item["total"] for item in destinos_mais_utilizados],
                 },
                 "ranking_cadastro": ranking_cadastro,
+                "abas_lousa_dashboard": LOUSA_ABAS,
             }
         )
         return context
@@ -712,6 +775,25 @@ class ProcessoCreateView(LoginRequiredMixin, CreateView):
     model = Processo
     form_class = ProcessoForm
     template_name = "lousa_digital/processo_form.html"
+
+    def _get_aba_ativa(self):
+        """Retorna a aba selecionada para o cadastro do processo."""
+
+        return _aba_lousa_ativa(self.request.GET.get("aba"))
+
+    def get_initial(self):
+        """Preenche a origem automaticamente a partir da aba ativa."""
+
+        initial = super().get_initial()
+        initial["caixa_origem"] = self._get_aba_ativa()
+        return initial
+
+    def get_form_kwargs(self):
+        """Entrega ao formulário a origem fixa resolvida pela aba."""
+
+        kwargs = super().get_form_kwargs()
+        kwargs["origem_fixa"] = self._get_aba_ativa()
+        return kwargs
 
     def form_valid(self, form):
         """Aplica metadados de autoria/grupo e registra evento de criação."""
@@ -735,6 +817,16 @@ class ProcessoCreateView(LoginRequiredMixin, CreateView):
 
         return reverse("lousa_digital_detail", kwargs={"pk": self.object.pk})
 
+    def get_context_data(self, **kwargs):
+        """Expõe metadados da aba ativa para a tela de formulário."""
+
+        context = super().get_context_data(**kwargs)
+        active_aba = self._get_aba_ativa()
+        context["active_aba"] = active_aba
+        context["processo_origem_exibicao"] = active_aba
+        context["voltar_lousa_url"] = f"{reverse('lousa_digital_list')}?aba={active_aba}"
+        return context
+
 
 class ProcessoUpdateView(LoginRequiredMixin, UpdateView):
     """Fluxo HTTP de edição de processo existente."""
@@ -742,6 +834,13 @@ class ProcessoUpdateView(LoginRequiredMixin, UpdateView):
     model = Processo
     form_class = ProcessoForm
     template_name = "lousa_digital/processo_form.html"
+
+    def get_form_kwargs(self):
+        """Mantém a origem atual do processo mesmo com campo oculto."""
+
+        kwargs = super().get_form_kwargs()
+        kwargs["origem_fixa"] = self.get_object().caixa_origem
+        return kwargs
 
     def get_queryset(self):
         """Restringe edição ao conjunto de processos visíveis ao usuário."""
@@ -780,6 +879,19 @@ class ProcessoUpdateView(LoginRequiredMixin, UpdateView):
         """Redireciona para detalhe após atualização."""
 
         return reverse("lousa_digital_detail", kwargs={"pk": self.object.pk})
+
+    def get_context_data(self, **kwargs):
+        """Expõe a origem do processo como informação somente leitura."""
+
+        context = super().get_context_data(**kwargs)
+        origem = self.object.caixa_origem
+        aba = Processo.normalizar_aba_origem(origem, default="")
+        context["active_aba"] = aba
+        context["processo_origem_exibicao"] = origem or "-"
+        context["voltar_lousa_url"] = (
+            f"{reverse('lousa_digital_list')}?aba={aba}" if aba else reverse("lousa_digital_list")
+        )
+        return context
 
 
 class ProcessoDeleteView(LoginRequiredMixin, DeleteView):
@@ -862,6 +974,13 @@ class ProcessoDetailView(LoginRequiredMixin, DetailView):
 
         ativo = processo.encaminhamento_ativo_prioritario()
         context["encaminhamento_monitorado"] = ativo
+        aba = Processo.normalizar_aba_origem(processo.caixa_origem, default="")
+        context["voltar_lousa_url"] = f"{reverse('lousa_digital_list')}?aba={aba}" if aba else reverse("lousa_digital_list")
+        context["editar_processo_url"] = (
+            f"{reverse('lousa_digital_update', kwargs={'pk': processo.pk})}?aba={aba}"
+            if aba
+            else reverse("lousa_digital_update", kwargs={"pk": processo.pk})
+        )
         return context
 
 
