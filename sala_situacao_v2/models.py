@@ -29,6 +29,7 @@ _MARCADORES_PALETA = [
     "#7f7f7f",
 ]
 _FORMULA_VAR_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_PERIODICIDADES_SEM_DIA_REFERENCIA = {"DIARIO", "SEMANAL", "QUINZENAL"}
 
 
 def normalizar_nome_marcador(valor):
@@ -113,6 +114,9 @@ def adicionar_meses(data_base, meses):
 
 def passo_meses_periodicidade(periodicidade):
     mapa = {
+        "DIARIO": 0,
+        "SEMANAL": 0,
+        "QUINZENAL": 0,
         "MENSAL": 1,
         "TRIMESTRAL": 3,
         "SEMESTRAL": 6,
@@ -392,6 +396,9 @@ class BaseTimelineModel(models.Model):
 
 class Indicador(BaseTimelineModel):
     class PeriodicidadeMonitoramento(models.TextChoices):
+        DIARIO = "DIARIO", "Diario"
+        SEMANAL = "SEMANAL", "Semanal"
+        QUINZENAL = "QUINZENAL", "Quinzenal"
         MENSAL = "MENSAL", "Mensal"
         TRIMESTRAL = "TRIMESTRAL", "Trimestral"
         SEMESTRAL = "SEMESTRAL", "Semestral"
@@ -491,6 +498,32 @@ class Indicador(BaseTimelineModel):
         tree = ast.parse(self.formula_expressao.strip(), mode="eval")
         return sorted({node.id for node in ast.walk(tree) if isinstance(node, ast.Name)})
 
+    @staticmethod
+    def _formula_percentual_node_valido(node):
+        if not isinstance(node, ast.BinOp) or not isinstance(node.op, ast.Mult):
+            return False
+
+        def _is_const_100(item):
+            if not isinstance(item, ast.Constant):
+                return False
+            try:
+                return Decimal(str(item.value)) == Decimal("100")
+            except Exception:
+                return False
+
+        def _is_divisao_variaveis(item):
+            return (
+                isinstance(item, ast.BinOp)
+                and isinstance(item.op, ast.Div)
+                and isinstance(item.left, ast.Name)
+                and isinstance(item.right, ast.Name)
+            )
+
+        return (
+            (_is_divisao_variaveis(node.left) and _is_const_100(node.right))
+            or (_is_const_100(node.left) and _is_divisao_variaveis(node.right))
+        )
+
     def _validar_formula(self):
         if not self.formula_expressao:
             return
@@ -519,6 +552,22 @@ class Indicador(BaseTimelineModel):
                 )
             if isinstance(node, ast.Name) and not _FORMULA_VAR_RE.match(node.id):
                 raise ValidationError({"formula_expressao": f"Nome de variavel invalido: {node.id}"})
+        if self.eh_indicador_matematico and not self._formula_percentual_node_valido(tree.body):
+            raise ValidationError(
+                {
+                    "formula_expressao": (
+                        "Para indicadores matematicos, informe a formula no formato percentual "
+                        "(x/y)*100. Use uma variavel no numerador e outra no denominador. "
+                        "Exemplos validos: (qtdd_de_familias/meta_de_familias)*100 e "
+                        "(total_de_refeicoes/meta_de_refeicoes)*100."
+                    )
+                }
+            )
+
+    def clean(self):
+        super().clean()
+        if self.eh_indicador_matematico:
+            self._validar_formula()
 
     def _eval_formula_node(self, node, variaveis):
         if isinstance(node, ast.Expression):
@@ -729,6 +778,8 @@ class Processo(BaseTimelineModel):
         verbose_name_plural = "Processos V2"
 
     def _pais_para_marcadores(self):
+        if self.entregas.filter(variavel_monitoramento__isnull=False).exists():
+            return []
         return list(self.indicadores.all())
 
     def _filhos_para_evolucao(self):
@@ -769,6 +820,8 @@ class Entrega(BaseTimelineModel):
         )
 
     def _pais_para_marcadores(self):
+        if self.eh_entrega_monitoramento:
+            return []
         return list(self.processos.all())
 
     @property
@@ -884,14 +937,21 @@ class IndicadorVariavel(models.Model):
             raise ValidationError("Variaveis so podem ser cadastradas em indicadores matematicos.")
         if not self.periodicidade_monitoramento:
             raise ValidationError({"periodicidade_monitoramento": "Periodicidade da variavel e obrigatoria."})
-        if not self.dia_referencia_monitoramento:
+        if (
+            self.periodicidade_monitoramento not in _PERIODICIDADES_SEM_DIA_REFERENCIA
+            and not self.dia_referencia_monitoramento
+        ):
             raise ValidationError({"dia_referencia_monitoramento": "Dia de referencia obrigatorio."})
 
     def prazo_entrega_para_ciclo(self, ciclo):
-        prazo_referencia = dia_referencia_no_mes(
-            ciclo.periodo_inicio,
-            self.dia_referencia_monitoramento,
-        )
+        if (self.periodicidade_monitoramento or "").upper() in _PERIODICIDADES_SEM_DIA_REFERENCIA:
+            prazo_referencia = ciclo.periodo_fim
+        else:
+            prazo_referencia = dia_referencia_no_mes(ciclo.periodo_inicio, self.dia_referencia_monitoramento)
+        if prazo_referencia < ciclo.periodo_inicio:
+            prazo_referencia = ciclo.periodo_inicio
+        if prazo_referencia > ciclo.periodo_fim:
+            prazo_referencia = ciclo.periodo_fim
         data_lancamento = self.indicador.data_lancamento or timezone.localdate()
         if ciclo.eh_inicial and data_lancamento and prazo_referencia < data_lancamento:
             return data_lancamento
@@ -908,11 +968,67 @@ class IndicadorVariavel(models.Model):
         if not data_fim:
             return
         inicio_referencia = indicador.data_lancamento or timezone.localdate()
+        periodicidade = (self.periodicidade_monitoramento or "").upper()
+        if periodicidade in {
+            Indicador.PeriodicidadeMonitoramento.DIARIO,
+            Indicador.PeriodicidadeMonitoramento.SEMANAL,
+            Indicador.PeriodicidadeMonitoramento.QUINZENAL,
+        }:
+            desejados = []
+            numero = 1
+            cursor_inicio = inicio_referencia
+            passo_dias = {
+                Indicador.PeriodicidadeMonitoramento.DIARIO: 1,
+                Indicador.PeriodicidadeMonitoramento.SEMANAL: 7,
+                Indicador.PeriodicidadeMonitoramento.QUINZENAL: 15,
+            }[periodicidade]
+            while cursor_inicio <= data_fim:
+                cursor_fim = min(cursor_inicio + timedelta(days=passo_dias - 1), data_fim)
+                desejados.append(
+                    {
+                        "numero": numero,
+                        "periodo_inicio": cursor_inicio,
+                        "periodo_fim": cursor_fim,
+                        "eh_inicial": numero == 1,
+                    }
+                )
+                cursor_inicio = cursor_fim + timedelta(days=1)
+                numero += 1
+            existentes = {item.numero: item for item in self.ciclos_monitoramento.all()}
+            numeros_desejados = {item["numero"] for item in desejados}
+            for dado in desejados:
+                ciclo = existentes.get(dado["numero"])
+                if ciclo is None:
+                    IndicadorVariavelCicloMonitoramento.objects.create(
+                        variavel=self,
+                        numero=dado["numero"],
+                        periodo_inicio=dado["periodo_inicio"],
+                        periodo_fim=dado["periodo_fim"],
+                        eh_inicial=dado["eh_inicial"],
+                    )
+                    continue
+                campos_update = []
+                if ciclo.periodo_inicio != dado["periodo_inicio"]:
+                    ciclo.periodo_inicio = dado["periodo_inicio"]
+                    campos_update.append("periodo_inicio")
+                if ciclo.periodo_fim != dado["periodo_fim"]:
+                    ciclo.periodo_fim = dado["periodo_fim"]
+                    campos_update.append("periodo_fim")
+                if ciclo.eh_inicial != dado["eh_inicial"]:
+                    ciclo.eh_inicial = dado["eh_inicial"]
+                    campos_update.append("eh_inicial")
+                if campos_update:
+                    ciclo.save(update_fields=campos_update + ["atualizado_em"])
+            for numero_existente, ciclo in existentes.items():
+                if numero_existente not in numeros_desejados:
+                    ciclo.entregas_monitoramento.all().delete()
+                    ciclo.delete()
+            return
+
         inicio_ancora = primeiro_dia_mes(inicio_referencia)
         fim_ancora = primeiro_dia_mes(data_fim)
         if inicio_ancora > fim_ancora:
             return
-        periodicidade = (self.periodicidade_monitoramento or "").upper()
         passo_meses = passo_meses_periodicidade(periodicidade)
         exige_ciclo_inicial = True
         desejados = []

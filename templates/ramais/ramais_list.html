@@ -3,7 +3,7 @@
 {% block content %}
   <!-- Cabeçalho da página de ramais -->
   <section class="page-header">
-    <h2>Ramais</h2>
+    <h2>Ramais - {% if page_obj %}{{ page_obj.paginator.count }}{% else %}{{ ramais|length }}{% endif %} contatos cadastrados</h2>
   </section>
 
   <!-- Formulário de busca por texto livre -->

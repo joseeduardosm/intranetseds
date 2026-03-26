@@ -13,6 +13,7 @@
 - reforcado o cadastro/edicao de ramais para exigir escolha explicita de setor e foto obrigatoria quando o perfil ainda nao possui imagem;
 - aplicado o mesmo requisito de foto obrigatoria no formulario de atualizacao de usuarios;
 - removido o usuario especial `admin` do fluxo obrigatorio de atualizacao de ramal e da exibicao na lista/organograma de ramais;
+- atualizado o titulo da lista de ramais para exibir o total de contatos cadastrados;
 - ampliada a cobertura de testes para selecao de setor, foto obrigatoria, excecao do `admin` e validacoes de formulario.
 
 ### Diario de Bordo
@@ -33,6 +34,10 @@
 - reformulada a lista de entregas com visualizacoes em tabela, cards e calendario, incluindo ordenacao por colunas;
 - melhorada a experiencia dos campos de data com abertura do calendario customizado tanto pelo botao quanto pelo clique direto no campo;
 - ajustada a tela de detalhe da entrega para permitir monitoramento isolado por grupos da variavel, com mensagem explicativa quando edicao e exclusao seguem restritas;
+- limitado o marcador de processos e entregas de monitoramento ao grupo que monitora a variavel, preservando `criado_por`, grupos criadores e os direitos de criacao;
+- adicionadas periodicidades `Diario`, `Semanal` e `Quinzenal` para variaveis monitoradas, com ocultacao do dia de referencia quando ele nao se aplica;
+- restringido o tipo matematico ao formato percentual `(x/y)*100`, com mensagens de validacao mais educativas e exemplos exibidos no formulario;
+- desativado o tipo `Matematico Acumulativo` no fluxo de criacao e edicao, mantendo compatibilidade com registros antigos;
 - atualizados testes de acesso, visibilidade, grupos de monitoramento, cadeia de criacao, ordenacao e monitoramento.
 
 ### Documentacao e Apoio

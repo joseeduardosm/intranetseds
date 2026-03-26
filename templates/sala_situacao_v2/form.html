@@ -393,18 +393,22 @@
       };
 
       const syncHidden = () => {
+        const periodicidadesSemDiaReferencia = new Set(["DIARIO", "SEMANAL", "QUINZENAL"]);
         const data = {};
         lista.querySelectorAll("[data-variavel-config-item]").forEach((item) => {
           const nome = item.getAttribute("data-variavel-config-item");
           const periodicidade = item.querySelector("[data-variavel-periodicidade]")?.value || "";
-          const diaReferencia = Number(item.querySelector("[data-variavel-dia-referencia]")?.value || "");
+          const diaInput = item.querySelector("[data-variavel-dia-referencia]");
+          const diaReferencia = Number(diaInput?.value || "");
           const gruposSelect = item.querySelector("[data-variavel-groups-select]");
           const grupos = gruposSelect
             ? Array.from(gruposSelect.selectedOptions).map((option) => Number(option.value))
             : [];
           data[nome] = {
             periodicidade_monitoramento: periodicidade,
-            dia_referencia_monitoramento: Number.isInteger(diaReferencia) && diaReferencia > 0 ? diaReferencia : null,
+            dia_referencia_monitoramento: periodicidadesSemDiaReferencia.has(periodicidade)
+              ? null
+              : Number.isInteger(diaReferencia) && diaReferencia > 0 ? diaReferencia : null,
             grupos_monitoramento_ids: grupos,
           };
         });
@@ -412,7 +416,7 @@
       };
 
       const render = () => {
-        const isMath = ["MATEMATICO", "MATEMATICO_ACUMULATIVO"].includes(tipoIndicador.value);
+        const isMath = tipoIndicador.value === "MATEMATICO";
         editor.style.display = isMath ? "" : "none";
         if (!isMath) {
           hiddenInput.value = "{}";
@@ -440,13 +444,16 @@
               <div class="participants-label">Periodicidade</div>
               <select class="form-select" data-variavel-periodicidade>
                 <option value="">Selecione...</option>
+                <option value="DIARIO">Diario</option>
+                <option value="SEMANAL">Semanal</option>
+                <option value="QUINZENAL">Quinzenal</option>
                 <option value="MENSAL">Mensal</option>
                 <option value="TRIMESTRAL">Trimestral</option>
                 <option value="SEMESTRAL">Semestral</option>
                 <option value="ANUAL">Anual</option>
               </select>
             </div>
-            <div class="participants-column" style="margin-bottom:12px;">
+            <div class="participants-column" style="margin-bottom:12px;" data-variavel-dia-wrapper>
               <div class="participants-label">Dia de referencia do monitoramento</div>
               <input
                 type="number"
@@ -483,6 +490,16 @@
           const select = card.querySelector("[data-variavel-periodicidade]");
           select.value = periodicidade;
           const diaInput = card.querySelector("[data-variavel-dia-referencia]");
+          const diaWrapper = card.querySelector("[data-variavel-dia-wrapper]");
+          const periodicidadesSemDiaReferencia = new Set(["DIARIO", "SEMANAL", "QUINZENAL"]);
+          const syncDiaReferenciaVisibility = () => {
+            const hideDayReference = periodicidadesSemDiaReferencia.has(select.value);
+            diaWrapper.style.display = hideDayReference ? "none" : "";
+            diaInput.disabled = hideDayReference;
+            if (hideDayReference) {
+              diaInput.value = "";
+            }
+          };
           if (Number.isInteger(diaReferencia) && diaReferencia > 0) {
             diaInput.value = String(diaReferencia);
           }
@@ -496,9 +513,14 @@
           });
 
           initVariableGroupsPicker(card);
+          select.addEventListener("change", () => {
+            syncDiaReferenciaVisibility();
+            syncHidden();
+          });
           card.querySelectorAll("select, input").forEach((input) => {
             input.addEventListener("change", syncHidden);
           });
+          syncDiaReferenciaVisibility();
           lista.appendChild(card);
         });
 
@@ -519,7 +541,7 @@
       const formulaBuilder = formulaRow ? formulaRow.querySelector("[data-formula-builder]") : null;
 
       const syncFormulaVisibility = () => {
-        const isMatematico = ["MATEMATICO", "MATEMATICO_ACUMULATIVO"].includes(tipoIndicador.value);
+        const isMatematico = tipoIndicador.value === "MATEMATICO";
         if (formulaRow) {
           formulaRow.style.display = isMatematico ? "" : "none";
         }
@@ -642,7 +664,7 @@
         const tipoIndicador = formEl.querySelector('select[name="tipo_indicador"]');
         const formula = formEl.querySelector('[name="formula_expressao"]');
         if (!tipoIndicador || !formula) return [];
-        const isMatematico = ["MATEMATICO", "MATEMATICO_ACUMULATIVO"].includes(tipoIndicador.value);
+        const isMatematico = tipoIndicador.value === "MATEMATICO";
         if (isMatematico && !(formula.value || "").trim()) {
           return ["Campo de fórmula: campo obrigatório para indicador matemático."];
         }

@@ -352,7 +352,7 @@ class SalaSituacaoV2ManageIndicadorTests(TestCase):
         indicador = Indicador.objects.create(
             nome="Indicador monitorado para excluir",
             tipo_indicador=Indicador.TipoIndicador.MATEMATICO,
-            formula_expressao="parte",
+            formula_expressao="(parte/meta)*100",
             data_entrega_estipulada=date(2026, 12, 31),
         )
         indicador.grupos_responsaveis.set([grupo_criador])
@@ -407,7 +407,7 @@ class SalaSituacaoV2ManageEntregaTests(TestCase):
         indicador = Indicador.objects.create(
             nome="Indicador cadeia criador",
             tipo_indicador=Indicador.TipoIndicador.MATEMATICO,
-            formula_expressao="parte",
+            formula_expressao="(parte/meta)*100",
             criado_por=user_criador,
             data_entrega_estipulada=date(2026, 12, 31),
         )
@@ -438,7 +438,7 @@ class SalaSituacaoV2ManageEntregaTests(TestCase):
         indicador = Indicador.objects.create(
             nome="Indicador grupo variavel",
             tipo_indicador=Indicador.TipoIndicador.MATEMATICO,
-            formula_expressao="parte",
+            formula_expressao="(parte/meta)*100",
             data_entrega_estipulada=date(2026, 12, 31),
         )
         indicador.sincronizar_variaveis_da_formula()
@@ -493,7 +493,7 @@ class SalaSituacaoV2EntregaDetailMonitoramentoTests(TestCase):
         indicador = Indicador.objects.create(
             nome="Indicador detail variavel",
             tipo_indicador=Indicador.TipoIndicador.MATEMATICO,
-            formula_expressao="parte",
+            formula_expressao="(parte/meta)*100",
             data_entrega_estipulada=date(2026, 12, 31),
         )
         indicador.sincronizar_variaveis_da_formula()
@@ -663,7 +663,7 @@ class SalaSituacaoV2NumeracaoEntregaTests(TestCase):
         indicador = Indicador.objects.create(
             nome="Indicador Monitorado",
             tipo_indicador=Indicador.TipoIndicador.MATEMATICO,
-            formula_expressao="x",
+            formula_expressao="(x/meta)*100",
             data_entrega_estipulada=date(2026, 12, 31),
         )
         indicador.sincronizar_variaveis_da_formula()
@@ -691,6 +691,29 @@ class SalaSituacaoV2IndicadorMatematicoTests(TestCase):
     def setUp(self):
         self.group_a = Group.objects.create(name="Grupo A Mat")
         self.group_b = Group.objects.create(name="Grupo B Mat")
+
+    def test_form_nao_expoe_tipo_matematico_acumulativo(self):
+        form = IndicadorForm()
+
+        tipos = [valor for valor, _label in form.fields["tipo_indicador"].choices]
+        self.assertNotIn(Indicador.TipoIndicador.MATEMATICO_ACUMULATIVO, tipos)
+
+    def test_form_rejeita_tipo_matematico_acumulativo(self):
+        form = IndicadorForm(
+            data={
+                "nome": "Indicador acumulativo",
+                "descricao": "Descricao",
+                "grupos_responsaveis": [self.group_a.id],
+                "tipo_indicador": Indicador.TipoIndicador.MATEMATICO_ACUMULATIVO,
+                "formula_expressao": "(parte/meta)*100",
+                "data_entrega_estipulada": "2026-12-31",
+                "evolucao_manual": "0",
+                "variaveis_config_map": "{}",
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("tipo_indicador", form.errors)
 
     def test_indicador_matematico_cria_variaveis_processos_e_entregas(self):
         form = IndicadorForm(
@@ -741,6 +764,43 @@ class SalaSituacaoV2IndicadorMatematicoTests(TestCase):
         ).order_by("id").first()
         self.assertEqual(set(processo_parte.grupos_responsaveis.values_list("id", flat=True)), {self.group_a.id})
         self.assertEqual(set(entrega_parte.grupos_responsaveis.values_list("id", flat=True)), {self.group_a.id})
+
+    def test_monitoramento_usa_somente_marcador_do_grupo_monitorador_sem_alterar_criacao(self):
+        grupo_criador = Group.objects.create(name="Grupo Criador Mat")
+        grupo_monitorador = Group.objects.create(name="Grupo Monitorador Mat")
+        criador = User.objects.create_user(username="criador-monitoramento", password="senha123")
+        indicador = Indicador.objects.create(
+            nome="Indicador marcador unico",
+            descricao="Descricao",
+            tipo_indicador=Indicador.TipoIndicador.MATEMATICO,
+            formula_expressao="(parte/meta)*100",
+            data_entrega_estipulada=date(2026, 12, 31),
+            criado_por=criador,
+        )
+        indicador.grupos_responsaveis.set([grupo_criador])
+        indicador.grupos_criadores.set([grupo_criador])
+        indicador.sincronizar_variaveis_da_formula()
+
+        variavel = indicador.variaveis.get(nome="parte")
+        variavel.periodicidade_monitoramento = "MENSAL"
+        variavel.dia_referencia_monitoramento = 10
+        variavel.save(update_fields=["periodicidade_monitoramento", "dia_referencia_monitoramento", "atualizado_em"])
+        variavel.grupos_monitoramento.set([grupo_monitorador])
+        indicador.sincronizar_estrutura_processual_monitoramento()
+
+        processo = indicador.processos.get(nome__contains='"parte"')
+        entrega = Entrega.objects.filter(variavel_monitoramento=variavel).order_by("id").first()
+
+        self.assertEqual(processo.criado_por_id, criador.id)
+        self.assertEqual(entrega.criado_por_id, criador.id)
+        self.assertEqual(set(processo.grupos_criadores.values_list("id", flat=True)), {grupo_criador.id})
+        self.assertEqual(set(entrega.grupos_criadores.values_list("id", flat=True)), {grupo_criador.id})
+        self.assertEqual(set(processo.grupos_responsaveis.values_list("id", flat=True)), {grupo_monitorador.id})
+        self.assertEqual(set(entrega.grupos_responsaveis.values_list("id", flat=True)), {grupo_monitorador.id})
+        self.assertEqual({item.nome for item in processo.marcadores_locais}, {grupo_monitorador.name})
+        self.assertEqual({item.nome for item in entrega.marcadores_locais}, {grupo_monitorador.name})
+        self.assertEqual({item.nome for item in processo.marcadores_efetivos}, {grupo_monitorador.name})
+        self.assertEqual({item.nome for item in entrega.marcadores_efetivos}, {grupo_monitorador.name})
 
     def test_monitoramento_de_entrega_grava_valor_da_variavel_e_recalcula_indicador(self):
         indicador = Indicador.objects.create(
@@ -802,12 +862,17 @@ class SalaSituacaoV2IndicadorMatematicoTests(TestCase):
                 "descricao": "Descricao",
                 "grupos_responsaveis": [self.group_a.id],
                 "tipo_indicador": Indicador.TipoIndicador.MATEMATICO,
-                "formula_expressao": "parte",
+                "formula_expressao": "(parte/meta)*100",
                 "data_entrega_estipulada": "2026-06-30",
                 "evolucao_manual": "0",
                 "variaveis_config_map": json.dumps(
                     {
                         "parte": {
+                            "periodicidade_monitoramento": "MENSAL",
+                            "dia_referencia_monitoramento": 10,
+                            "grupos_monitoramento_ids": [self.group_a.id],
+                        },
+                        "meta": {
                             "periodicidade_monitoramento": "MENSAL",
                             "dia_referencia_monitoramento": 10,
                             "grupos_monitoramento_ids": [self.group_a.id],
@@ -827,11 +892,119 @@ class SalaSituacaoV2IndicadorMatematicoTests(TestCase):
         self.assertEqual(entregas[0].data_entrega_estipulada, timezone.localdate())
         self.assertEqual(entregas[1].data_entrega_estipulada, date(2026, 4, 10))
 
+    def test_monitoramento_diario_cria_ciclos_contiguos(self):
+        indicador = Indicador.objects.create(
+            nome="Indicador diario",
+            descricao="Descricao",
+            tipo_indicador=Indicador.TipoIndicador.MATEMATICO,
+            formula_expressao="(parte/meta)*100",
+            data_lancamento=date(2026, 3, 1),
+            data_entrega_estipulada=date(2026, 3, 3),
+        )
+        indicador.sincronizar_variaveis_da_formula()
+
+        variavel = indicador.variaveis.get(nome="parte")
+        variavel.periodicidade_monitoramento = Indicador.PeriodicidadeMonitoramento.DIARIO
+        variavel.dia_referencia_monitoramento = 10
+        variavel.save(update_fields=["periodicidade_monitoramento", "dia_referencia_monitoramento", "atualizado_em"])
+        indicador.sincronizar_estrutura_processual_monitoramento()
+
+        ciclos = list(variavel.ciclos_monitoramento.order_by("numero"))
+
+        self.assertEqual(len(ciclos), 3)
+        self.assertEqual(ciclos[0].periodo_inicio, date(2026, 3, 1))
+        self.assertEqual(ciclos[0].periodo_fim, date(2026, 3, 1))
+        self.assertTrue(ciclos[0].eh_inicial)
+        self.assertEqual(ciclos[1].periodo_inicio, date(2026, 3, 2))
+        self.assertEqual(ciclos[1].periodo_fim, date(2026, 3, 2))
+        self.assertEqual(ciclos[2].periodo_inicio, date(2026, 3, 3))
+        self.assertEqual(ciclos[2].periodo_fim, date(2026, 3, 3))
+
+    def test_form_aceita_periodicidade_diaria_sem_dia_referencia(self):
+        form = IndicadorForm(
+            data={
+                "nome": "Indicador diario sem dia",
+                "descricao": "Descricao",
+                "grupos_responsaveis": [self.group_a.id],
+                "tipo_indicador": Indicador.TipoIndicador.MATEMATICO,
+                "formula_expressao": "(parte/meta)*100",
+                "data_entrega_estipulada": "2026-03-03",
+                "evolucao_manual": "0",
+                "variaveis_config_map": json.dumps(
+                    {
+                        "parte": {
+                            "periodicidade_monitoramento": "DIARIO",
+                            "dia_referencia_monitoramento": None,
+                            "grupos_monitoramento_ids": [self.group_a.id],
+                        },
+                        "meta": {
+                            "periodicidade_monitoramento": "DIARIO",
+                            "dia_referencia_monitoramento": None,
+                            "grupos_monitoramento_ids": [self.group_a.id],
+                        }
+                    }
+                ),
+            }
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+        indicador = form.save()
+        variavel = indicador.variaveis.get(nome="parte")
+        self.assertEqual(variavel.periodicidade_monitoramento, "DIARIO")
+
+    def test_form_matematico_rejeita_formula_fora_do_padrao_percentual(self):
+        form = IndicadorForm(
+            data={
+                "nome": "Indicador invalido",
+                "descricao": "Descricao",
+                "grupos_responsaveis": [self.group_a.id],
+                "tipo_indicador": Indicador.TipoIndicador.MATEMATICO,
+                "formula_expressao": "parte",
+                "data_entrega_estipulada": "2026-03-03",
+                "evolucao_manual": "0",
+                "variaveis_config_map": "{}",
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("formula_expressao", form.errors)
+        self.assertIn("formato percentual", form.errors["formula_expressao"][0])
+        self.assertIn("(x/y)*100", form.errors["formula_expressao"][0])
+
+    def test_form_matematico_aceita_formula_percentual_com_nomes_customizados(self):
+        form = IndicadorForm(
+            data={
+                "nome": "Indicador familias",
+                "descricao": "Descricao",
+                "grupos_responsaveis": [self.group_a.id],
+                "tipo_indicador": Indicador.TipoIndicador.MATEMATICO,
+                "formula_expressao": "(qtdd_de_familias/meta_de_familias)*100",
+                "data_entrega_estipulada": "2026-03-03",
+                "evolucao_manual": "0",
+                "variaveis_config_map": json.dumps(
+                    {
+                        "qtdd_de_familias": {
+                            "periodicidade_monitoramento": "MENSAL",
+                            "dia_referencia_monitoramento": 10,
+                            "grupos_monitoramento_ids": [self.group_a.id],
+                        },
+                        "meta_de_familias": {
+                            "periodicidade_monitoramento": "MENSAL",
+                            "dia_referencia_monitoramento": 10,
+                            "grupos_monitoramento_ids": [self.group_a.id],
+                        },
+                    }
+                ),
+            }
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+
     def test_queryset_de_variaveis_do_detalhe_nao_seleciona_dia_referencia(self):
         indicador = Indicador.objects.create(
             nome="Indicador detalhe compat",
             tipo_indicador=Indicador.TipoIndicador.MATEMATICO,
-            formula_expressao="parte",
+            formula_expressao="(parte/meta)*100",
             data_entrega_estipulada=date(2026, 12, 31),
         )
         indicador.sincronizar_variaveis_da_formula()
@@ -840,7 +1013,7 @@ class SalaSituacaoV2IndicadorMatematicoTests(TestCase):
         sql = str(queryset.query)
 
         self.assertNotIn("dia_referencia_monitoramento", sql)
-        self.assertEqual(list(queryset.values_list("nome", flat=True)), ["parte"])
+        self.assertEqual(list(queryset.values_list("nome", flat=True)), ["meta", "parte"])
 
     @patch("sala_situacao_v2.forms._db_tem_dia_referencia_monitoramento", return_value=False)
     def test_form_matematico_exibe_erro_amigavel_quando_coluna_ainda_nao_existe(self, _db_check):
@@ -850,12 +1023,17 @@ class SalaSituacaoV2IndicadorMatematicoTests(TestCase):
                 "descricao": "Descricao",
                 "grupos_responsaveis": [self.group_a.id],
                 "tipo_indicador": Indicador.TipoIndicador.MATEMATICO,
-                "formula_expressao": "parte",
+                "formula_expressao": "(parte/meta)*100",
                 "data_entrega_estipulada": "2026-12-31",
                 "evolucao_manual": "0",
                 "variaveis_config_map": json.dumps(
                     {
                         "parte": {
+                            "periodicidade_monitoramento": "MENSAL",
+                            "dia_referencia_monitoramento": 10,
+                            "grupos_monitoramento_ids": [self.group_a.id],
+                        },
+                        "meta": {
                             "periodicidade_monitoramento": "MENSAL",
                             "dia_referencia_monitoramento": 10,
                             "grupos_monitoramento_ids": [self.group_a.id],

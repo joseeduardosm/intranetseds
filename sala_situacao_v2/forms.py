@@ -10,6 +10,7 @@ from django.utils import timezone
 from .models import Entrega, Indicador, IndicadorCicloValor, Processo
 
 _FORMULA_TOKEN_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+_PERIODICIDADES_SEM_DIA_REFERENCIA = {"DIARIO", "SEMANAL", "QUINZENAL"}
 
 
 @lru_cache(maxsize=1)
@@ -117,6 +118,16 @@ class IndicadorForm(BaseV2Form):
         super().__init__(*args, **kwargs)
         self.fields["grupos_responsaveis"].label = "Setores responsáveis"
         self.fields["tipo_indicador"].label = "Tipo"
+        self.fields["formula_expressao"].help_text = (
+            "Para indicadores matematicos, use sempre o formato percentual (x/y)*100. "
+            "Exemplos: (qtdd_de_familias/meta_de_familias)*100 ou "
+            "(total_de_refeicoes/meta_de_refeicoes)*100."
+        )
+        self.fields["tipo_indicador"].choices = [
+            choice
+            for choice in self.fields["tipo_indicador"].choices
+            if choice[0] != Indicador.TipoIndicador.MATEMATICO_ACUMULATIVO
+        ]
         if self.instance and getattr(self.instance, "pk", None):
             mapa = {}
             for variavel in self.instance.variaveis.prefetch_related("grupos_monitoramento").all():
@@ -146,9 +157,11 @@ class IndicadorForm(BaseV2Form):
     def clean(self):
         cleaned_data = super().clean()
         tipo_indicador = cleaned_data.get("tipo_indicador")
+        if tipo_indicador == Indicador.TipoIndicador.MATEMATICO_ACUMULATIVO:
+            self.add_error("tipo_indicador", "O tipo Matematico Acumulativo esta desativado.")
+            return cleaned_data
         if tipo_indicador not in {
             Indicador.TipoIndicador.MATEMATICO,
-            Indicador.TipoIndicador.MATEMATICO_ACUMULATIVO,
         }:
             cleaned_data["variaveis_config_map"] = "{}"
             return cleaned_data
@@ -187,11 +200,17 @@ class IndicadorForm(BaseV2Form):
             ]
             dia_referencia_int = int(dia_referencia) if str(dia_referencia).isdigit() else None
             conf["periodicidade_monitoramento"] = periodicidade
-            conf["dia_referencia_monitoramento"] = dia_referencia_int
+            if periodicidade in _PERIODICIDADES_SEM_DIA_REFERENCIA:
+                conf["dia_referencia_monitoramento"] = None
+            else:
+                conf["dia_referencia_monitoramento"] = dia_referencia_int
             conf["grupos_monitoramento_ids"] = grupos_ids
             if periodicidade not in periodicidades_validas:
                 self.add_error("variaveis_config_map", f"Defina a periodicidade da variavel '{nome_variavel}'.")
-            if dia_referencia_int is None or not 1 <= dia_referencia_int <= 31:
+            if (
+                periodicidade not in _PERIODICIDADES_SEM_DIA_REFERENCIA
+                and (dia_referencia_int is None or not 1 <= dia_referencia_int <= 31)
+            ):
                 self.add_error("variaveis_config_map", f"Defina um dia de referencia valido (1-31) para a variavel '{nome_variavel}'.")
             if not grupos_ids:
                 self.add_error("variaveis_config_map", f"Defina ao menos um grupo para a variavel '{nome_variavel}'.")
@@ -205,8 +224,12 @@ class IndicadorForm(BaseV2Form):
             if not variavel:
                 continue
             conf = mapa.get(nome_variavel) or {}
-            variavel.periodicidade_monitoramento = conf.get("periodicidade_monitoramento") or "MENSAL"
-            variavel.dia_referencia_monitoramento = conf.get("dia_referencia_monitoramento") or 1
+            periodicidade = conf.get("periodicidade_monitoramento") or "MENSAL"
+            variavel.periodicidade_monitoramento = periodicidade
+            if periodicidade in _PERIODICIDADES_SEM_DIA_REFERENCIA:
+                variavel.dia_referencia_monitoramento = 1
+            else:
+                variavel.dia_referencia_monitoramento = conf.get("dia_referencia_monitoramento") or 1
             variavel.ordem = ordem
             variavel.unidade_medida = indicador.meta_unidade_medida or "%"
             variavel.save(
