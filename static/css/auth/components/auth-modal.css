@@ -30,6 +30,12 @@
   color: var(--text);
 }
 
+.profile-alert-modal ul {
+  margin: 10px 0 18px;
+  padding-left: 20px;
+  color: var(--text);
+}
+
 .profile-alert-actions {
   display: flex;
   gap: 12px;

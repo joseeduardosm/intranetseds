@@ -78,14 +78,17 @@ class PessoaRamalForm(forms.ModelForm):
             if setor_atual and setor_atual not in setor_names:
                 setor_names.append(setor_atual)
             self.fields["setor"] = forms.ChoiceField(
-                choices=[(name, name) for name in setor_names],
-                required=False,
+                choices=[("", "Selecione um setor")] + [(name, name) for name in setor_names],
+                required=True,
                 widget=forms.Select(attrs={"class": "form-control"}),
             )
-            if setor_atual:
-                self.fields["setor"].initial = setor_atual
         except Exception:
             pass
+        if "setor" in self.fields:
+            self.fields["setor"].required = True
+            # Evita seleção automática no primeiro acesso/edição.
+            if not self.is_bound:
+                self.fields["setor"].initial = ""
         if user and not (user.is_staff or user.has_perm("ramais.change_pessoaramal")):
             self.fields.pop("usuario", None)
             self.fields.pop("nome", None)
@@ -110,3 +113,23 @@ class PessoaRamalForm(forms.ModelForm):
             ]:
                 if field_name in self.fields:
                     self.fields[field_name].disabled = True
+
+    def clean_setor(self):
+        """Exige escolha explícita de setor no cadastro/edição."""
+
+        setor = (self.cleaned_data.get("setor") or "").strip()
+        if not setor:
+            raise forms.ValidationError("Selecione um setor.")
+        return setor
+
+    def clean_foto(self):
+        """Exige foto no cadastro e para perfis que ainda não possuem imagem."""
+
+        foto = self.cleaned_data.get("foto")
+        if foto is not None:
+            return foto
+
+        foto_atual = getattr(getattr(self, "instance", None), "foto", None)
+        if foto_atual:
+            return foto_atual
+        raise forms.ValidationError("A foto é obrigatória.")

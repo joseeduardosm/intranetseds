@@ -1,0 +1,134 @@
+## 3.8. SERVIÇOS DE DESENVOLVIMENTO, SUSTENTAÇÃO E EVOLUÇÃO DE SOLUÇÕES DIGITAIS
+
+**3.8.1. Prestação dos Serviços de Desenvolvimento**
+A CONTRATANTE poderá demandar à CONTRATADA, mediante Ordens de Serviço (OS), o desenvolvimento, evolução ou manutenção de sistemas, módulos ou aplicativos necessários à execução e aprimoramento dos programas e projetos institucionais, incluindo, mas não se limitando, aos programas da CONTRATANTE.
+
+**3.8.1.1.** No que se refere ao ciclo de desenvolvimento de soluções digitais, caberá à CONTRATADA, por meio de seus *Product Owners* (POs) ou perfis equivalentes, a responsabilidade pela elicitação, priorização e validação de requisitos, bem como pela formalização e encaminhamento das demandas ao time de desenvolvimento da CONTRATADA, sob a forma de *backlog* estruturado ou tarefas técnicas.
+
+**3.8.1.2.** A prestação dos serviços de desenvolvimento deverá ocorrer sob modelo *“as a service”*, orientado à entrega de resultados e valor agregado, não estando vinculada à disponibilização de postos fixos de trabalho, regimes celetistas ou alocação nominal de recursos humanos.
+
+**3.8.1.3.** O modelo adotado justifica-se pela necessidade de flexibilidade operacional, escalabilidade sob demanda, incorporação contínua de novas tecnologias e práticas de engenharia de *software*, bem como pela otimização da gestão contratual, permitindo à CONTRATANTE consumir serviços conforme sua necessidade efetiva, com foco em entregáveis mensuráveis e qualidade técnica.
+
+**3.8.1.4.** A CONTRATADA deverá dispor de capacidade técnica e organizacional para atender às demandas encaminhadas, utilizando metodologias ágeis, boas práticas de desenvolvimento seguro (DevSecOps), integração contínua e mecanismos de controle de qualidade.
+
+**3.8.1.5.** Considerando que a execução de Unidades de Serviço Técnico (UST) de desenvolvimento impactará diretamente o faturamento e a execução contratual, os requisitos a serem encaminhados para desenvolvimento deverão ser previamente validados e homologados pelas áreas de negócio da CONTRATANTE, bem como pelo fiscal do contrato, antes de sua inclusão no *backlog* e início da execução.
+
+**3.8.2. Dimensionamento Contratual**
+Para fins de dimensionamento contratual, os serviços de desenvolvimento e manutenção poderão considerar como referência estimativa de até 800 (oitocentas) horas mensais, totalizando 9.600 (nove mil e seiscentas) horas anuais, sem prejuízo da adoção de mecanismos de mensuração por entregáveis, **Unidades de Serviço Técnico (UST)** ou métricas equivalentes, conforme definido pela CONTRATANTE.
+
+**3.8.3. Rastreabilidade e Qualidade**
+A CONTRATADA deverá garantir a rastreabilidade das demandas, o controle de versões, a qualidade do código e a conformidade com padrões técnicos definidos pela CONTRATANTE.
+
+**3.8.4. Critérios de Classificação e Valoração de UST**
+Para fins de mensuração, precificação e controle da execução contratual, as demandas de desenvolvimento, manutenção e evolução de soluções digitais serão classificadas por categoria e nível de complexidade, com atribuição objetiva de Unidades de Serviço Técnico (UST), conforme os critérios estabelecidos nesta seção.
+
+**3.8.4.1. Definição de UST**
+A Unidade de Serviço Técnico (UST) constitui a unidade de medida adotada para quantificação e contratação dos serviços de desenvolvimento. Cada UST corresponde, como referência, a 1 (uma) hora de esforço técnico qualificado, incluindo as atividades de especificação, desenvolvimento, teste, homologação e documentação vinculadas à entrega. A quantidade de UST atribuída a cada demanda reflete o esforço estimado para execução completa do entregável, considerando a sua complexidade intrínseca, o número de regras de negócio envolvidas, o impacto em módulos do sistema, a necessidade de integrações externas e o nível de qualidade técnica exigido.
+
+**3.8.4.2. Classificação de Complexidade e UST**
+Os critérios objetivos e cumulativos para classificação de cada demanda, com a respectiva atribuição de UST base e prazo de referência para entrega, são os seguintes:
+
+**3.8.4.2.1. Manutenção Corretiva**
+**3.8.4.2.1.1. Baixa Complexidade**
+*   **UST Base:** 1 UST
+*   **Prazo de Referência:** Até 1 dia útil
+*   **Critérios Objetivos (Cumulativos):** Correção de *bug* simples, 1 módulo, sem alteração de regra de negócio, sem impacto em integrações.
+
+**3.8.4.2.1.2. Média Complexidade**
+*   **UST Base:** 2 UST
+*   **Prazo de Referência:** Até 2 dias úteis
+*   **Critérios Objetivos (Cumulativos):** Correção envolve até 2 módulos, pode alterar 1 regra de negócio, sem impacto em APIs externas.
+
+**3.8.4.2.1.3. Alta Complexidade**
+*   **UST Base:** 4 UST
+*   **Prazo de Referência:** Até 4 dias úteis
+*   **Critérios Objetivos (Cumulativos):** Correção impacta 3+ módulos ou integrações críticas, análise de causa raiz necessária.
+
+**3.8.4.2.2. Manutenção Adaptativa**
+**3.8.4.2.2.1. Baixa Complexidade**
+*   **UST Base:** 2 UST
+*   **Prazo de Referência:** Até 2 dias úteis
+*   **Critérios Objetivos (Cumulativos):** Ajuste de parâmetro/configuração, 1 módulo, sem alteração de lógica funcional.
+
+**3.8.4.2.2.2. Média Complexidade**
+*   **UST Base:** 4 UST
+*   **Prazo de Referência:** Até 4 dias úteis
+*   **Critérios Objetivos (Cumulativos):** Envolve até 2 módulos, até 2 regras de negócio, sem criação de novas interfaces.
+
+**3.8.4.2.2.3. Alta Complexidade**
+*   **UST Base:** 8 UST
+*   **Prazo de Referência:** Até 8 dias úteis
+*   **Critérios Objetivos (Cumulativos):** Impacta 3+ módulos ou requer compatibilidade com nova versão de plataforma/tecnologia.
+
+**3.8.4.2.3. Evolução Funcional**
+**3.8.4.2.3.1. Baixa Complexidade**
+*   **UST Base:** 2 UST
+*   **Prazo de Referência:** Até 2 dias úteis
+*   **Critérios Objetivos (Cumulativos):** 1 regra de negócio, 1 módulo, sem nova interface de usuário, sem integração externa.
+
+**3.8.4.2.3.2. Média Complexidade**
+*   **UST Base:** 3 UST
+*   **Prazo de Referência:** Até 5 dias úteis
+*   **Critérios Objetivos (Cumulativos):** De 2 a 5 regras de negócio; impacta no máximo 2 módulos; pode incluir nova tela ou campo; sem nova integração externa.
+
+**3.8.4.2.3.3. Alta Complexidade**
+*   **UST Base:** 6 UST
+*   **Prazo de Referência:** Até 10 dias úteis
+*   **Critérios Objetivos (Cumulativos):** 6 a 10 regras de negócio; impacta 3 a 5 módulos; pode requerer nova integração ou refatoração parcial.
+
+**3.8.4.2.3.4. Muito Alta Complexidade**
+*   **UST Base:** Sob Análise
+*   **Prazo de Referência:** A Negociar
+*   **Critérios Objetivos (Cumulativos):** 11+ regras; 6+ módulos; novas integrações críticas ou nova arquitetura. Exige refinamento técnico.
+
+**3.8.4.2.4. Novo Desenvolvimento**
+**3.8.4.2.4.1. Média Complexidade**
+*   **UST Base:** 8 UST
+*   **Prazo de Referência:** Até 10 dias úteis
+*   **Critérios Objetivos (Cumulativos):** Novo módulo/funcionalidade, até 5 regras, até 2 integrações externas, cobertura de testes ≥ 80%.
+
+**3.8.4.2.4.2. Alta Complexidade**
+*   **UST Base:** 15 UST
+*   **Prazo de Referência:** Até 20 dias úteis
+*   **Critérios Objetivos (Cumulativos):** Novo subsistema, 6+ regras, 3+ integrações, banco de dados novo ou reestruturado, *pipeline* CI/CD incluso.
+
+> **Nota:** Os critérios listados são cumulativos. Uma demanda somente será enquadrada em determinado nível de complexidade quando atender simultaneamente a todos os critérios da respectiva linha.
+
+**3.8.4.3. Fatores de Ajuste Contratual**
+A quantidade de UST base calculada nos termos do item 3.8.4.2 poderá ser ajustada mediante a aplicação de fatores multiplicadores, quando a Ordem de Serviço apresentar características especiais que impactem o esforço técnico real de execução. Os fatores de ajuste são aplicados de forma sequencial (não aditiva) e sua aplicação deve ser justificada formalmente na OS pelo fiscal do contrato.
+
+**3.8.4.3.1. Fator de Urgência**
+*   **Multiplicador:** × 1,5
+*   **Condição de Aplicação:** Demanda formalizada com prazo inferior a 50% do tempo de referência da complexidade.
+
+**3.8.4.3.2. Fator de Integração Legado**
+*   **Multiplicador:** × 1,3
+*   **Condição de Aplicação:** Quando a demanda exigir integração ou compatibilidade com sistemas legados sem API documentada.
+
+**3.8.4.3.3. Fator de Segurança Elevada**
+*   **Multiplicador:** × 1,2
+*   **Condição de Aplicação:** Demandas que envolvam dados pessoais (LGPD), tratamento de dados sensíveis ou conformidade regulatória.
+
+**3.8.4.3.4. Fator de Alta Disponibilidade**
+*   **Multiplicador:** × 1,2
+*   **Condição de Aplicação:** *Deploy* em ambiente de produção crítico, com janela restrita e necessidade de *rollback* documentado.
+
+**3.8.4.3.5. Fator de Documentação Extra**
+*   **Multiplicador:** × 1,1
+*   **Condição de Aplicação:** Quando a OS exigir entrega de documentação técnica detalhada (diagramas, manuais) além do código.
+
+**3.8.4.3.6. Fator de Reuso de Componentes**
+*   **Multiplicador:** × 0,8
+*   **Condição de Aplicação:** Demanda atendida majoritariamente com reuso de componentes previamente homologados no projeto.
+
+**3.8.4.4. Procedimento de Classificação e Aprovação**
+O fluxo de classificação, aprovação e início de execução de cada demanda observará as seguintes etapas:
+1. Recebimento da demanda pela CONTRATADA e elaboração de proposta de classificação de complexidade e UST, com justificativa técnica fundamentada nos critérios objetivos da Tabela de Classificação;
+2. Validação da proposta de classificação pelo fiscal do contrato e pela área de negócio da CONTRATANTE, podendo ser aceita, devolvida para ajuste ou reclassificada;
+3. Emissão formal da Ordem de Serviço com a classificação homologada, os fatores de ajuste aplicáveis, a quantidade de UST aprovada e o prazo de entrega pactuado;
+4. Execução da demanda pela CONTRATADA com base nos parâmetros homologados na OS;
+5. Entrega do produto ao ambiente de homologação, acompanhada de evidências técnicas (testes, cobertura de código, *checklist* de qualidade);
+6. Homologação pela CONTRATANTE e aceite formal, com registro da data de conclusão para fins de faturamento.
+
+**3.8.4.5. Revisão da Tabela de Classificação**
+A Tabela de Classificação de Complexidade e UST poderá ser revisada, por iniciativa de qualquer das partes, mediante formalização de proposta motivada e aprovação pelo fiscal do contrato, desde que a revisão seja precedida de análise técnica conjunta e não implique desequilíbrio econômico-financeiro do contrato. Revisões serão incorporadas ao contrato por meio de aditivo ou instrumento equivalente.

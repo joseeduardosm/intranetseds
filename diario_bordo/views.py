@@ -45,6 +45,32 @@ KANBAN_COLUMNS = [
 ]
 
 
+def _valor_historico(valor):
+    """Normaliza valores para exibição legível nos incrementos automáticos."""
+
+    if valor is None:
+        return "(vazio)"
+    if isinstance(valor, str):
+        valor = valor.strip()
+        return valor or "(vazio)"
+    if isinstance(valor, (list, tuple, set)):
+        itens = [str(item).strip() for item in valor if str(item).strip()]
+        return ", ".join(itens) if itens else "(vazio)"
+    return str(valor).strip() or "(vazio)"
+
+
+def _nomes_usuarios(usuarios):
+    """Converte coleção de usuários em nomes determinísticos para comparação/log."""
+
+    return sorted((usuario.get_full_name() or usuario.username).strip() for usuario in usuarios)
+
+
+def _nomes_marcadores(marcadores):
+    """Converte coleção de marcadores em nomes determinísticos para comparação/log."""
+
+    return sorted((marcador.nome or "").strip() for marcador in marcadores if (marcador.nome or "").strip())
+
+
 def _tem_marcador_urgente(bloco) -> bool:
     """Sinaliza se o bloco possui marcador local/efetivo 'URGENTE'."""
 
@@ -844,19 +870,61 @@ class BlocoTrabalhoUpdateView(PermissionRequiredMixin, UpdateView):
         return _filter_by_participante(queryset, self.request.user)
 
     def form_valid(self, form):
-        """Registra inclusões de participantes após atualização do bloco."""
-        participantes_anteriores = set(self.object.participantes.all())
+        """Registra alterações do bloco como incrementos automáticos."""
+        bloco_original = BlocoTrabalho.objects.get(pk=self.object.pk)
+        alteracoes = []
+        if "nome" in form.changed_data:
+            alteracoes.append(
+                f"Alterou nome de {_valor_historico(bloco_original.nome)} para {_valor_historico(form.cleaned_data.get('nome'))}"
+            )
+        if "descricao" in form.changed_data:
+            alteracoes.append(
+                "Alterou descricao de "
+                f"{_valor_historico(bloco_original.descricao)} para {_valor_historico(form.cleaned_data.get('descricao'))}"
+            )
+        if "status" in form.changed_data:
+            alteracoes.append(
+                "Alterou status de "
+                f"{_valor_historico(bloco_original.get_status_display())} "
+                f"para {_valor_historico(form.instance.get_status_display())}"
+            )
+
+        participantes_anteriores = set(bloco_original.participantes.all())
+        nomes_participantes_anteriores = _nomes_usuarios(participantes_anteriores)
+        marcadores_anteriores = list(bloco_original.marcadores_locais)
+        nomes_marcadores_anteriores = _nomes_marcadores(marcadores_anteriores)
         if self.request.user.is_authenticated:
             form.instance.atualizado_por = self.request.user
         form.instance.atualizado_em = timezone.now()
         response = super().form_valid(form)
         participantes_novos = set(self.object.participantes.all())
+        nomes_participantes_novos = _nomes_usuarios(participantes_novos)
+        if nomes_participantes_anteriores != nomes_participantes_novos:
+            alteracoes.append(
+                "Alterou participantes de "
+                f"{_valor_historico(nomes_participantes_anteriores)} "
+                f"para {_valor_historico(nomes_participantes_novos)}"
+            )
+        nomes_marcadores_novos = _nomes_marcadores(self.object.marcadores_locais)
+        if nomes_marcadores_anteriores != nomes_marcadores_novos:
+            alteracoes.append(
+                "Alterou marcadores de "
+                f"{_valor_historico(nomes_marcadores_anteriores)} "
+                f"para {_valor_historico(nomes_marcadores_novos)}"
+            )
+
         adicionados = participantes_novos - participantes_anteriores
         for participante in adicionados:
             nome = participante.get_full_name() or participante.username
             Incremento.objects.create(
                 bloco=self.object,
                 texto=f"{nome} inserido no bloco de trabalho",
+                criado_por=self.request.user if self.request.user.is_authenticated else None,
+            )
+        for texto in alteracoes:
+            Incremento.objects.create(
+                bloco=self.object,
+                texto=texto,
                 criado_por=self.request.user if self.request.user.is_authenticated else None,
             )
         _mark_bloco_seen(self.request.user, self.object)

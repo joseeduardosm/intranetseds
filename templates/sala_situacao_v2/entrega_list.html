@@ -17,10 +17,54 @@
 
     <div class="calendar-view-tabs" role="tablist" aria-label="Visualização da lista de entregas">
       <button class="view-tab is-active" type="button" data-entrega-view-target="lista">Lista</button>
+      <button class="view-tab" type="button" data-entrega-view-target="cards">Cards</button>
       <button class="view-tab" type="button" data-entrega-view-target="calendario">Calendário</button>
     </div>
 
-    <section id="entregas-lista-view">
+    <section id="entregas-tabela-view" class="detail sala-detail-panel">
+      <div class="entrega-table-wrap">
+        <table class="entrega-table">
+          <thead>
+            <tr>
+              <th><a href="{{ sort_urls.nome }}">Nome{% if current_sort == 'nome' %} {{ current_dir_symbol }}{% endif %}</a></th>
+              <th><a href="{{ sort_urls.processo }}">Processo{% if current_sort == 'processo' %} {{ current_dir_symbol }}{% endif %}</a></th>
+              <th><a href="{{ sort_urls.prazo }}">Prazo{% if current_sort == 'prazo' %} {{ current_dir_symbol }}{% endif %}</a></th>
+              <th><a href="{{ sort_urls.periodo_inicio }}">Período início{% if current_sort == 'periodo_inicio' %} {{ current_dir_symbol }}{% endif %}</a></th>
+              <th><a href="{{ sort_urls.periodo_fim }}">Período fim{% if current_sort == 'periodo_fim' %} {{ current_dir_symbol }}{% endif %}</a></th>
+              <th><a href="{{ sort_urls.progresso }}">Progresso{% if current_sort == 'progresso' %} {{ current_dir_symbol }}{% endif %}</a></th>
+              <th><a href="{{ sort_urls.atualizacao }}">Atualização{% if current_sort == 'atualizacao' %} {{ current_dir_symbol }}{% endif %}</a></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for entrega in entregas %}
+              <tr>
+                <td>
+                  <a href="{% url 'sala_entrega_detail' entrega.pk %}" class="entrega-table-link">{{ entrega.nome }}</a>
+                </td>
+                <td>
+                  {% for processo in entrega.processos.all %}
+                    {{ processo.nome }}{% if not forloop.last %}, {% endif %}
+                  {% empty %}
+                    -
+                  {% endfor %}
+                </td>
+                <td>{{ entrega.data_entrega_estipulada|date:"d/m/Y"|default:"-" }}</td>
+                <td>{{ entrega.periodo_inicio|date:"d/m/Y"|default:"-" }}</td>
+                <td>{{ entrega.periodo_fim|date:"d/m/Y"|default:"-" }}</td>
+                <td>{{ entrega.evolucao_manual|floatformat:2 }}%</td>
+                <td>{{ entrega.atualizado_em|date:"d/m/Y H:i"|default:"-" }}</td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="7">Nenhuma entrega cadastrada.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="entregas-cards-view" class="sala-hidden">
       {% include "sala_situacao/_card_search.html" with search_id="entregas-v2-lista" target_selector=".card-grid" item_selector=".card" placeholder="Pesquisar entregas..." aria_label="Pesquisar entregas" %}
       <div class="card-grid card-grid-fixed card-grid-entregas">
         {% for entrega in entregas %}
@@ -56,13 +100,17 @@
                     -
                   {% endif %}
                 </p>
-                <p class="card-meta entrega-card-periodo">
+                <p class="card-meta card-meta-processos">
                   Processo:
-                  {% for processo in entrega.processos.all %}
-                    {{ processo.nome }}{% if not forloop.last %}, {% endif %}
-                  {% empty %}
-                    -
-                  {% endfor %}
+                  {% if entrega.resumo_numeracao_processos %}
+                    {{ entrega.resumo_numeracao_processos|join:" | " }}
+                  {% else %}
+                    {% for processo in entrega.processos.all %}
+                      {{ processo.nome }}{% if not forloop.last %}, {% endif %}
+                    {% empty %}
+                      -
+                    {% endfor %}
+                  {% endif %}
                 </p>
                 {% include "sala_situacao/_progresso_duplo.html" with item=entrega %}
               </div>
@@ -105,7 +153,8 @@
 
     <script>
       (function () {
-        const listView = document.getElementById("entregas-lista-view");
+        const tableView = document.getElementById("entregas-tabela-view");
+        const cardsView = document.getElementById("entregas-cards-view");
         const calendarView = document.getElementById("entregas-calendario-view");
         const viewButtons = document.querySelectorAll("[data-entrega-view-target]");
         const calendarBody = document.getElementById("entregas-calendar-body");
@@ -248,9 +297,12 @@
         };
 
         const switchView = (target) => {
-          if (!listView || !calendarView) return;
+          if (!tableView || !cardsView || !calendarView) return;
+          const showTable = target === "lista";
+          const showCards = target === "cards";
           const showCalendar = target === "calendario";
-          listView.classList.toggle("sala-hidden", showCalendar);
+          tableView.classList.toggle("sala-hidden", !showTable);
+          cardsView.classList.toggle("sala-hidden", !showCards);
           calendarView.classList.toggle("sala-hidden", !showCalendar);
           viewButtons.forEach((btn) =>
             btn.classList.toggle("is-active", btn.dataset.entregaViewTarget === target)

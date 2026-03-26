@@ -586,6 +586,14 @@ class ProcessoDashboardViewTests(TestCase):
             atualizado_por=self.user,
             status=Processo.Status.EM_ABERTO,
         )
+        self.processo_cei = Processo.objects.create(
+            numero_sei="012.00000012/2026-00",
+            assunto="Processo CEI",
+            caixa_origem="CEI",
+            criado_por=self.user,
+            atualizado_por=self.user,
+            status=Processo.Status.EM_ABERTO,
+        )
 
         enc_critico = Encaminhamento.objects.create(
             processo=self.processo_a,
@@ -628,3 +636,17 @@ class ProcessoDashboardViewTests(TestCase):
         self.assertNotContains(response, "Usuários com maior volume tratado")
         self.assertContains(response, "Evolução diária, sempre dos últimos 30 dias.")
         self.assertContains(response, "grafico-processos-destino-atual")
+
+    def test_dashboard_filtra_metricas_pela_aba_ativa(self):
+        from .views import ProcessoDashboardView
+
+        request = self.factory.get(reverse("lousa_digital_dashboard"), {"aba": "CEI"})
+        request.user = self.user
+        response = ProcessoDashboardView.as_view()(request)
+        response.render()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Dashboard da Lousa Digital - CEI")
+        self.assertEqual(response.context_data["active_aba"], "CEI")
+        self.assertEqual(response.context_data["total_processos_monitorados"], 1)
+        self.assertEqual(response.context_data["total_processos_com_destino_ativo"], 0)

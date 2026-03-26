@@ -115,27 +115,27 @@
   margin-bottom: 10px;
 }
 
-.entrega-lista-compacta #entregas-lista-view .card-grid-entregas {
+.entrega-lista-compacta #entregas-cards-view .card-grid-entregas {
   gap: 12px;
 }
 
-.entrega-lista-compacta #entregas-lista-view .card-bloco {
+.entrega-lista-compacta #entregas-cards-view .card-bloco {
   aspect-ratio: auto;
   min-height: 210px;
 }
 
-.entrega-lista-compacta #entregas-lista-view .card-bloco .card-body {
+.entrega-lista-compacta #entregas-cards-view .card-bloco .card-body {
   padding-top: 7px;
 }
 
-.entrega-lista-compacta #entregas-lista-view .entrega-card-marcadores {
+.entrega-lista-compacta #entregas-cards-view .entrega-card-marcadores {
   min-height: 24px;
   max-height: 52px;
   margin-bottom: 6px;
   overflow: hidden;
 }
 
-.entrega-lista-compacta #entregas-lista-view .entrega-card-marcadores .sala-marcadores-wrap {
+.entrega-lista-compacta #entregas-cards-view .entrega-card-marcadores .sala-marcadores-wrap {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
@@ -143,7 +143,7 @@
   white-space: normal;
 }
 
-.entrega-lista-compacta #entregas-lista-view .entrega-card-marcadores .sala-marcador-chip {
+.entrega-lista-compacta #entregas-cards-view .entrega-card-marcadores .sala-marcador-chip {
   margin: 0;
   max-width: 100%;
   white-space: nowrap;
@@ -151,9 +151,63 @@
   text-overflow: ellipsis;
 }
 
-.entrega-lista-compacta #entregas-lista-view .entrega-card-periodo {
+.entrega-lista-compacta #entregas-cards-view .entrega-card-periodo {
   min-height: 22px;
   margin: 0 0 10px;
+}
+
+.entrega-table-wrap {
+  overflow: auto;
+}
+
+.entrega-table {
+  width: 100%;
+  min-width: 1000px;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.entrega-table th,
+.entrega-table td {
+  border-bottom: 1px solid var(--border);
+  padding: 10px 12px;
+  vertical-align: top;
+  text-align: left;
+}
+
+.entrega-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #fbfaf7;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+
+.entrega-table th a {
+  color: inherit;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.entrega-table th a:hover {
+  text-decoration: underline;
+}
+
+.entrega-table tbody tr:hover {
+  background: #f7f3ea;
+}
+
+.entrega-table-link {
+  color: var(--primary);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.entrega-table-link:hover {
+  text-decoration: underline;
 }
 
 .entrega-card-marcador-placeholder {

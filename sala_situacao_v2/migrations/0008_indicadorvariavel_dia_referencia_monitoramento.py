@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 
 def _backfill_dia_referencia_e_ressincronizar(apps, schema_editor):
-    from sala_situacao_v2.models import Indicador, IndicadorVariavel
+    IndicadorVariavel = apps.get_model("sala_situacao_v2", "IndicadorVariavel")
 
     for variavel in IndicadorVariavel.objects.select_related("indicador").all():
         indicador = variavel.indicador
@@ -14,10 +14,6 @@ def _backfill_dia_referencia_e_ressincronizar(apps, schema_editor):
             dia_referencia = indicador.data_lancamento.day
         variavel.dia_referencia_monitoramento = dia_referencia
         variavel.save(update_fields=["dia_referencia_monitoramento", "atualizado_em"])
-
-    for indicador in Indicador.objects.all():
-        if indicador.eh_indicador_matematico:
-            indicador.sincronizar_estrutura_processual_monitoramento()
 
 
 def _noop_reverse(apps, schema_editor):

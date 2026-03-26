@@ -9,14 +9,21 @@
 
 {% block content %}
   <section class="page-header">
-    <h2>Dashboard da Lousa Digital</h2>
+    <h2>Dashboard da Lousa Digital - {{ active_aba }}</h2>
   </section>
 
-  <div class="card-actions">
-    <a class="btn btn-light" href="{% url 'lousa_digital_list' %}">Voltar à Lousa</a>
+  <nav class="lousa-tabstrip" aria-label="Abas do dashboard da lousa digital">
     {% for aba in abas_lousa_dashboard %}
-      <a class="btn btn-light" href="{% url 'lousa_digital_create' %}?aba={{ aba }}">{{ aba }}: novo processo</a>
+      <a class="lousa-tabstrip__item{% if aba.ativa %} is-active{% endif %}" href="{{ aba.url }}">
+        <span>{{ aba.nome }}</span>
+        <strong>({{ aba.total }})</strong>
+      </a>
     {% endfor %}
+  </nav>
+
+  <div class="card-actions">
+    <a class="btn btn-light" href="{% url 'lousa_digital_list' %}?aba={{ active_aba }}">Voltar à Lousa</a>
+    <a class="btn btn-light" href="{% url 'lousa_digital_create' %}?aba={{ active_aba }}">{{ active_aba }}: novo processo</a>
   </div>
 
   <section class="lousa-dashboard">

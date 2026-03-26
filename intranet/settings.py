@@ -50,8 +50,11 @@ DEBUG = True
 # ALLOWED_HOSTS = []
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "10.22.0.37", "sgi.seds.sp.gov.br"]
 
-# Ambiente atual opera somente em HTTP.
-CSRF_TRUSTED_ORIGINS = ["http://sgi.seds.sp.gov.br"]
+# Ambientes suportados para acesso interno e publicado.
+CSRF_TRUSTED_ORIGINS = [
+    "http://sgi.seds.sp.gov.br",
+    "https://sgi.seds.sp.gov.br",
+]
 CSRF_COOKIE_SECURE = False
 SESSION_COOKIE_SECURE = False
 SECURE_SSL_REDIRECT = False

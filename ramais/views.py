@@ -19,6 +19,9 @@ from .models import PessoaRamal
 from .forms import PessoaRamalForm
 
 
+RAMAIS_EXCLUDED_USERNAMES = {"admin"}
+
+
 class PessoaRamalListView(ListView):
     """
     Controla o endpoint de listagem de ramais com busca textual.
@@ -50,6 +53,7 @@ class PessoaRamalListView(ListView):
             .get_queryset()
             .select_related('usuario', 'superior', 'superior__usuario')
             .filter(usuario__isnull=False)
+            .exclude(usuario__username__in=RAMAIS_EXCLUDED_USERNAMES)
         )
         termo = self.request.GET.get('q', '').strip()
         if termo:
@@ -198,6 +202,7 @@ class OrganogramaView(ListView):
         return (
             PessoaRamal.objects.select_related('usuario', 'superior', 'superior__usuario')
             .filter(usuario__isnull=False)
+            .exclude(usuario__username__in=RAMAIS_EXCLUDED_USERNAMES)
             .all()
         )
 

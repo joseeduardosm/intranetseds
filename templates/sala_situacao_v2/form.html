@@ -52,7 +52,7 @@
               </div>
             {% else %}
               <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-              {% if field.name == "data_entrega_estipulada" %}
+              {% if field.field.widget.input_type == "date" %}
                 <div class="sala-date-picker-inline">
                   {{ field }}
                   <button
@@ -63,7 +63,7 @@
                     Calendário
                   </button>
                 </div>
-                <small>Clique em "Calendário" para escolher visualmente a data e ver as entregas já previstas no mês.</small>
+                <small>Clique no campo ou em "Calendário" para escolher visualmente a data e ver as entregas já previstas no mês.</small>
               {% else %}
                 {{ field }}
               {% endif %}
@@ -896,14 +896,36 @@
         renderCalendar();
       };
 
+      const openCalendarForField = async (fieldId) => {
+        targetInput = document.getElementById(fieldId);
+        const selectedDate = targetInput ? parseDateAny(targetInput.value) : null;
+        currentDate = selectedDate || new Date();
+        openModal();
+        await syncAndRender();
+      };
+
       document.querySelectorAll("[data-open-date-calendar]").forEach((button) => {
+        const fieldId = button.getAttribute("data-open-date-calendar");
         button.addEventListener("click", async () => {
-          const fieldId = button.getAttribute("data-open-date-calendar");
-          targetInput = document.getElementById(fieldId);
-          const selectedDate = targetInput ? parseDateAny(targetInput.value) : null;
-          currentDate = selectedDate || new Date();
-          openModal();
-          await syncAndRender();
+          await openCalendarForField(fieldId);
+        });
+
+        const input = document.getElementById(fieldId);
+        if (!input) return;
+
+        // Usa apenas o calendario customizado ao clicar no campo.
+        input.setAttribute("readonly", "readonly");
+
+        input.addEventListener("mousedown", async (event) => {
+          event.preventDefault();
+          await openCalendarForField(fieldId);
+        });
+
+        input.addEventListener("keydown", async (event) => {
+          if (event.key === "Enter" || event.key === " " || event.key === "ArrowDown") {
+            event.preventDefault();
+            await openCalendarForField(fieldId);
+          }
         });
       });
 

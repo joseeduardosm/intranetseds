@@ -118,8 +118,9 @@ def _contagem_processos_por_aba(usuario, arquivo_morto=False) -> dict:
     processos = (
         _processos_visiveis_para_usuario(usuario)
         .filter(arquivo_morto=arquivo_morto, caixa_origem__in=LOUSA_ABAS)
+        .order_by()
         .values("caixa_origem")
-        .annotate(total=Count("id"))
+        .annotate(total=Count("id", distinct=True))
     )
     for item in processos:
         aba = _aba_lousa_ativa(item["caixa_origem"], default="")
@@ -650,10 +651,33 @@ class ProcessoDashboardView(LoginRequiredMixin, TemplateView):
 
     template_name = "lousa_digital/dashboard.html"
 
+    def _get_aba_ativa(self):
+        """Retorna a aba atualmente selecionada no dashboard."""
+
+        return _aba_lousa_ativa(self.request.GET.get("aba"))
+
+    def _montar_abas_contexto(self, active_aba):
+        """Monta links e contadores das abas para o dashboard."""
+
+        contagens = _contagem_processos_por_aba(self.request.user, arquivo_morto=False)
+        abas = []
+        for aba in LOUSA_ABAS:
+            abas.append(
+                {
+                    "nome": aba,
+                    "total": contagens.get(aba, 0),
+                    "ativa": aba == active_aba,
+                    "url": f"{reverse('lousa_digital_dashboard')}?aba={aba}",
+                }
+            )
+        return abas
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        active_aba = self._get_aba_ativa()
         processos_base = (
             _processos_visiveis_para_usuario(self.request.user)
+            .filter(caixa_origem=active_aba)
             .select_related("criado_por", "atualizado_por")
             .prefetch_related("encaminhamentos")
         )
@@ -764,7 +788,8 @@ class ProcessoDashboardView(LoginRequiredMixin, TemplateView):
                     "values": [item["total"] for item in destinos_mais_utilizados],
                 },
                 "ranking_cadastro": ranking_cadastro,
-                "abas_lousa_dashboard": LOUSA_ABAS,
+                "active_aba": active_aba,
+                "abas_lousa_dashboard": self._montar_abas_contexto(active_aba),
             }
         )
         return context

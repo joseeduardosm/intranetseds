@@ -126,11 +126,16 @@
     {% endif %}
     <main class="container {% block container_class %}{% endblock %}">
       {% if messages %}
-        <section class="flash-messages" aria-live="polite">
+        <section class="flash-messages" aria-live="polite" style="display:none;">
           {% for message in messages %}
             <div class="flash-message flash-{{ message.tags|default:'info' }}">{{ message }}</div>
           {% endfor %}
         </section>
+        <ul id="global-msgbox-source" hidden>
+          {% for message in messages %}
+            <li data-message-level="{{ message.tags|default:'info' }}" data-message-text="{{ message|striptags|escape }}"></li>
+          {% endfor %}
+        </ul>
       {% endif %}
       {% if request.path|slice:":18" == "/sala-de-situacao/" %}
         {% include "sala_situacao/_etapas_nav.html" %}
@@ -138,6 +143,14 @@
       <!-- Conteúdo específico de cada página -->
       {% block content %}{% endblock %}
     </main>
+    <div class="profile-alert-backdrop auth-required-hidden" id="global-msgbox-backdrop" aria-hidden="true"></div>
+    <div class="profile-alert-modal auth-required-hidden" id="global-msgbox-modal" role="dialog" aria-modal="true" aria-label="Avisos do sistema">
+      <h3 id="global-msgbox-title">Avisos do sistema</h3>
+      <ul id="global-msgbox-list"></ul>
+      <div class="profile-alert-actions">
+        <button class="btn" type="button" id="global-msgbox-close">Fechar</button>
+      </div>
+    </div>
     <footer class="site-footer">
       <div class="container">
         <span>Secretaria de Desenvolvimento Social · SGI SEDS · 2026</span>
@@ -320,6 +333,116 @@
         });
       </script>
     {% endif %}
+    <script>
+      (() => {
+        const getCookie = (name) => {
+          const prefix = `${name}=`;
+          return document.cookie
+            .split(";")
+            .map((item) => item.trim())
+            .find((item) => item.startsWith(prefix))
+            ?.slice(prefix.length) || "";
+        };
+
+        const syncCsrfInputs = (scope = document) => {
+          const csrfCookie = getCookie("csrftoken");
+          if (!csrfCookie) return;
+          scope.querySelectorAll('input[name="csrfmiddlewaretoken"]').forEach((input) => {
+            if (input.value !== csrfCookie) {
+              input.value = csrfCookie;
+            }
+          });
+        };
+
+        syncCsrfInputs();
+        document.addEventListener("submit", (event) => {
+          const form = event.target;
+          if (!form || !(form instanceof HTMLFormElement)) return;
+          syncCsrfInputs(form);
+        });
+      })();
+    </script>
+    <script>
+      (() => {
+        const modal = document.getElementById("global-msgbox-modal");
+        const backdrop = document.getElementById("global-msgbox-backdrop");
+        const closeBtn = document.getElementById("global-msgbox-close");
+        const titleEl = document.getElementById("global-msgbox-title");
+        const listEl = document.getElementById("global-msgbox-list");
+        if (!modal || !backdrop || !closeBtn || !titleEl || !listEl) return;
+
+        const normalize = (value) => (value || "").replace(/\s+/g, " ").trim();
+        const payload = [];
+        const seen = new Set();
+        const appendMessage = (text, level = "info") => {
+          const normalizedText = normalize(text);
+          if (!normalizedText) return;
+          const normalizedLevel = normalize(level).toLowerCase() || "info";
+          const key = `${normalizedLevel}::${normalizedText}`;
+          if (seen.has(key)) return;
+          seen.add(key);
+          payload.push({ text: normalizedText, level: normalizedLevel });
+        };
+
+        document.querySelectorAll("#global-msgbox-source [data-message-text]").forEach((node) => {
+          appendMessage(node.dataset.messageText, node.dataset.messageLevel || "info");
+        });
+
+        document.querySelectorAll("main .errorlist li").forEach((node) => {
+          appendMessage(node.textContent, "error");
+          const list = node.closest(".errorlist");
+          if (list) list.style.display = "none";
+        });
+
+        const closeModal = () => {
+          modal.classList.add("auth-required-hidden");
+          backdrop.classList.add("auth-required-hidden");
+          modal.setAttribute("aria-hidden", "true");
+          backdrop.setAttribute("aria-hidden", "true");
+        };
+
+        closeBtn.addEventListener("click", closeModal);
+        backdrop.addEventListener("click", closeModal);
+        document.addEventListener("keydown", (event) => {
+          if (event.key === "Escape" && !modal.classList.contains("auth-required-hidden")) {
+            closeModal();
+          }
+        });
+
+        const openModalWithMessages = (messages, title = "") => {
+          const list = Array.isArray(messages) ? messages : [messages];
+          const cleaned = list.map((item) => normalize(item)).filter(Boolean);
+          if (!cleaned.length) return;
+          titleEl.textContent = normalize(title) || "Avisos do sistema";
+          listEl.innerHTML = "";
+          cleaned.forEach((text) => {
+            const li = document.createElement("li");
+            li.textContent = text;
+            listEl.appendChild(li);
+          });
+          modal.classList.remove("auth-required-hidden");
+          backdrop.classList.remove("auth-required-hidden");
+          modal.setAttribute("aria-hidden", "false");
+          backdrop.setAttribute("aria-hidden", "false");
+        };
+
+        window.__sgiOpenMsgBox = openModalWithMessages;
+        window.alert = (message) => {
+          openModalWithMessages([message], "Aviso");
+        };
+
+        if (!payload.length) return;
+
+        const hasError = payload.some((item) => item.level.includes("error"));
+        const hasWarning = payload.some(
+          (item) => item.level.includes("warning") || item.level.includes("warn")
+        );
+        openModalWithMessages(
+          payload.map((item) => item.text),
+          hasError ? "Erros de validação" : hasWarning ? "Avisos do sistema" : "Mensagem do sistema"
+        );
+      })();
+    </script>
     <script>
       (function () {
         const fitCardTitles = () => {

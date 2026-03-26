@@ -5,6 +5,7 @@ import re
 import secrets
 
 from django.contrib.auth.models import Group
+from django.conf import settings
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -182,6 +183,13 @@ class BaseTimelineModel(models.Model):
     data_entrega_estipulada = models.DateField("Data de entrega estipulada", null=True, blank=True)
     evolucao_manual = models.DecimalField(max_digits=7, decimal_places=2, default=Decimal("0"))
     grupos_responsaveis = models.ManyToManyField(Group, related_name="%(class)s_v2_responsavel", blank=True)
+    criado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="%(app_label)s_%(class)s_criados",
+    )
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
 
@@ -626,6 +634,7 @@ class Indicador(BaseTimelineModel):
         if not variaveis_locais:
             return
         grupos_indicador_ids = set()
+        grupos_criadores_indicador_ids = set(self.grupos_criadores.values_list("id", flat=True))
         for variavel in variaveis_locais:
             variavel.gerar_ciclos_monitoramento()
             grupos_variavel_ids = set(variavel.grupos_monitoramento.values_list("id", flat=True))
@@ -640,9 +649,17 @@ class Indicador(BaseTimelineModel):
                 },
             )
             processo.indicadores.add(self)
+            alterou_processo = False
             if processo.data_entrega_estipulada != self.data_entrega_estipulada:
                 processo.data_entrega_estipulada = self.data_entrega_estipulada
-                processo.save(update_fields=["data_entrega_estipulada", "atualizado_em"])
+                alterou_processo = True
+            if processo.criado_por_id != self.criado_por_id:
+                processo.criado_por = self.criado_por
+                alterou_processo = True
+            if alterou_processo:
+                processo.save(update_fields=["data_entrega_estipulada", "criado_por", "atualizado_em"])
+            processo.grupos_criadores.set(grupos_criadores_indicador_ids)
+            processo.grupos_responsaveis.set(grupos_variavel_ids)
             entregas_variavel = []
             for ciclo in variavel.ciclos_monitoramento.order_by("numero"):
                 sufixo_inicial = " (Inicial)" if ciclo.eh_inicial else ""
@@ -678,6 +695,9 @@ class Indicador(BaseTimelineModel):
                 if entrega.periodo_fim != ciclo.periodo_fim:
                     entrega.periodo_fim = ciclo.periodo_fim
                     alterou = True
+                if entrega.criado_por_id != self.criado_por_id:
+                    entrega.criado_por = self.criado_por
+                    alterou = True
                 if alterou:
                     entrega.save(
                         update_fields=[
@@ -686,10 +706,13 @@ class Indicador(BaseTimelineModel):
                             "data_entrega_estipulada",
                             "periodo_inicio",
                             "periodo_fim",
+                            "criado_por",
                             "atualizado_em",
                         ]
                     )
                 entrega.processos.add(processo)
+                entrega.grupos_criadores.set(grupos_criadores_indicador_ids)
+                entrega.grupos_responsaveis.set(grupos_variavel_ids)
                 entregas_variavel.append(entrega)
             _sincronizar_marcadores_automaticos_grupo_item(processo, grupos_variavel_ids)
             for entrega in entregas_variavel:

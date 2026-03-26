@@ -440,6 +440,18 @@ class UsuarioBaseForm(forms.ModelForm):
                 final_group_ids.remove(admin_group.id)
             user.groups.set(Group.objects.filter(id__in=final_group_ids))
 
+    def clean_foto(self):
+        """Exige foto no cadastro e para perfis que ainda não possuem imagem."""
+
+        foto = self.cleaned_data.get("foto")
+        if foto is not None:
+            return foto
+
+        profile = getattr(self, "_ramal_profile", None)
+        if profile and getattr(profile, "foto", None):
+            return profile.foto
+        raise forms.ValidationError("A foto é obrigatória.")
+
 
 class UsuarioCreateForm(UsuarioBaseForm):
     """

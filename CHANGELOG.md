@@ -1,5 +1,43 @@
 # Changelog
 
+## 2026-03-26
+
+### Autenticacao e Navegacao
+- adicionada `LoginView` customizada com `never_cache` e `ensure_csrf_cookie`, reduzindo falhas de CSRF em formularios reutilizados apos login, troca de aba ou navegação por cache;
+- ampliado `CSRF_TRUSTED_ORIGINS` para contemplar o acesso publicado em `http` e `https`;
+- sincronizado o campo `csrfmiddlewaretoken` com o cookie atual antes de envios de formulario na interface base;
+- transformadas mensagens globais e erros de validacao em modal compartilhado, com suporte visual complementar no CSS de autenticacao;
+- adicionados testes cobrindo emissao do cookie CSRF e headers sem cache na tela de login.
+
+### Ramais e Usuarios
+- reforcado o cadastro/edicao de ramais para exigir escolha explicita de setor e foto obrigatoria quando o perfil ainda nao possui imagem;
+- aplicado o mesmo requisito de foto obrigatoria no formulario de atualizacao de usuarios;
+- removido o usuario especial `admin` do fluxo obrigatorio de atualizacao de ramal e da exibicao na lista/organograma de ramais;
+- ampliada a cobertura de testes para selecao de setor, foto obrigatoria, excecao do `admin` e validacoes de formulario.
+
+### Diario de Bordo
+- enriquecido o historico automatico de edicoes de blocos, registrando alteracoes de nome, descricao, status, participantes e marcadores com comparacao entre valores anteriores e novos;
+- adicionados testes de regressao para garantir a geracao correta desses incrementos ao editar blocos.
+
+### Lousa Digital
+- filtrado o dashboard por aba ativa, com cabecalho contextual, tabstrip com contadores por caixa e links consistentes para lista e criacao;
+- corrigidas as contagens por aba para evitar duplicidades e refletir apenas os processos da origem selecionada;
+- adicionados testes cobrindo o recorte do dashboard pela aba ativa.
+
+### Sala de Situacao V2
+- refinadas as regras de acesso para indicadores, processos e entregas, incluindo permissao por criador direto, grupos criadores, heranca da cadeia matematica e monitoramento por grupos da variavel;
+- restringida a visibilidade de processos e entregas aos itens realmente relacionados ao usuario, inclusive na lista, detalhe e API de calendario;
+- persistido `criado_por` em indicadores, processos e entregas, com nova migration e propagacao automatica para a estrutura monitorada gerada a partir dos indicadores matematicos;
+- sincronizados grupos criadores e grupos responsaveis na cadeia automatica de monitoramento;
+- ajustado o formulario de monitoramento de entregas com rotulos, campos e layout dedicados;
+- reformulada a lista de entregas com visualizacoes em tabela, cards e calendario, incluindo ordenacao por colunas;
+- melhorada a experiencia dos campos de data com abertura do calendario customizado tanto pelo botao quanto pelo clique direto no campo;
+- ajustada a tela de detalhe da entrega para permitir monitoramento isolado por grupos da variavel, com mensagem explicativa quando edicao e exclusao seguem restritas;
+- atualizados testes de acesso, visibilidade, grupos de monitoramento, cadeia de criacao, ordenacao e monitoramento.
+
+### Documentacao e Apoio
+- adicionados materiais de apoio em `docs/`, incluindo textos de referencia e a planilha `Planilha Projetos CEI - Edital 20.03.2026.xlsx`.
+
 ## 2026-03-22
 
 ### Licitacoes

@@ -8,11 +8,27 @@ from sala_situacao.access import user_has_sala_situacao_access, user_is_monitori
 
 
 PROFILE_REVALIDATION_DAYS = 30
+RAMAL_PROFILE_EXEMPT_USERNAMES = {"admin"}
+
+
+def _user_is_ramal_profile_exempt(user) -> bool:
+    username = getattr(user, "username", "") or ""
+    return username.lower() in RAMAL_PROFILE_EXEMPT_USERNAMES
 
 
 def ramal_profile(request):
     user = getattr(request, "user", None)
     if not user or not getattr(user, "is_authenticated", False):
+        return {
+            "ramal_profile": None,
+            "ramal_missing_fields": False,
+            "ramal_requires_revalidation": False,
+            "ramal_profile_requires_update": False,
+            "ramal_profile_update_allowed": False,
+            "ramal_update_reason": None,
+        }
+
+    if _user_is_ramal_profile_exempt(user):
         return {
             "ramal_profile": None,
             "ramal_missing_fields": False,
@@ -47,7 +63,7 @@ def ramal_profile(request):
 
     missing = any(
         not getattr(profile, field)
-        for field in ("ramal", "email", "setor", "cargo")
+        for field in ("ramal", "email", "setor", "cargo", "foto")
     )
     updated_at = getattr(profile, "atualizado_em", None)
     requires_revalidation = True

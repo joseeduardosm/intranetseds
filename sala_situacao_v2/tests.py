@@ -14,6 +14,7 @@ from auditoria.models import AuditLog
 from usuarios.models import SetorNode, UserSetorMembership
 
 from .access import (
+    user_can_monitor_entrega,
     user_can_delete_processo,
     user_can_manage_entrega,
     user_can_manage_indicador,
@@ -21,7 +22,7 @@ from .access import (
 )
 from .forms import EntregaForm, EntregaMonitoramentoForm, IndicadorForm, ProcessoForm
 from .models import Entrega, Indicador, IndicadorCicloValor, Processo
-from .views import _variaveis_queryset_para_detalhe
+from .views import _opcoes_grupos_monitoramento_variaveis, _variaveis_queryset_para_detalhe
 from sala_situacao.forms import NotaItemForm
 from sala_situacao.models import NotaItem, NotaItemAnexo
 
@@ -60,7 +61,7 @@ class SalaSituacaoV2AccessTests(TestCase):
         self.assertEqual(match.url_name, "sala_situacao_home")
         self.assertIn("sala_situacao_v2", match._func_path)
 
-    def test_authenticated_user_reads_all_items(self):
+    def test_authenticated_user_so_ve_entregas_relacionadas(self):
         self.client.login(username=self.outsider_user.username, password=self.password)
         response_ind = self.client.get(reverse("sala_indicador_estrategico_list"))
         response_proc = self.client.get(reverse("sala_processo_list"))
@@ -70,8 +71,8 @@ class SalaSituacaoV2AccessTests(TestCase):
         self.assertEqual(response_proc.status_code, 200)
         self.assertEqual(response_ent.status_code, 200)
         self.assertContains(response_ind, self.indicador.nome)
-        self.assertContains(response_proc, self.processo.nome)
-        self.assertContains(response_ent, self.entrega.nome)
+        self.assertNotContains(response_proc, self.processo.nome)
+        self.assertNotContains(response_ent, self.entrega.nome)
 
     def test_parent_sector_can_edit_item(self):
         self.client.login(username=self.parent_user.username, password=self.password)
@@ -194,6 +195,24 @@ class SalaSituacaoV2DateFieldWidgetTests(TestCase):
         self.assertEqual(IndicadorForm().fields["data_entrega_estipulada"].widget.input_type, "date")
         self.assertEqual(ProcessoForm().fields["data_entrega_estipulada"].widget.input_type, "date")
         self.assertEqual(EntregaForm().fields["data_entrega_estipulada"].widget.input_type, "date")
+
+
+class SalaSituacaoV2VariaveisMonitoramentoGruposTests(TestCase):
+    def test_opcoes_de_monitoramento_trazem_todos_setores_menos_admin(self):
+        grupo_admin, _ = Group.objects.get_or_create(name="admin")
+        grupo_setor_a = Group.objects.create(name="Setor A")
+        grupo_setor_b = Group.objects.create(name="Setor B")
+        Group.objects.create(name="Grupo sem setor")
+
+        SetorNode.objects.get_or_create(group=grupo_admin)
+        SetorNode.objects.create(group=grupo_setor_a)
+        SetorNode.objects.create(group=grupo_setor_b)
+
+        opcoes = _opcoes_grupos_monitoramento_variaveis()
+        nomes = [item["nome"] for item in opcoes]
+
+        self.assertEqual(nomes, ["Setor A", "Setor B"])
+        self.assertNotIn("admin", nomes)
 
 
 class SalaSituacaoV2ProcessoGruposHerdadosTests(TestCase):
@@ -382,6 +401,60 @@ class SalaSituacaoV2ManageEntregaTests(TestCase):
         self.assertTrue(user_can_manage_entrega(user_criador, entrega))
         self.assertFalse(user_can_manage_entrega(user_outro, entrega))
 
+    def test_usuario_criador_do_indicador_matematico_gerencia_toda_a_cadeia(self):
+        password = "senha-123"
+        user_criador = User.objects.create_user(username="criador-cadeia", password=password)
+        indicador = Indicador.objects.create(
+            nome="Indicador cadeia criador",
+            tipo_indicador=Indicador.TipoIndicador.MATEMATICO,
+            formula_expressao="parte",
+            criado_por=user_criador,
+            data_entrega_estipulada=date(2026, 12, 31),
+        )
+        indicador.sincronizar_variaveis_da_formula()
+        variavel = indicador.variaveis.get(nome="parte")
+        variavel.periodicidade_monitoramento = "MENSAL"
+        variavel.dia_referencia_monitoramento = 10
+        variavel.save(update_fields=["periodicidade_monitoramento", "dia_referencia_monitoramento", "atualizado_em"])
+        indicador.sincronizar_estrutura_processual_monitoramento()
+
+        processo = indicador.processos.first()
+        entrega = Entrega.objects.filter(variavel_monitoramento=variavel).order_by("id").first()
+
+        self.assertTrue(user_can_manage_indicador(user_criador, indicador))
+        self.assertTrue(user_can_manage_processo(user_criador, processo))
+        self.assertTrue(user_can_manage_entrega(user_criador, entrega))
+
+    def test_grupo_da_variavel_pode_gerenciar_entrega_de_monitoramento_mesmo_sem_grupo_criador(self):
+        password = "senha-123"
+        grupo_variavel = Group.objects.create(name="Setor Variavel")
+        user_variavel = User.objects.create_user(username="usuario-variavel", password=password)
+        user_variavel.groups.add(grupo_variavel)
+        UserSetorMembership.objects.create(
+            user=user_variavel,
+            setor=SetorNode.objects.create(group=grupo_variavel),
+        )
+
+        indicador = Indicador.objects.create(
+            nome="Indicador grupo variavel",
+            tipo_indicador=Indicador.TipoIndicador.MATEMATICO,
+            formula_expressao="parte",
+            data_entrega_estipulada=date(2026, 12, 31),
+        )
+        indicador.sincronizar_variaveis_da_formula()
+        variavel = indicador.variaveis.get(nome="parte")
+        variavel.periodicidade_monitoramento = "MENSAL"
+        variavel.dia_referencia_monitoramento = 10
+        variavel.save(update_fields=["periodicidade_monitoramento", "dia_referencia_monitoramento", "atualizado_em"])
+        variavel.grupos_monitoramento.set([grupo_variavel])
+        indicador.sincronizar_estrutura_processual_monitoramento()
+
+        entrega = Entrega.objects.filter(variavel_monitoramento=variavel).order_by("id").first()
+        entrega.grupos_criadores.clear()
+
+        self.assertFalse(user_can_manage_entrega(user_variavel, entrega))
+        self.assertTrue(user_can_monitor_entrega(user_variavel, entrega))
+
 
 class SalaSituacaoV2EntregaDetailMonitoramentoTests(TestCase):
     def test_entrega_comum_nao_exibe_bloco_de_monitoramento(self):
@@ -405,6 +478,44 @@ class SalaSituacaoV2EntregaDetailMonitoramentoTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.context["pode_monitorar"])
         self.assertNotContains(response, "Salvar monitoramento")
+
+    def test_grupo_da_variavel_exibe_bloco_de_monitoramento_para_entrega_matematica(self):
+        password = "senha-123"
+        user = User.objects.create_user(username="grupo-variavel-detail", password=password)
+        grupo = Group.objects.create(name="Grupo Variavel Detail")
+        user.groups.add(grupo)
+        setor = SetorNode.objects.create(group=grupo)
+        UserSetorMembership.objects.create(user=user, setor=setor)
+        for codename in ("view_entrega", "monitorar_entrega"):
+            perm = Permission.objects.get(codename=codename, content_type__app_label="sala_situacao_v2")
+            user.user_permissions.add(perm)
+
+        indicador = Indicador.objects.create(
+            nome="Indicador detail variavel",
+            tipo_indicador=Indicador.TipoIndicador.MATEMATICO,
+            formula_expressao="parte",
+            data_entrega_estipulada=date(2026, 12, 31),
+        )
+        indicador.sincronizar_variaveis_da_formula()
+        variavel = indicador.variaveis.get(nome="parte")
+        variavel.periodicidade_monitoramento = "MENSAL"
+        variavel.dia_referencia_monitoramento = 10
+        variavel.save(update_fields=["periodicidade_monitoramento", "dia_referencia_monitoramento", "atualizado_em"])
+        variavel.grupos_monitoramento.set([grupo])
+        indicador.sincronizar_estrutura_processual_monitoramento()
+
+        entrega = Entrega.objects.filter(variavel_monitoramento=variavel).order_by("id").first()
+        entrega.grupos_criadores.clear()
+
+        self.client.login(username=user.username, password=password)
+        response = self.client.get(reverse("sala_entrega_detail", kwargs={"pk": entrega.pk}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["pode_monitorar"])
+        self.assertTrue(response.context["monitoramento_somente"])
+        self.assertContains(response, "Salvar monitoramento")
+        self.assertNotContains(response, "Editar")
+        self.assertNotContains(response, "Excluir")
 
 
 class SalaSituacaoV2HistoricoIndicadorTests(TestCase):
@@ -624,6 +735,12 @@ class SalaSituacaoV2IndicadorMatematicoTests(TestCase):
         self.assertTrue(any('Monitoramento de "parte"' in item.nome for item in processos))
         self.assertTrue(any('Monitoramento de "total"' in item.nome for item in processos))
         self.assertTrue(Entrega.objects.filter(variavel_monitoramento__indicador=indicador).exists())
+        processo_parte = indicador.processos.get(nome__contains='"parte"')
+        entrega_parte = Entrega.objects.filter(
+            variavel_monitoramento=variaveis["parte"],
+        ).order_by("id").first()
+        self.assertEqual(set(processo_parte.grupos_responsaveis.values_list("id", flat=True)), {self.group_a.id})
+        self.assertEqual(set(entrega_parte.grupos_responsaveis.values_list("id", flat=True)), {self.group_a.id})
 
     def test_monitoramento_de_entrega_grava_valor_da_variavel_e_recalcula_indicador(self):
         indicador = Indicador.objects.create(
@@ -707,7 +824,7 @@ class SalaSituacaoV2IndicadorMatematicoTests(TestCase):
 
         self.assertGreaterEqual(len(entregas), 2)
         self.assertTrue(entregas[0].ciclo_monitoramento.eh_inicial)
-        self.assertEqual(entregas[0].data_entrega_estipulada, date(2026, 3, 20))
+        self.assertEqual(entregas[0].data_entrega_estipulada, timezone.localdate())
         self.assertEqual(entregas[1].data_entrega_estipulada, date(2026, 4, 10))
 
     def test_queryset_de_variaveis_do_detalhe_nao_seleciona_dia_referencia(self):
@@ -754,6 +871,7 @@ class SalaSituacaoV2IndicadorMatematicoTests(TestCase):
 
 class SalaSituacaoV2EntregaListTests(TestCase):
     def test_lista_entregas_ordena_por_prazo_e_expoe_api_calendario(self):
+        group = Group.objects.create(name="Grupo Lista Entregas")
         entrega_b = Entrega.objects.create(
             nome="Entrega B",
             descricao="Depois",
@@ -764,12 +882,17 @@ class SalaSituacaoV2EntregaListTests(TestCase):
             descricao="Antes",
             data_entrega_estipulada=date(2026, 3, 10),
         )
+        entrega_a.grupos_responsaveis.set([group])
+        entrega_b.grupos_responsaveis.set([group])
 
         response = self.client.get(reverse("sala_entrega_list"))
 
         self.assertEqual(response.status_code, 302)
 
         user = User.objects.create_user(username="lista-entregas", password="senha-forte-123")
+        user.groups.add(group)
+        setor = SetorNode.objects.create(group=group)
+        UserSetorMembership.objects.create(user=user, setor=setor)
         self.client.login(username=user.username, password="senha-forte-123")
         response = self.client.get(reverse("sala_entrega_list"))
 
@@ -780,8 +903,49 @@ class SalaSituacaoV2EntregaListTests(TestCase):
             reverse("sala_entrega_calendario_api"),
         )
 
+    def test_lista_entregas_ordena_no_backend_por_coluna(self):
+        group = Group.objects.create(name="Grupo Lista Ordenacao")
+        user = User.objects.create_user(username="lista-sort", password="senha-forte-123")
+        user.groups.add(group)
+        UserSetorMembership.objects.create(user=user, setor=SetorNode.objects.create(group=group))
+
+        entrega_a = Entrega.objects.create(
+            nome="Entrega A",
+            data_entrega_estipulada=date(2026, 3, 25),
+            evolucao_manual=40,
+        )
+        entrega_c = Entrega.objects.create(
+            nome="Entrega C",
+            data_entrega_estipulada=date(2026, 3, 15),
+            evolucao_manual=90,
+        )
+        entrega_b = Entrega.objects.create(
+            nome="Entrega B",
+            data_entrega_estipulada=date(2026, 3, 20),
+            evolucao_manual=60,
+        )
+        for entrega in (entrega_a, entrega_b, entrega_c):
+            entrega.grupos_responsaveis.set([group])
+
+        self.client.login(username=user.username, password="senha-forte-123")
+        response_nome_desc = self.client.get(reverse("sala_entrega_list"), {"sort": "nome", "dir": "desc"})
+        response_prazo_asc = self.client.get(reverse("sala_entrega_list"), {"sort": "prazo", "dir": "asc"})
+
+        self.assertEqual(
+            list(response_nome_desc.context["entregas"].values_list("nome", flat=True)),
+            ["Entrega C", "Entrega B", "Entrega A"],
+        )
+        self.assertEqual(
+            list(response_prazo_asc.context["entregas"].values_list("nome", flat=True)),
+            ["Entrega C", "Entrega B", "Entrega A"],
+        )
+
     def test_api_calendario_retorna_entregas_do_mes(self):
+        group = Group.objects.create(name="Grupo Calendario Entregas")
         user = User.objects.create_user(username="cal-v2", password="senha-forte-123")
+        user.groups.add(group)
+        setor = SetorNode.objects.create(group=group)
+        UserSetorMembership.objects.create(user=user, setor=setor)
         self.client.login(username=user.username, password="senha-forte-123")
         processo = Processo.objects.create(nome="Processo Tooltip")
         entrega = Entrega.objects.create(
@@ -790,6 +954,7 @@ class SalaSituacaoV2EntregaListTests(TestCase):
             data_entrega_estipulada=date(2026, 3, 10),
             evolucao_manual=100,
         )
+        entrega.grupos_responsaveis.set([group])
         entrega.processos.set([processo])
 
         response = self.client.get(reverse("sala_entrega_calendario_api"), {"ano": 2026, "mes": 3})
@@ -800,14 +965,27 @@ class SalaSituacaoV2EntregaListTests(TestCase):
         self.assertEqual(payload["results"][0]["data"], "2026-03-10")
         self.assertEqual(payload["results"][0]["processos"], [processo.nome])
 
+    def test_detalhe_entrega_bloqueia_usuario_sem_relacao(self):
+        user = User.objects.create_user(username="sem-relacao-v2", password="senha-forte-123")
+        entrega = Entrega.objects.create(
+            nome="Entrega Restrita",
+            descricao="Restrita",
+            data_entrega_estipulada=date(2026, 4, 10),
+        )
+
+        self.client.login(username=user.username, password="senha-forte-123")
+        response = self.client.get(reverse("sala_entrega_detail", kwargs={"pk": entrega.pk}))
+
+        self.assertEqual(response.status_code, 404)
+
 
 class SalaSituacaoNotasAnexosTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="nota-v2", password="senha-123")
         self.indicador = Indicador.objects.create(nome="Indicador para nota")
-        self.processo = Processo.objects.create(nome="Processo para nota")
+        self.processo = Processo.objects.create(nome="Processo para nota", criado_por=self.user)
         self.processo.indicadores.set([self.indicador])
-        self.entrega = Entrega.objects.create(nome="Entrega para nota")
+        self.entrega = Entrega.objects.create(nome="Entrega para nota", criado_por=self.user)
         self.entrega.processos.set([self.processo])
 
     def test_form_nota_salva_um_ou_varios_anexos(self):

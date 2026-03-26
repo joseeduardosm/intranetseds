@@ -305,6 +305,19 @@ class EntregaMonitoramentoForm(forms.ModelForm):
     def __init__(self, *args, usuario=None, **kwargs):
         self.usuario = usuario
         super().__init__(*args, **kwargs)
+        self.fields["valor_monitoramento"].label = "Monitorar"
+        self.fields["valor_monitoramento"].widget.attrs.update(
+            {
+                "class": "form-control sala-monitoramento-input",
+                "placeholder": "Informe o valor monitorado",
+            }
+        )
+        self.fields["evidencia_monitoramento"].label = "Anexar arquivos"
+        self.fields["evidencia_monitoramento"].widget.attrs.update(
+            {
+                "class": "form-control sala-monitoramento-file",
+            }
+        )
 
     class Meta:
         model = Entrega

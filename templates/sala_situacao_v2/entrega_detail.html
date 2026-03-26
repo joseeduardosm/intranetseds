@@ -30,11 +30,34 @@
 
       {% if pode_monitorar and monitoramento_form %}
         <section class="page-header"><h2>Monitoramento</h2></section>
-        <div class="detail sala-detail-panel">
-          <form method="post" enctype="multipart/form-data" action="{% url 'sala_entrega_monitorar' entrega.pk %}">
+        <div class="detail sala-detail-panel sala-monitoramento-panel">
+          {% if monitoramento_somente %}
+            <p class="sala-monitoramento-hint">
+              Seu acesso nesta entrega e exclusivo para monitoramento. Edicao e exclusao permanecem restritas a quem criou a cadeia do indicador.
+            </p>
+          {% endif %}
+          <form method="post" enctype="multipart/form-data" action="{% url 'sala_entrega_monitorar' entrega.pk %}" class="sala-monitoramento-form">
             {% csrf_token %}
-            {{ monitoramento_form.as_p }}
-            <button class="btn" type="submit">Salvar monitoramento</button>
+            {{ monitoramento_form.non_field_errors }}
+            <div class="sala-monitoramento-grid">
+              <div class="sala-monitoramento-field sala-monitoramento-field--value">
+                {{ monitoramento_form.valor_monitoramento.label_tag }}
+                {{ monitoramento_form.valor_monitoramento }}
+                {% for error in monitoramento_form.valor_monitoramento.errors %}
+                  <div class="form-error">{{ error }}</div>
+                {% endfor %}
+              </div>
+              <div class="sala-monitoramento-field sala-monitoramento-field--file">
+                {{ monitoramento_form.evidencia_monitoramento.label_tag }}
+                {{ monitoramento_form.evidencia_monitoramento }}
+                {% for error in monitoramento_form.evidencia_monitoramento.errors %}
+                  <div class="form-error">{{ error }}</div>
+                {% endfor %}
+              </div>
+            </div>
+            <div class="detail-actions">
+              <button class="btn" type="submit">Salvar monitoramento</button>
+            </div>
           </form>
         </div>
       {% endif %}

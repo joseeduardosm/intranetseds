@@ -10,7 +10,9 @@ from django.contrib.auth.models import Group, Permission, User
 from django.test import RequestFactory, TestCase
 from unittest.mock import patch
 
-from .forms import GrupoUpdateForm
+from ramais.models import PessoaRamal
+
+from .forms import GrupoUpdateForm, UsuarioUpdateForm
 from .models import GrantEffect, SetorGrant, SetorNode, UserGrant, UserSetorMembership
 from .permissions import ADMIN_GROUP_NAME
 from .signals import RESERVA_SALAS_DEFAULT_CODENAMES
@@ -286,3 +288,39 @@ class GrupoFormMirrorGrantsTests(TestCase):
             inherited_profiles = _compute_inherited_profile_names_for_group(filho_group)
 
         self.assertIn(perfil, inherited_profiles)
+
+
+class UsuarioFormFotoObrigatoriaTests(TestCase):
+    def test_usuario_update_exige_foto_quando_perfil_nao_tem_imagem(self):
+        user = User.objects.create_user(
+            username="usuario_foto",
+            password="senha123",
+            first_name="Usuario Foto",
+            email="usuario.foto@exemplo.gov.br",
+        )
+        group = Group.objects.create(name="Financeiro")
+        SetorNode.objects.create(group=group)
+        PessoaRamal.objects.create(
+            usuario=user,
+            nome="Usuario Foto",
+            cargo="Analista",
+            setor="Financeiro",
+            ramal="1234",
+            email="usuario.foto@exemplo.gov.br",
+        )
+
+        form = UsuarioUpdateForm(
+            data={
+                "first_name": "Usuario Foto",
+                "username": "usuario_foto",
+                "email": "usuario.foto@exemplo.gov.br",
+                "ramal": "1234",
+                "cargo": "Analista",
+                "setor": "Financeiro",
+            },
+            instance=user,
+            current_user=user,
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("foto", form.errors)

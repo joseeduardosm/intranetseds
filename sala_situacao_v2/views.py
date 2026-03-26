@@ -3,9 +3,10 @@ from datetime import timedelta
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+from django.contrib.auth.models import Group
 from django.contrib.contenttypes.models import ContentType
 from django.db import connection, transaction
-from django.db.models import F, Q
+from django.db.models import F, Min, Q
 from django.http import HttpResponseForbidden, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.urls import reverse, reverse_lazy
@@ -20,6 +21,9 @@ from sala_situacao.forms import NotaItemForm
 from sala_situacao.models import NotaItem, nota_item_anexo_storage_ready
 
 from .access import (
+    filter_visible_processos_for_user,
+    filter_visible_entregas_for_user,
+    user_can_monitor_entrega,
     user_can_delete_processo,
     user_can_manage_entrega,
     user_can_manage_indicador,
@@ -34,6 +38,12 @@ from .models import Entrega, Indicador, Processo, MarcadorVinculoAutomaticoGrupo
 
 def _user_has_any_perm(user, perms):
     return any(user.has_perm(perm) for perm in perms)
+
+
+def _creator_group_ids(user):
+    if not user or not getattr(user, "is_authenticated", False):
+        return []
+    return list(user.groups.values_list("id", flat=True))
 
 
 def _variaveis_queryset_para_detalhe(indicador):
@@ -149,6 +159,13 @@ def _deletar_indicador_por_sql(indicador_id):
 def _adicionar_contexto_calendario_formulario(context):
     context["entregas_calendario_api_url"] = reverse("sala_entrega_calendario_api")
     return context
+
+
+def _opcoes_grupos_monitoramento_variaveis():
+    return [
+        {"id": grupo.id, "nome": grupo.name}
+        for grupo in Group.objects.filter(setor_node__isnull=False).exclude(name__iexact="admin").order_by("name")
+    ]
 
 
 class AuditHistoryContextMixin:
@@ -423,10 +440,7 @@ class IndicadorCreateView(LoginRequiredMixin, PermissionRequiredMixin, WriteAcce
         context["cancel_url"] = reverse("sala_indicador_estrategico_list")
         form = context.get("form")
         if form is not None:
-            context["variaveis_group_options"] = [
-                {"id": grupo.id, "nome": grupo.name}
-                for grupo in form.fields["grupos_responsaveis"].queryset.order_by("name")
-            ]
+            context["variaveis_group_options"] = _opcoes_grupos_monitoramento_variaveis()
         return _adicionar_contexto_calendario_formulario(context)
 
     def form_valid(self, form):
@@ -434,9 +448,11 @@ class IndicadorCreateView(LoginRequiredMixin, PermissionRequiredMixin, WriteAcce
             selected_ids = set(form.cleaned_data["grupos_responsaveis"].values_list("id", flat=True))
             if not selected_ids.intersection(self.get_writable_group_ids()):
                 return HttpResponseForbidden("Sem permissao para atribuir os grupos informados.")
+        if self.request.user.is_authenticated and not form.instance.criado_por_id:
+            form.instance.criado_por = self.request.user
         response = super().form_valid(form)
         if self.object and not self.object.grupos_criadores.exists():
-            self.object.grupos_criadores.set(form.cleaned_data["grupos_responsaveis"])
+            self.object.grupos_criadores.set(_creator_group_ids(self.request.user))
         messages.success(self.request, "Indicador criado com sucesso.")
         return response
 
@@ -465,10 +481,7 @@ class IndicadorUpdateView(LoginRequiredMixin, PermissionRequiredMixin, WriteAcce
         context["cancel_url"] = reverse("sala_indicador_estrategico_detail", kwargs={"pk": self.object.pk})
         form = context.get("form")
         if form is not None:
-            context["variaveis_group_options"] = [
-                {"id": grupo.id, "nome": grupo.name}
-                for grupo in form.fields["grupos_responsaveis"].queryset.order_by("name")
-            ]
+            context["variaveis_group_options"] = _opcoes_grupos_monitoramento_variaveis()
         return _adicionar_contexto_calendario_formulario(context)
 
     def get_form_kwargs(self):
@@ -523,7 +536,8 @@ class ProcessoListView(LoginRequiredMixin, ListView):
     template_name = "sala_situacao_v2/processo_list.html"
 
     def get_queryset(self):
-        return Processo.objects.prefetch_related("indicadores").order_by("nome")
+        queryset = Processo.objects.prefetch_related("indicadores").order_by("nome")
+        return filter_visible_processos_for_user(queryset, self.request.user)
 
 
 class ProcessoDetailView(LoginRequiredMixin, ItemNotesContextMixin, AuditHistoryContextMixin, DetailView):
@@ -531,13 +545,20 @@ class ProcessoDetailView(LoginRequiredMixin, ItemNotesContextMixin, AuditHistory
     context_object_name = "processo"
     template_name = "sala_situacao_v2/processo_detail.html"
 
+    def get_queryset(self):
+        queryset = super().get_queryset().prefetch_related("indicadores", "entregas")
+        return filter_visible_processos_for_user(queryset, self.request.user)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         can_manage_by_creator_group = user_can_manage_processo(self.request.user, self.object)
         context["can_edit"] = can_manage_by_creator_group
         context["can_delete"] = can_manage_by_creator_group
         entregas = list(
-            self.object.entregas.order_by(
+            filter_visible_entregas_for_user(
+                self.object.entregas.all(),
+                self.request.user,
+            ).order_by(
                 F("data_entrega_estipulada").asc(nulls_last=True),
                 "nome",
                 "id",
@@ -585,9 +606,11 @@ class ProcessoCreateView(LoginRequiredMixin, PermissionRequiredMixin, WriteAcces
         return reverse("sala_processo_detail", kwargs={"pk": self.object.pk})
 
     def form_valid(self, form):
+        if self.request.user.is_authenticated and not form.instance.criado_por_id:
+            form.instance.criado_por = self.request.user
         response = super().form_valid(form)
         if self.object and not self.object.grupos_criadores.exists():
-            self.object.grupos_criadores.set(form.cleaned_data["grupos_responsaveis"])
+            self.object.grupos_criadores.set(_creator_group_ids(self.request.user))
         return response
 
 
@@ -654,21 +677,79 @@ class EntregaListView(LoginRequiredMixin, ListView):
     context_object_name = "entregas"
     template_name = "sala_situacao_v2/entrega_list.html"
 
+    SORT_FIELDS = {
+        "nome": "nome",
+        "processo": "processo_nome_sort",
+        "prazo": "data_entrega_estipulada",
+        "periodo_inicio": "periodo_inicio",
+        "periodo_fim": "periodo_fim",
+        "progresso": "evolucao_manual",
+        "atualizacao": "atualizado_em",
+    }
+
+    def _sort_param(self):
+        valor = (self.request.GET.get("sort") or "prazo").strip().lower()
+        return valor if valor in self.SORT_FIELDS else "prazo"
+
+    def _dir_param(self):
+        valor = (self.request.GET.get("dir") or "asc").strip().lower()
+        return "desc" if valor == "desc" else "asc"
+
+    def _order_expression(self, field_name, direction):
+        if direction == "desc":
+            return F(field_name).desc(nulls_last=True)
+        return F(field_name).asc(nulls_last=True)
+
     def get_queryset(self):
-        return Entrega.objects.prefetch_related("processos").order_by(
-            F("data_entrega_estipulada").asc(nulls_last=True),
-            "nome",
+        queryset = (
+            Entrega.objects.prefetch_related("processos")
+            .annotate(processo_nome_sort=Min("processos__nome"))
+        )
+        return filter_visible_entregas_for_user(queryset, self.request.user)
+        
+    def _ordered_queryset(self, queryset):
+        sort_key = self._sort_param()
+        direction = self._dir_param()
+        sort_field = self.SORT_FIELDS[sort_key]
+        return queryset.order_by(
+            self._order_expression(sort_field, direction),
+            F("nome").asc(nulls_last=True),
             "id",
         )
 
     def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
+        queryset = self._ordered_queryset(self.get_queryset())
+        context = super().get_context_data(object_list=queryset, **kwargs)
+        current_sort = self._sort_param()
+        current_dir = self._dir_param()
+
+        def _sort_url(column):
+            params = self.request.GET.copy()
+            params["sort"] = column
+            if current_sort == column and current_dir == "asc":
+                params["dir"] = "desc"
+            else:
+                params["dir"] = "asc"
+            return f"?{params.urlencode()}"
+
         for entrega in context["entregas"]:
             entrega.resumo_numeracao_processos = [
                 f'{item["processo"].nome}: {item["rotulo"]}'
                 for item in entrega.numeracao_processos
             ]
         context["entregas_calendario_api_url"] = reverse("sala_entrega_calendario_api")
+        context["current_sort"] = current_sort
+        context["current_dir"] = current_dir
+        context["current_dir_symbol"] = "↓" if current_dir == "desc" else "↑"
+        context["sort_urls"] = {
+            "nome": _sort_url("nome"),
+            "processo": _sort_url("processo"),
+            "prazo": _sort_url("prazo"),
+            "periodo_inicio": _sort_url("periodo_inicio"),
+            "periodo_fim": _sort_url("periodo_fim"),
+            "progresso": _sort_url("progresso"),
+            "atualizacao": _sort_url("atualizacao"),
+        }
         return context
 
 
@@ -696,6 +777,7 @@ def entrega_calendario_api(request):
         .prefetch_related("processos")
         .order_by("data_entrega_estipulada", "nome", "id")
     )
+    entregas = filter_visible_entregas_for_user(entregas, request.user)
     resultados = []
     for entrega in entregas:
         entregue = entrega.progresso_percentual >= 100
@@ -722,15 +804,19 @@ class EntregaDetailView(LoginRequiredMixin, ItemNotesContextMixin, AuditHistoryC
     context_object_name = "entrega"
     template_name = "sala_situacao_v2/entrega_detail.html"
 
+    def get_queryset(self):
+        queryset = super().get_queryset().prefetch_related("processos")
+        return filter_visible_entregas_for_user(queryset, self.request.user)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         can_manage = user_can_manage_entrega(self.request.user, self.object)
+        can_monitor = user_can_monitor_entrega(self.request.user, self.object)
         context["can_edit"] = can_manage
         context["can_delete"] = can_manage
         context["numeracao_processos"] = self.object.numeracao_processos
-        context["pode_monitorar"] = _user_has_any_perm(
-            self.request.user, ("sala_situacao_v2.monitorar_entrega", "sala_situacao.monitorar_entrega")
-        ) and can_manage and self.object.eh_entrega_monitoramento
+        context["pode_monitorar"] = can_monitor and self.object.eh_entrega_monitoramento
+        context["monitoramento_somente"] = context["pode_monitorar"] and not can_manage
         if context["pode_monitorar"]:
             context["monitoramento_form"] = EntregaMonitoramentoForm(instance=self.object)
         return context
@@ -785,9 +871,11 @@ class EntregaCreateView(LoginRequiredMixin, PermissionRequiredMixin, WriteAccess
         return reverse("sala_entrega_detail", kwargs={"pk": self.object.pk})
 
     def form_valid(self, form):
+        if self.request.user.is_authenticated and not form.instance.criado_por_id:
+            form.instance.criado_por = self.request.user
         response = super().form_valid(form)
         if self.object and not self.object.grupos_criadores.exists():
-            self.object.grupos_criadores.set(form.cleaned_data["grupos_responsaveis"])
+            self.object.grupos_criadores.set(_creator_group_ids(self.request.user))
         return response
 
 
@@ -865,11 +953,7 @@ class EntregaDeleteView(LoginRequiredMixin, PermissionRequiredMixin, WriteAccess
 class EntregaMonitorarView(LoginRequiredMixin, View):
     def post(self, request, pk):
         entrega = get_object_or_404(Entrega, pk=pk)
-        if not _user_has_any_perm(
-            request.user, ("sala_situacao_v2.monitorar_entrega", "sala_situacao.monitorar_entrega")
-        ):
-            return HttpResponseForbidden("Sem permissao para monitorar entrega.")
-        if not user_can_manage_entrega(request.user, entrega):
+        if not user_can_monitor_entrega(request.user, entrega):
             return HttpResponseForbidden("Sem permissao para monitorar esta entrega.")
 
         form = EntregaMonitoramentoForm(request.POST, request.FILES, instance=entrega, usuario=request.user)
