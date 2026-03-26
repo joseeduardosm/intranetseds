@@ -16,12 +16,12 @@
     </div>
 
     <div class="calendar-view-tabs" role="tablist" aria-label="Visualização da lista de entregas">
-      <button class="view-tab is-active" type="button" data-entrega-view-target="lista">Lista</button>
-      <button class="view-tab" type="button" data-entrega-view-target="cards">Cards</button>
+      <button class="view-tab" type="button" data-entrega-view-target="lista">Lista</button>
+      <button class="view-tab is-active" type="button" data-entrega-view-target="cards">Cards</button>
       <button class="view-tab" type="button" data-entrega-view-target="calendario">Calendário</button>
     </div>
 
-    <section id="entregas-tabela-view" class="detail sala-detail-panel">
+    <section id="entregas-tabela-view" class="detail sala-detail-panel sala-hidden">
       <div class="entrega-table-wrap">
         <table class="entrega-table">
           <thead>
@@ -64,7 +64,7 @@
       </div>
     </section>
 
-    <section id="entregas-cards-view" class="sala-hidden">
+    <section id="entregas-cards-view">
       {% include "sala_situacao/_card_search.html" with search_id="entregas-v2-lista" target_selector=".card-grid" item_selector=".card" placeholder="Pesquisar entregas..." aria_label="Pesquisar entregas" %}
       <div class="card-grid card-grid-fixed card-grid-entregas">
         {% for entrega in entregas %}
@@ -86,7 +86,7 @@
                 <div class="entrega-card-marcadores">
                   <div class="sala-marcadores-wrap">
                     {% for marcador in entrega.marcadores_efetivos %}
-                      <span class="sala-marcador-chip" style="--marcador-cor: {{ marcador.cor }};">{{ marcador.nome }}</span>
+                      {% include "sala_situacao_v2/_marcador_chip.html" with marcador=marcador %}
                     {% empty %}
                       <span class="entrega-card-marcador-placeholder"></span>
                     {% endfor %}

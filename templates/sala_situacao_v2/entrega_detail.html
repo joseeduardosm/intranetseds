@@ -15,7 +15,7 @@
           <p>
             <strong>Marcadores:</strong>
             {% for marcador in entrega.marcadores_efetivos %}
-              <span class="sala-marcador-chip" style="--marcador-cor: {{ marcador.cor }};">{{ marcador.nome }}</span>
+              {% include "sala_situacao_v2/_marcador_chip.html" with marcador=marcador %}
             {% endfor %}
           </p>
         {% endif %}
@@ -56,7 +56,41 @@
               </div>
             </div>
             <div class="detail-actions">
-              <button class="btn" type="submit">Salvar monitoramento</button>
+              <button class="btn" type="button" id="sala-monitoramento-open-note">Salvar monitoramento</button>
+            </div>
+            <div
+              class="profile-alert-backdrop{% if not abrir_modal_nota_monitoramento %} auth-required-hidden{% endif %}"
+              id="sala-monitoramento-note-backdrop"
+              aria-hidden="{% if abrir_modal_nota_monitoramento %}false{% else %}true{% endif %}"
+            ></div>
+            <div
+              class="profile-alert-modal{% if not abrir_modal_nota_monitoramento %} auth-required-hidden{% endif %} sala-monitoramento-note-modal"
+              id="sala-monitoramento-note-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Nota à equipe"
+            >
+              <h3>Nota à equipe</h3>
+              <p class="sala-monitoramento-note-text">
+                Antes de concluir o monitoramento, descreva o que foi feito até aqui. Essa nota é obrigatória e será registrada em Notas e histórico.
+              </p>
+              <div class="form-group">
+                <label for="id_nota_monitoramento">Nota à equipe</label>
+                <textarea
+                  name="nota_monitoramento"
+                  id="id_nota_monitoramento"
+                  class="form-control sala-monitoramento-note-input"
+                  rows="5"
+                  required
+                >{{ nota_monitoramento_valor }}</textarea>
+                {% if nota_monitoramento_error %}
+                  <div class="form-error">{{ nota_monitoramento_error }}</div>
+                {% endif %}
+              </div>
+              <div class="profile-alert-actions">
+                <button class="btn" type="submit">Confirmar monitoramento</button>
+                <button class="btn btn-secondary" type="button" id="sala-monitoramento-note-cancel">Cancelar</button>
+              </div>
             </div>
           </form>
         </div>
@@ -71,4 +105,41 @@
       </div>
     </aside>
   </section>
+  {% if pode_monitorar and monitoramento_form %}
+    <script>
+      (() => {
+        const openBtn = document.getElementById("sala-monitoramento-open-note");
+        const closeBtn = document.getElementById("sala-monitoramento-note-cancel");
+        const modal = document.getElementById("sala-monitoramento-note-modal");
+        const backdrop = document.getElementById("sala-monitoramento-note-backdrop");
+        const textarea = document.getElementById("id_nota_monitoramento");
+
+        if (!openBtn || !closeBtn || !modal || !backdrop) return;
+
+        const openModal = () => {
+          modal.classList.remove("auth-required-hidden");
+          backdrop.classList.remove("auth-required-hidden");
+          modal.setAttribute("aria-hidden", "false");
+          backdrop.setAttribute("aria-hidden", "false");
+          if (textarea) textarea.focus();
+        };
+
+        const closeModal = () => {
+          modal.classList.add("auth-required-hidden");
+          backdrop.classList.add("auth-required-hidden");
+          modal.setAttribute("aria-hidden", "true");
+          backdrop.setAttribute("aria-hidden", "true");
+        };
+
+        openBtn.addEventListener("click", openModal);
+        closeBtn.addEventListener("click", closeModal);
+        backdrop.addEventListener("click", closeModal);
+        document.addEventListener("keydown", (event) => {
+          if (event.key === "Escape" && !modal.classList.contains("auth-required-hidden")) {
+            closeModal();
+          }
+        });
+      })();
+    </script>
+  {% endif %}
 {% endblock %}

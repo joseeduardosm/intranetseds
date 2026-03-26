@@ -38,6 +38,10 @@
 - adicionadas periodicidades `Diario`, `Semanal` e `Quinzenal` para variaveis monitoradas, com ocultacao do dia de referencia quando ele nao se aplica;
 - restringido o tipo matematico ao formato percentual `(x/y)*100`, com mensagens de validacao mais educativas e exemplos exibidos no formulario;
 - desativado o tipo `Matematico Acumulativo` no fluxo de criacao e edicao, mantendo compatibilidade com registros antigos;
+- adicionada a identificacao do usuario que monitorou cada entrega, com nova migration, exibicao do ultimo monitoramento por variavel no detalhe do indicador e link para o perfil de ramal quando disponivel;
+- estendido o monitoramento para entregas ligadas a indicadores processuais, preservando o modal de anexos e exigindo nota obrigatoria para a equipe antes de concluir o registro;
+- ajustado o comportamento do monitoramento processual para usar o percentual informado como evolucao da entrega, enquanto entregas de variaveis matematicas mantem o preenchimento como valor monitorado;
+- transformados os marcadores da Sala de Situacao V2 em siglas automaticas dos setores, com tooltip exibindo o nome completo em listas, cards e telas de detalhe;
 - atualizados testes de acesso, visibilidade, grupos de monitoramento, cadeia de criacao, ordenacao e monitoramento.
 
 ### Documentacao e Apoio

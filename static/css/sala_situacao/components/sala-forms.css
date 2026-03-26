@@ -320,6 +320,20 @@
   padding: 10px 12px;
 }
 
+.sala-monitoramento-note-modal {
+  max-width: 560px;
+}
+
+.sala-monitoramento-note-text {
+  margin: 0 0 14px;
+}
+
+.sala-monitoramento-note-input {
+  width: 100%;
+  min-height: 140px;
+  resize: vertical;
+}
+
 @media (max-width: 900px) {
   .sala-indicador-form .sala-form-fields {
     grid-template-columns: 1fr;

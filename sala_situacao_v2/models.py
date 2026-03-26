@@ -3,6 +3,7 @@ from datetime import datetime, time, timedelta
 from decimal import Decimal
 import re
 import secrets
+import unicodedata
 
 from django.contrib.auth.models import Group
 from django.conf import settings
@@ -30,10 +31,55 @@ _MARCADORES_PALETA = [
 ]
 _FORMULA_VAR_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _PERIODICIDADES_SEM_DIA_REFERENCIA = {"DIARIO", "SEMANAL", "QUINZENAL"}
+_PALAVRAS_IGNORADAS_SIGLA = {
+    "a",
+    "as",
+    "com",
+    "da",
+    "das",
+    "de",
+    "do",
+    "dos",
+    "e",
+    "em",
+    "na",
+    "nas",
+    "no",
+    "nos",
+    "o",
+    "os",
+    "para",
+    "por",
+}
 
 
 def normalizar_nome_marcador(valor):
     return re.sub(r"\s+", " ", (valor or "").strip()).casefold()
+
+
+def sigla_marcador(valor):
+    texto = re.sub(r"\s+", " ", (valor or "").strip())
+    if not texto:
+        return ""
+
+    partes = re.findall(r"[A-Za-zÀ-ÿ0-9]+", texto)
+    sigla = []
+    for parte in partes:
+        base = (
+            unicodedata.normalize("NFKD", parte)
+            .encode("ascii", "ignore")
+            .decode("ascii")
+            .strip()
+        )
+        if not base:
+            continue
+        if base.lower() in _PALAVRAS_IGNORADAS_SIGLA:
+            continue
+        if base.isupper() and any(char.isalpha() for char in base):
+            sigla.append(base)
+            continue
+        sigla.append(base[0].upper())
+    return "".join(sigla) or texto[:3].upper()
 
 
 def escolher_cor_marcador():
@@ -152,6 +198,10 @@ class Marcador(models.Model):
 
     def __str__(self):
         return self.nome
+
+    @property
+    def sigla(self):
+        return sigla_marcador(self.nome)
 
 
 class MarcadorVinculoAutomaticoGrupoItem(models.Model):
@@ -811,6 +861,13 @@ class Entrega(BaseTimelineModel):
     valor_monitoramento = models.DecimalField(max_digits=18, decimal_places=4, null=True, blank=True)
     evidencia_monitoramento = models.FileField(upload_to="sala_situacao_v2/evidencias/", null=True, blank=True)
     monitorado_em = models.DateTimeField(null=True, blank=True)
+    monitorado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="sala_situacao_v2_entregas_monitoradas",
+    )
 
     class Meta(BaseTimelineModel.Meta):
         verbose_name = "Entrega V2"
@@ -827,6 +884,16 @@ class Entrega(BaseTimelineModel):
     @property
     def eh_entrega_monitoramento(self):
         return bool(self.variavel_monitoramento_id and self.ciclo_monitoramento_id)
+
+    @property
+    def eh_entrega_de_indicador_processual(self):
+        if not self.pk:
+            return False
+        return self.processos.filter(indicadores__tipo_indicador=Indicador.TipoIndicador.PROCESSUAL).exists()
+
+    @property
+    def eh_entrega_monitoravel(self):
+        return self.eh_entrega_monitoramento or self.eh_entrega_de_indicador_processual
 
     @property
     def eh_entrega_manual(self):

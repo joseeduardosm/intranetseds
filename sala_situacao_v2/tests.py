@@ -10,6 +10,7 @@ from django.test import TestCase
 from django.urls import resolve, reverse
 from django.utils import timezone
 
+from ramais.models import PessoaRamal
 from auditoria.models import AuditLog
 from usuarios.models import SetorNode, UserSetorMembership
 
@@ -113,6 +114,34 @@ class SalaSituacaoV2MarcadoresTests(TestCase):
         nomes = {marcador.nome for marcador in self.entrega.marcadores_efetivos}
         self.assertIn(self.group_a.name, nomes)
         self.assertIn(self.group_b.name, nomes)
+
+    def test_marcador_expoe_sigla_do_setor(self):
+        grupo = Group.objects.create(name="Divisao de Desenvolvimento de Sistemas e Manutencao de TI")
+        indicador = Indicador.objects.create(nome="Indicador sigla")
+        indicador.grupos_responsaveis.set([grupo])
+
+        marcador = indicador.marcadores_locais[0]
+
+        self.assertEqual(marcador.sigla, "DDSMTI")
+
+    def test_detalhe_exibe_sigla_com_tooltip_do_nome_completo(self):
+        user = User.objects.create_user(username="tooltip-marker", password="senha-123")
+        grupo = Group.objects.create(name="Diretoria de Desenvolvimento Social")
+        user.groups.add(grupo)
+        UserSetorMembership.objects.create(user=user, setor=SetorNode.objects.create(group=grupo))
+        for codename in ("view_indicador",):
+            perm = Permission.objects.get(codename=codename, content_type__app_label="sala_situacao_v2")
+            user.user_permissions.add(perm)
+
+        indicador = Indicador.objects.create(nome="Indicador tooltip")
+        indicador.grupos_responsaveis.set([grupo])
+
+        self.client.force_login(user)
+        response = self.client.get(reverse("sala_indicador_estrategico_detail", kwargs={"pk": indicador.pk}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "DDS")
+        self.assertContains(response, 'title="Diretoria de Desenvolvimento Social"', html=False)
 
 
 class SalaSituacaoV2HierarquiaDatasTests(TestCase):
@@ -514,8 +543,46 @@ class SalaSituacaoV2EntregaDetailMonitoramentoTests(TestCase):
         self.assertTrue(response.context["pode_monitorar"])
         self.assertTrue(response.context["monitoramento_somente"])
         self.assertContains(response, "Salvar monitoramento")
+        self.assertContains(response, "Monitorar (informe o valor monitorado)")
+        self.assertContains(response, "Nota à equipe")
         self.assertNotContains(response, "Editar")
         self.assertNotContains(response, "Excluir")
+
+    def test_entrega_de_indicador_processual_exibe_bloco_de_monitoramento(self):
+        password = "senha-123"
+        user = User.objects.create_user(username="grupo-processual-detail", password=password)
+        grupo = Group.objects.create(name="Grupo Processual Detail")
+        user.groups.add(grupo)
+        setor = SetorNode.objects.create(group=grupo)
+        UserSetorMembership.objects.create(user=user, setor=setor)
+        for codename in ("view_entrega", "monitorar_entrega", "change_entrega"):
+            perm = Permission.objects.get(codename=codename, content_type__app_label="sala_situacao_v2")
+            user.user_permissions.add(perm)
+
+        indicador = Indicador.objects.create(
+            nome="Indicador processual detail",
+            tipo_indicador=Indicador.TipoIndicador.PROCESSUAL,
+        )
+        indicador.grupos_responsaveis.set([grupo])
+        indicador.grupos_criadores.set([grupo])
+        processo = Processo.objects.create(nome="Processo processual detail")
+        processo.indicadores.set([indicador])
+        processo.grupos_responsaveis.set([grupo])
+        processo.grupos_criadores.set([grupo])
+        entrega = Entrega.objects.create(nome="Entrega processual detail")
+        entrega.processos.set([processo])
+        entrega.grupos_responsaveis.set([grupo])
+        entrega.grupos_criadores.set([grupo])
+
+        self.client.login(username=user.username, password=password)
+        response = self.client.get(reverse("sala_entrega_detail", kwargs={"pk": entrega.pk}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["pode_monitorar"])
+        self.assertContains(response, "Monitoramento")
+        self.assertContains(response, "Salvar monitoramento")
+        self.assertContains(response, "Monitorar (informe o percentual concluido)")
+        self.assertContains(response, "Nota à equipe")
 
 
 class SalaSituacaoV2HistoricoIndicadorTests(TestCase):
@@ -612,6 +679,136 @@ class SalaSituacaoV2ProgressoProcessualTests(TestCase):
             self.assertEqual(entrega.dias_para_vencer, 10)
             self.assertEqual(entrega.texto_prazo, "Concluido com 10 dias de antecedencia")
             self.assertAlmostEqual(entrega.progresso_prazo, 47.13, places=2)
+
+    def test_monitoramento_em_entrega_processual_usa_percentual_informado(self):
+        password = "senha-123"
+        user = User.objects.create_user(username="monitor-processual", password=password)
+        grupo = Group.objects.create(name="Grupo Monitor Processual")
+        user.groups.add(grupo)
+        UserSetorMembership.objects.create(user=user, setor=SetorNode.objects.create(group=grupo))
+        for codename in ("view_entrega", "monitorar_entrega", "change_entrega"):
+            perm = Permission.objects.get(codename=codename, content_type__app_label="sala_situacao_v2")
+            user.user_permissions.add(perm)
+
+        indicador = Indicador.objects.create(
+            nome="Indicador processual monitorado",
+            tipo_indicador=Indicador.TipoIndicador.PROCESSUAL,
+        )
+        indicador.grupos_responsaveis.set([grupo])
+        indicador.grupos_criadores.set([grupo])
+        processo = Processo.objects.create(nome="Processo processual monitorado")
+        processo.indicadores.set([indicador])
+        processo.grupos_responsaveis.set([grupo])
+        processo.grupos_criadores.set([grupo])
+        entrega = Entrega.objects.create(nome="Entrega processual monitorada", evolucao_manual=0)
+        entrega.processos.set([processo])
+        entrega.grupos_responsaveis.set([grupo])
+        entrega.grupos_criadores.set([grupo])
+
+        self.client.login(username=user.username, password=password)
+        response = self.client.post(
+            reverse("sala_entrega_monitorar", kwargs={"pk": entrega.pk}),
+            {
+                "valor_monitoramento": "35",
+                "evidencia_monitoramento": "",
+                "nota_monitoramento": "Entrega concluida e equipe alinhada sobre o andamento.",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        entrega.refresh_from_db()
+        self.assertEqual(float(entrega.evolucao_manual), 35.0)
+        self.assertEqual(float(entrega.valor_monitoramento), 35.0)
+        self.assertIsNotNone(entrega.monitorado_em)
+        self.assertEqual(entrega.monitorado_por, user)
+        nota = NotaItem.objects.get(
+            content_type=ContentType.objects.get_for_model(Entrega),
+            object_id=entrega.pk,
+        )
+        self.assertEqual(nota.texto, "Entrega concluida e equipe alinhada sobre o andamento.")
+
+    def test_monitoramento_processual_exige_percentual_valido(self):
+        password = "senha-123"
+        user = User.objects.create_user(username="monitor-processual-invalido", password=password)
+        grupo = Group.objects.create(name="Grupo Monitor Processual Invalido")
+        user.groups.add(grupo)
+        UserSetorMembership.objects.create(user=user, setor=SetorNode.objects.create(group=grupo))
+        for codename in ("view_entrega", "monitorar_entrega", "change_entrega"):
+            perm = Permission.objects.get(codename=codename, content_type__app_label="sala_situacao_v2")
+            user.user_permissions.add(perm)
+
+        indicador = Indicador.objects.create(
+            nome="Indicador processual invalido",
+            tipo_indicador=Indicador.TipoIndicador.PROCESSUAL,
+        )
+        indicador.grupos_responsaveis.set([grupo])
+        indicador.grupos_criadores.set([grupo])
+        processo = Processo.objects.create(nome="Processo processual invalido")
+        processo.indicadores.set([indicador])
+        processo.grupos_responsaveis.set([grupo])
+        processo.grupos_criadores.set([grupo])
+        entrega = Entrega.objects.create(nome="Entrega processual invalida", evolucao_manual=0)
+        entrega.processos.set([processo])
+        entrega.grupos_responsaveis.set([grupo])
+        entrega.grupos_criadores.set([grupo])
+
+        self.client.login(username=user.username, password=password)
+        response = self.client.post(
+            reverse("sala_entrega_monitorar", kwargs={"pk": entrega.pk}),
+            {
+                "valor_monitoramento": "130",
+                "evidencia_monitoramento": "",
+                "nota_monitoramento": "Tentativa com percentual invalido.",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "O percentual concluido deve estar entre 0 e 100.")
+        entrega.refresh_from_db()
+        self.assertEqual(float(entrega.evolucao_manual), 0.0)
+
+    def test_monitoramento_sem_nota_nao_e_salvo(self):
+        password = "senha-123"
+        user = User.objects.create_user(username="monitor-sem-nota", password=password)
+        grupo = Group.objects.create(name="Grupo Monitor Sem Nota")
+        user.groups.add(grupo)
+        UserSetorMembership.objects.create(user=user, setor=SetorNode.objects.create(group=grupo))
+        for codename in ("view_entrega", "monitorar_entrega", "change_entrega"):
+            perm = Permission.objects.get(codename=codename, content_type__app_label="sala_situacao_v2")
+            user.user_permissions.add(perm)
+
+        indicador = Indicador.objects.create(
+            nome="Indicador processual sem nota",
+            tipo_indicador=Indicador.TipoIndicador.PROCESSUAL,
+        )
+        indicador.grupos_responsaveis.set([grupo])
+        indicador.grupos_criadores.set([grupo])
+        processo = Processo.objects.create(nome="Processo processual sem nota")
+        processo.indicadores.set([indicador])
+        processo.grupos_responsaveis.set([grupo])
+        processo.grupos_criadores.set([grupo])
+        entrega = Entrega.objects.create(nome="Entrega processual sem nota", evolucao_manual=0)
+        entrega.processos.set([processo])
+        entrega.grupos_responsaveis.set([grupo])
+        entrega.grupos_criadores.set([grupo])
+
+        self.client.login(username=user.username, password=password)
+        response = self.client.post(
+            reverse("sala_entrega_monitorar", kwargs={"pk": entrega.pk}),
+            {"valor_monitoramento": "", "evidencia_monitoramento": "", "nota_monitoramento": ""},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "A nota a equipe e obrigatoria para concluir o monitoramento.")
+        entrega.refresh_from_db()
+        self.assertEqual(float(entrega.evolucao_manual), 0.0)
+        self.assertIsNone(entrega.monitorado_em)
+        self.assertFalse(
+            NotaItem.objects.filter(
+                content_type=ContentType.objects.get_for_model(Entrega),
+                object_id=entrega.pk,
+            ).exists()
+        )
 
 
 class SalaSituacaoV2NumeracaoEntregaTests(TestCase):
@@ -999,6 +1196,62 @@ class SalaSituacaoV2IndicadorMatematicoTests(TestCase):
         )
 
         self.assertTrue(form.is_valid(), form.errors)
+
+    def test_detalhe_indicador_exibe_ultimo_monitoramento_por_variavel_com_link_para_ramal(self):
+        monitor_user = User.objects.create_user(
+            username="monitor-user",
+            password="senha123",
+            first_name="Maria",
+            last_name="Monitor",
+        )
+        ramal = PessoaRamal.objects.create(
+            usuario=monitor_user,
+            nome="Maria Monitor",
+            cargo="Analista",
+            setor="Grupo A Mat",
+            ramal="1234",
+            email="maria.monitor@exemplo.gov.br",
+        )
+        indicador = Indicador.objects.create(
+            nome="Indicador detalhe monitoramento",
+            descricao="Descricao",
+            tipo_indicador=Indicador.TipoIndicador.MATEMATICO,
+            formula_expressao="(x/y)*100",
+            data_entrega_estipulada=date(2026, 12, 31),
+        )
+        indicador.sincronizar_variaveis_da_formula()
+        x = indicador.variaveis.get(nome="x")
+        y = indicador.variaveis.get(nome="y")
+        for variavel in (x, y):
+            variavel.periodicidade_monitoramento = "DIARIO"
+            variavel.dia_referencia_monitoramento = 1
+            variavel.save(update_fields=["periodicidade_monitoramento", "dia_referencia_monitoramento", "atualizado_em"])
+            variavel.grupos_monitoramento.set([self.group_a])
+        indicador.sincronizar_estrutura_processual_monitoramento()
+
+        entrega_x = Entrega.objects.filter(variavel_monitoramento=x).order_by("id").first()
+        entrega_y = Entrega.objects.filter(variavel_monitoramento=y).order_by("id").first()
+        EntregaMonitoramentoForm(
+            data={"valor_monitoramento": "25", "evidencia_monitoramento": ""},
+            instance=entrega_x,
+            usuario=monitor_user,
+        ).save()
+        EntregaMonitoramentoForm(
+            data={"valor_monitoramento": "50", "evidencia_monitoramento": ""},
+            instance=entrega_y,
+            usuario=monitor_user,
+        ).save()
+
+        self.client.force_login(monitor_user)
+        response = self.client.get(reverse("sala_indicador_estrategico_detail", kwargs={"pk": indicador.pk}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Último monitoramento:")
+        self.assertContains(response, "x:")
+        self.assertContains(response, "y:")
+        self.assertContains(response, "25,00")
+        self.assertContains(response, "50,00")
+        self.assertContains(response, reverse("ramais_detail", kwargs={"pk": ramal.pk}))
 
     def test_queryset_de_variaveis_do_detalhe_nao_seleciona_dia_referencia(self):
         indicador = Indicador.objects.create(

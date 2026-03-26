@@ -15,7 +15,7 @@
           <p>
             <strong>Marcadores:</strong>
             {% for marcador in indicador.marcadores_efetivos %}
-              <span class="sala-marcador-chip" style="--marcador-cor: {{ marcador.cor }};">{{ marcador.nome }}</span>
+              {% include "sala_situacao_v2/_marcador_chip.html" with marcador=marcador %}
             {% endfor %}
           </p>
         {% endif %}
@@ -42,6 +42,33 @@
             </ul>
           </div>
         {% endif %}
+        {% if ultimos_monitoramentos_variaveis %}
+          <div>
+            <strong>Último monitoramento:</strong>
+            <ul>
+              {% for item in ultimos_monitoramentos_variaveis %}
+                <li>
+                  {{ item.variavel.nome }}:
+                  {% if item.entrega %}
+                    {{ item.entrega.valor_monitoramento|floatformat:2 }} -
+                    {{ item.entrega.monitorado_em|date:"d/m/Y H:i" }} -
+                    {% if item.usuario %}
+                      {% if item.ramal_perfil %}
+                        <a href="{% url 'ramais_detail' item.ramal_perfil.pk %}">{{ item.usuario.get_full_name|default:item.usuario.username }}</a>
+                      {% else %}
+                        {{ item.usuario.get_full_name|default:item.usuario.username }}
+                      {% endif %}
+                    {% else %}
+                      -
+                    {% endif %}
+                  {% else %}
+                    sem monitoramento registrado
+                  {% endif %}
+                </li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endif %}
         {% include "sala_situacao/_progresso_duplo.html" with item=indicador show_delta_tooltip=True %}
         <div class="detail-actions">
           <a class="btn btn-light" href="{% url 'sala_processo_list' %}">Processos</a>
@@ -61,7 +88,7 @@
                 {% if processo.marcadores_efetivos %}
                   <div class="sala-marcadores-wrap">
                     {% for marcador in processo.marcadores_efetivos %}
-                      <span class="sala-marcador-chip" style="--marcador-cor: {{ marcador.cor }};">{{ marcador.nome }}</span>
+                      {% include "sala_situacao_v2/_marcador_chip.html" with marcador=marcador %}
                     {% endfor %}
                   </div>
                 {% endif %}

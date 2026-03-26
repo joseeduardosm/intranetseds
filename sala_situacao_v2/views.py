@@ -60,6 +60,40 @@ def _variaveis_queryset_para_detalhe(indicador):
     )
 
 
+def _ultimos_monitoramentos_variaveis_para_detalhe(indicador):
+    variaveis = list(
+        indicador.variaveis.prefetch_related("grupos_monitoramento").order_by("ordem", "nome")
+    )
+    entregas = list(
+        Entrega.objects.filter(
+            variavel_monitoramento__indicador=indicador,
+            monitorado_em__isnull=False,
+        )
+        .select_related("variavel_monitoramento", "monitorado_por__ramal_perfil")
+        .order_by("variavel_monitoramento__ordem", "variavel_monitoramento__nome", "-monitorado_em", "-id")
+    )
+    ultimo_por_variavel = {}
+    for entrega in entregas:
+        variavel_id = entrega.variavel_monitoramento_id
+        if variavel_id and variavel_id not in ultimo_por_variavel:
+            ultimo_por_variavel[variavel_id] = entrega
+
+    itens = []
+    for variavel in variaveis:
+        entrega = ultimo_por_variavel.get(variavel.id)
+        usuario = getattr(entrega, "monitorado_por", None) if entrega else None
+        ramal_perfil = getattr(usuario, "ramal_perfil", None) if usuario else None
+        itens.append(
+            {
+                "variavel": variavel,
+                "entrega": entrega,
+                "usuario": usuario,
+                "ramal_perfil": ramal_perfil,
+            }
+        )
+    return itens
+
+
 def _resolver_cascata_indicador(indicador):
     processos = Processo.objects.filter(indicadores=indicador).distinct().order_by("nome")
     processos_ids = list(processos.values_list("id", flat=True))
@@ -414,6 +448,7 @@ class IndicadorDetailView(LoginRequiredMixin, ItemNotesContextMixin, AuditHistor
         context["can_delete"] = can_manage
         context["processos"] = self.object.processos.order_by("nome")
         context["variaveis"] = _variaveis_queryset_para_detalhe(self.object)
+        context["ultimos_monitoramentos_variaveis"] = _ultimos_monitoramentos_variaveis_para_detalhe(self.object)
         return context
 
 
@@ -805,7 +840,7 @@ class EntregaDetailView(LoginRequiredMixin, ItemNotesContextMixin, AuditHistoryC
     template_name = "sala_situacao_v2/entrega_detail.html"
 
     def get_queryset(self):
-        queryset = super().get_queryset().prefetch_related("processos")
+        queryset = super().get_queryset().prefetch_related("processos__indicadores")
         return filter_visible_entregas_for_user(queryset, self.request.user)
 
     def get_context_data(self, **kwargs):
@@ -815,10 +850,16 @@ class EntregaDetailView(LoginRequiredMixin, ItemNotesContextMixin, AuditHistoryC
         context["can_edit"] = can_manage
         context["can_delete"] = can_manage
         context["numeracao_processos"] = self.object.numeracao_processos
-        context["pode_monitorar"] = can_monitor and self.object.eh_entrega_monitoramento
+        context["pode_monitorar"] = can_monitor and self.object.eh_entrega_monitoravel
         context["monitoramento_somente"] = context["pode_monitorar"] and not can_manage
         if context["pode_monitorar"]:
-            context["monitoramento_form"] = EntregaMonitoramentoForm(instance=self.object)
+            context["monitoramento_form"] = kwargs.get("monitoramento_form") or EntregaMonitoramentoForm(
+                instance=self.object,
+                usuario=self.request.user,
+            )
+        context["nota_monitoramento_valor"] = kwargs.get("nota_monitoramento_valor", "")
+        context["nota_monitoramento_error"] = kwargs.get("nota_monitoramento_error", "")
+        context["abrir_modal_nota_monitoramento"] = kwargs.get("abrir_modal_nota_monitoramento", False)
         return context
 
 
@@ -951,25 +992,49 @@ class EntregaDeleteView(LoginRequiredMixin, PermissionRequiredMixin, WriteAccess
 
 
 class EntregaMonitorarView(LoginRequiredMixin, View):
+    template_name = "sala_situacao_v2/entrega_detail.html"
+
+    def _render_detail_com_erros(self, request, entrega, monitoramento_form, nota_texto="", nota_error=""):
+        detail_view = EntregaDetailView()
+        detail_view.setup(request, pk=entrega.pk)
+        detail_view.object = entrega
+        context = detail_view.get_context_data(
+            object=entrega,
+            monitoramento_form=monitoramento_form,
+            nota_monitoramento_valor=nota_texto,
+            nota_monitoramento_error=nota_error,
+            abrir_modal_nota_monitoramento=True,
+        )
+        return detail_view.render_to_response(context)
+
     def post(self, request, pk):
         entrega = get_object_or_404(Entrega, pk=pk)
         if not user_can_monitor_entrega(request.user, entrega):
             return HttpResponseForbidden("Sem permissao para monitorar esta entrega.")
 
+        nota_texto = (request.POST.get("nota_monitoramento") or "").strip()
         form = EntregaMonitoramentoForm(request.POST, request.FILES, instance=entrega, usuario=request.user)
-        if form.is_valid():
-            obj = form.save(commit=False)
-            obj.monitorado_em = timezone.now()
-            obj.save(
-                update_fields=[
-                    "valor_monitoramento",
-                    "evidencia_monitoramento",
-                    "evolucao_manual",
-                    "monitorado_em",
-                    "atualizado_em",
-                ]
-            )
-            messages.success(request, "Monitoramento registrado.")
-        else:
-            messages.error(request, "Falha ao registrar monitoramento.")
-        return HttpResponseRedirect(reverse("sala_entrega_detail", kwargs={"pk": entrega.pk}))
+        nota_error = ""
+        if not nota_texto:
+            nota_error = "A nota a equipe e obrigatoria para concluir o monitoramento."
+
+        if form.is_valid() and not nota_error:
+            with transaction.atomic():
+                form.save()
+                NotaItem.objects.create(
+                    content_type=ContentType.objects.get_for_model(Entrega),
+                    object_id=entrega.pk,
+                    texto=nota_texto,
+                    criado_por=request.user if request.user.is_authenticated else None,
+                )
+            messages.success(request, "Monitoramento registrado com nota para a equipe.")
+            return HttpResponseRedirect(reverse("sala_entrega_detail", kwargs={"pk": entrega.pk}))
+
+        messages.error(request, "Falha ao registrar monitoramento. Revise os dados e a nota da equipe.")
+        return self._render_detail_com_erros(
+            request,
+            entrega,
+            form,
+            nota_texto=nota_texto,
+            nota_error=nota_error,
+        )

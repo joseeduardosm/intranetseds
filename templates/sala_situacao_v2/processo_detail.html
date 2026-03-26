@@ -15,7 +15,7 @@
           <p>
             <strong>Marcadores:</strong>
             {% for marcador in processo.marcadores_efetivos %}
-              <span class="sala-marcador-chip" style="--marcador-cor: {{ marcador.cor }};">{{ marcador.nome }}</span>
+              {% include "sala_situacao_v2/_marcador_chip.html" with marcador=marcador %}
             {% endfor %}
           </p>
         {% endif %}
@@ -41,7 +41,7 @@
                 {% if entrega.marcadores_efetivos %}
                   <div class="sala-marcadores-wrap">
                     {% for marcador in entrega.marcadores_efetivos %}
-                      <span class="sala-marcador-chip" style="--marcador-cor: {{ marcador.cor }};">{{ marcador.nome }}</span>
+                      {% include "sala_situacao_v2/_marcador_chip.html" with marcador=marcador %}
                     {% endfor %}
                   </div>
                 {% endif %}

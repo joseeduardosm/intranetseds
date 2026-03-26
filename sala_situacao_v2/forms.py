@@ -328,11 +328,19 @@ class EntregaMonitoramentoForm(forms.ModelForm):
     def __init__(self, *args, usuario=None, **kwargs):
         self.usuario = usuario
         super().__init__(*args, **kwargs)
-        self.fields["valor_monitoramento"].label = "Monitorar"
+        entrega = self.instance
+        if entrega and getattr(entrega, "eh_entrega_de_indicador_processual", False):
+            valor_label = "Monitorar (informe o percentual concluido)"
+            valor_placeholder = "Informe o percentual concluido"
+        else:
+            valor_label = "Monitorar (informe o valor monitorado)"
+            valor_placeholder = "Informe o valor monitorado"
+
+        self.fields["valor_monitoramento"].label = valor_label
         self.fields["valor_monitoramento"].widget.attrs.update(
             {
                 "class": "form-control sala-monitoramento-input",
-                "placeholder": "Informe o valor monitorado",
+                "placeholder": valor_placeholder,
             }
         )
         self.fields["evidencia_monitoramento"].label = "Anexar arquivos"
@@ -349,9 +357,20 @@ class EntregaMonitoramentoForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
         entrega = self.instance
-        if not (entrega and entrega.pk and entrega.eh_entrega_monitoramento):
+        if not (entrega and entrega.pk and entrega.eh_entrega_monitoravel):
             raise forms.ValidationError("Acao de monitoramento disponivel apenas para entregas de monitoramento.")
         valor = cleaned_data.get("valor_monitoramento")
+        if entrega.eh_entrega_de_indicador_processual:
+            if valor is None:
+                self.add_error(
+                    "valor_monitoramento",
+                    "Informe o percentual concluido para monitorar esta entrega.",
+                )
+            elif valor < 0 or valor > 100:
+                self.add_error(
+                    "valor_monitoramento",
+                    "O percentual concluido deve estar entre 0 e 100.",
+                )
         if entrega.ciclo_monitoramento_id and entrega.ciclo_monitoramento and entrega.ciclo_monitoramento.eh_inicial:
             if valor is None:
                 self.add_error(
@@ -365,9 +384,14 @@ class EntregaMonitoramentoForm(forms.ModelForm):
         valor = self.cleaned_data.get("valor_monitoramento")
         if valor is not None:
             entrega.valor_monitoramento = valor
-        # Toda entrega de monitoramento passa a constar como concluida apos o registro.
-        entrega.evolucao_manual = 100
+        if entrega.eh_entrega_de_indicador_processual and valor is not None:
+            entrega.evolucao_manual = valor
+        else:
+            # Entregas de monitoramento por variavel continuam sendo marcadas como concluidas apos o registro.
+            entrega.evolucao_manual = 100
         entrega.monitorado_em = timezone.now()
+        if self.usuario and getattr(self.usuario, "is_authenticated", False):
+            entrega.monitorado_por = self.usuario
         if commit:
             entrega.save(
                 update_fields=[
@@ -375,6 +399,7 @@ class EntregaMonitoramentoForm(forms.ModelForm):
                     "evidencia_monitoramento",
                     "evolucao_manual",
                     "monitorado_em",
+                    "monitorado_por",
                     "atualizado_em",
                 ]
             )
