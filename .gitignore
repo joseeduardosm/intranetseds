@@ -38,6 +38,9 @@ Thumbs.db
 .runtime/
 *.pid
 
+# Local documentation workspace
+docs/
+
 # Backups and dumps
 backups/
 backup_*.sql
