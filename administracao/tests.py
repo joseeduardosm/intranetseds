@@ -5,12 +5,15 @@ from unittest.mock import patch
 from zipfile import ZipFile
 
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.urls import reverse
 from django.urls import reverse_lazy
 from django.test import TestCase
 from django.test import RequestFactory
 from django.contrib.messages.storage.fallback import FallbackStorage
 
-from administracao.models import SMTPConfiguration
+from administracao.forms import AtalhoAdministracaoForm
+from administracao.models import AtalhoAdministracao, AtalhoServico, SMTPConfiguration
 from administracao.views import Feedback
 from administracao.views import SMTPConfigView
 from administracao.views import SystemBackupDownloadView
@@ -124,3 +127,126 @@ class SystemBackupDownloadViewTests(TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse_lazy("administracao_configuracoes"))
+
+
+class HomeAtalhosTests(TestCase):
+    def setUp(self):
+        self.user_model = get_user_model()
+
+    def test_home_renderiza_duas_colunas_sem_bloco_de_noticias(self):
+        response = self.client.get(reverse("home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Administracao")
+        self.assertContains(response, "Atalhos")
+        self.assertNotContains(response, "Ultimas noticias")
+
+    def test_home_mostra_todas_as_funcionalidades_administrativas_sem_login(self):
+        response = self.client.get(reverse("home"))
+
+        self.assertContains(response, "Auditoria")
+        self.assertContains(response, "Noticias")
+        self.assertContains(response, "Reserva de Salas")
+        self.assertContains(response, "Lousa Digital")
+        self.assertContains(response, "data-login-popup")
+
+    def test_home_mostra_apenas_cards_administrativos_cadastrados_e_ativos(self):
+        AtalhoAdministracao.objects.filter(
+            funcionalidade=AtalhoAdministracao.FUNCIONALIDADE_AUDITORIA
+        ).update(ativo=False)
+        AtalhoAdministracao.objects.filter(
+            funcionalidade=AtalhoAdministracao.FUNCIONALIDADE_CONTRATOS
+        ).delete()
+
+        response = self.client.get(reverse("home"))
+
+        self.assertNotContains(response, "Auditoria")
+        self.assertNotContains(response, "Contratos")
+
+    def test_home_mostra_fallback_quando_card_administrativo_esta_sem_imagem(self):
+        user = self.user_model.objects.create_user(
+            username="fallback",
+            email="fallback@exemplo.gov.br",
+            password="123456",
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("home"))
+
+        self.assertContains(response, "servico-card-media-fallback", html=False)
+
+    def test_home_mantem_atalhos_livres_na_coluna_direita(self):
+        AtalhoServico.objects.create(
+            titulo="Portal Externo",
+            imagem=SimpleUploadedFile("atalho.png", b"atalho", content_type="image/png"),
+            url_destino="https://example.com",
+            ativo=True,
+        )
+
+        response = self.client.get(reverse("home"))
+
+        self.assertContains(response, "Portal Externo")
+        self.assertContains(response, "https://example.com")
+
+    def test_home_remove_popup_de_login_quando_usuario_esta_autenticado(self):
+        user = self.user_model.objects.create_user(
+            username="editor",
+            email="editor@exemplo.gov.br",
+            password="123456",
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("home"))
+
+        self.assertContains(response, "Administracao")
+        self.assertContains(response, "Noticias")
+        self.assertNotContains(response, "data-login-popup")
+
+    def test_seed_cria_cards_administrativos_padrao(self):
+        funcionalidades = set(
+            AtalhoAdministracao.objects.values_list("funcionalidade", flat=True)
+        )
+
+        self.assertIn(AtalhoAdministracao.FUNCIONALIDADE_CONFIGURACOES, funcionalidades)
+        self.assertIn(AtalhoAdministracao.FUNCIONALIDADE_NOTICIAS, funcionalidades)
+        self.assertIn(AtalhoAdministracao.FUNCIONALIDADE_RESERVA_SALAS, funcionalidades)
+        self.assertIn(AtalhoAdministracao.FUNCIONALIDADE_RAMAIS, funcionalidades)
+        self.assertIn(AtalhoAdministracao.FUNCIONALIDADE_EMPRESAS, funcionalidades)
+        self.assertIn(AtalhoAdministracao.FUNCIONALIDADE_PREPOSTOS, funcionalidades)
+        self.assertIn(AtalhoAdministracao.FUNCIONALIDADE_FOLHA_PONTO, funcionalidades)
+        self.assertIn(AtalhoAdministracao.FUNCIONALIDADE_SALA_SITUACAO, funcionalidades)
+
+
+class AtalhoAdministracaoFormTests(TestCase):
+    def test_combobox_lista_todos_os_apps_configurados(self):
+        form = AtalhoAdministracaoForm()
+        values = [choice[0] for choice in form.fields["funcionalidade"].choices if choice[0]]
+
+        self.assertIn(AtalhoAdministracao.FUNCIONALIDADE_RAMAIS, values)
+        self.assertIn(AtalhoAdministracao.FUNCIONALIDADE_EMPRESAS, values)
+        self.assertIn(AtalhoAdministracao.FUNCIONALIDADE_PREPOSTOS, values)
+        self.assertIn(AtalhoAdministracao.FUNCIONALIDADE_FOLHA_PONTO, values)
+        self.assertIn(AtalhoAdministracao.FUNCIONALIDADE_SALA_SITUACAO, values)
+        self.assertIn(AtalhoAdministracao.FUNCIONALIDADE_ADMINISTRACAO, values)
+        self.assertIn(AtalhoAdministracao.FUNCIONALIDADE_SALA_SITUACAO_OLD, values)
+
+
+class AtalhoAdministracaoListViewTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_superuser(
+            username="cards-admin",
+            email="cards@exemplo.gov.br",
+            password="123456",
+        )
+
+    def test_lista_admin_mostra_todas_as_funcionalidades_da_home(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("administracao_atalho_administracao_list"))
+
+        self.assertContains(response, "Ramais")
+        self.assertContains(response, "Empresas")
+        self.assertContains(response, "Prepostos")
+        self.assertContains(response, "Folha de Ponto")
+        self.assertContains(response, "Sala de Situacao")
+        self.assertContains(response, "Editar")

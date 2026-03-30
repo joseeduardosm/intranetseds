@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <section class="home-layout">
+    <section class="servicos-panel" aria-label="Funcionalidades administrativas">
+      <div class="servicos-header">
+        <h3>Administracao</h3>
+      </div>
+      <div class="servicos-grid">
+        {% for atalho in atalhos_administracao %}
+          <a
+            class="servico-card"
+            href="{{ atalho.url }}"
+            {% if not user.is_authenticated %}data-login-popup data-next="{{ atalho.url }}"{% endif %}
+          >
+            {% if atalho.imagem %}
+              <img src="{{ atalho.imagem.url }}" alt="{{ atalho.titulo }}" />
+            {% else %}
+              <div class="servico-card-media-fallback" aria-hidden="true">{{ atalho.titulo }}</div>
+            {% endif %}
+            <span class="servico-card-footer">{{ atalho.titulo }}</span>
+          </a>
+        {% empty %}
+          <p class="servicos-empty">Nenhuma funcionalidade administrativa disponivel.</p>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="servicos-panel" aria-label="Atalhos">
+      <div class="servicos-header">
+        <h3>Atalhos</h3>
+      </div>
+      <div class="servicos-grid">
+        {% for atalho in atalhos_servicos %}
+          <a class="servico-card" href="{{ atalho.url_destino }}" target="_blank" rel="noopener noreferrer">
+            <img src="{{ atalho.imagem.url }}" alt="{{ atalho.titulo }}" />
+            <span class="servico-card-footer">{{ atalho.titulo }}</span>
+          </a>
+        {% empty %}
+          <p class="servicos-empty">Nenhum atalho ativo.</p>
+        {% endfor %}
+      </div>
+    </section>
+  </section>
+{% endblock %}

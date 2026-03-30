@@ -51,6 +51,7 @@ except Exception:  # pragma: no cover - ambiente sem ldap3
 
 from .forms import (
     ADConfigurationForm,
+    AtalhoAdministracaoForm,
     AtalhoServicoForm,
     IdentidadeVisualConfigForm,
     MarkdownEditorForm,
@@ -59,10 +60,18 @@ from .forms import (
 )
 from .models import (
     ADConfiguration,
+    AtalhoAdministracao,
     AtalhoServico,
     IdentidadeVisualConfig,
     RFChangelogEntry,
     SMTPConfiguration,
+)
+from .navigation import (
+    can_access_rh as navigation_can_access_rh,
+    can_manage_configuracoes as navigation_can_manage_configuracoes,
+    can_manage_news,
+    can_manage_rfs as navigation_can_manage_rfs,
+    can_manage_shortcuts,
 )
 from usuarios.permissions import PROFILE_DEFINITIONS, build_group_name, ensure_profiles
 
@@ -631,24 +640,7 @@ def _can_manage_configuracoes(user) -> bool:
     - Agrupa permissoes de diferentes modulos em um unico gate de acesso.
     """
 
-    if not user.is_authenticated:
-        return False
-    return (
-        user.is_superuser
-        or user.has_perm("noticias.add_noticia")
-        or user.has_perm("noticias.change_noticia")
-        or user.has_perm("noticias.delete_noticia")
-        or user.has_perm("administracao.add_atalhoservico")
-        or user.has_perm("administracao.change_atalhoservico")
-        or user.has_perm("administracao.delete_atalhoservico")
-        or user.has_perm("folha_ponto.add_feriado")
-        or user.has_perm("folha_ponto.change_feriado")
-        or user.has_perm("folha_ponto.delete_feriado")
-        or user.has_perm("folha_ponto.add_feriasservidor")
-        or user.has_perm("folha_ponto.change_feriasservidor")
-        or user.has_perm("folha_ponto.delete_feriasservidor")
-        or user.has_perm("folha_ponto.change_configuracaorh")
-    )
+    return navigation_can_manage_configuracoes(user)
 
 
 def _can_access_rh(user) -> bool:
@@ -662,20 +654,7 @@ def _can_access_rh(user) -> bool:
     - `bool`: True quando usuario possui alguma permissao de RH.
     """
 
-    if not user.is_authenticated:
-        return False
-    return (
-        user.is_superuser
-        or user.has_perm("folha_ponto.view_feriado")
-        or user.has_perm("folha_ponto.view_feriasservidor")
-        or user.has_perm("folha_ponto.add_feriado")
-        or user.has_perm("folha_ponto.change_feriado")
-        or user.has_perm("folha_ponto.delete_feriado")
-        or user.has_perm("folha_ponto.add_feriasservidor")
-        or user.has_perm("folha_ponto.change_feriasservidor")
-        or user.has_perm("folha_ponto.delete_feriasservidor")
-        or user.has_perm("folha_ponto.change_configuracaorh")
-    )
+    return navigation_can_access_rh(user)
 
 
 def _can_manage_rfs(user) -> bool:
@@ -686,7 +665,7 @@ def _can_manage_rfs(user) -> bool:
     simplificar administracao de perfis.
     """
 
-    return _can_manage_configuracoes(user)
+    return navigation_can_manage_rfs(user)
 
 
 class ConfiguracoesAccessMixin(UserPassesTestMixin):
@@ -728,18 +707,11 @@ class ConfiguracoesView(ConfiguracoesAccessMixin, TemplateView):
         user = self.request.user
         # Cada flag evita expor atalhos de areas sem permissao minima.
         context["show_card_noticias"] = (
-            user.is_superuser
-            or user.has_perm("noticias.add_noticia")
-            or user.has_perm("noticias.change_noticia")
-            or user.has_perm("noticias.delete_noticia")
+            can_manage_news(user)
         )
         context["show_card_ad"] = user.is_superuser
-        context["show_card_atalhos"] = (
-            user.is_superuser
-            or user.has_perm("administracao.add_atalhoservico")
-            or user.has_perm("administracao.change_atalhoservico")
-            or user.has_perm("administracao.delete_atalhoservico")
-        )
+        context["show_card_atalhos"] = can_manage_shortcuts(user)
+        context["show_card_atalhos_administracao"] = can_manage_shortcuts(user)
         context["show_card_rh"] = (
             user.is_superuser
             or user.has_perm("folha_ponto.add_feriado")
@@ -990,6 +962,59 @@ class AtalhoServicoDeleteView(AtalhoServicoAccessMixin, DeleteView):
     model = AtalhoServico
     template_name = "administracao/atalho_confirm_delete.html"
     success_url = reverse_lazy("administracao_atalho_list")
+
+
+class AtalhoAdministracaoAccessMixin(UserPassesTestMixin):
+    """Mixin de autorizacao para CRUD dos cards administrativos da home."""
+
+    def test_func(self) -> bool:
+        return can_manage_shortcuts(self.request.user)
+
+
+class AtalhoAdministracaoListView(AtalhoAdministracaoAccessMixin, ListView):
+    """Lista configuracoes dos cards fixos administrativos exibidos na home."""
+
+    model = AtalhoAdministracao
+    template_name = "administracao/atalho_administracao_list.html"
+    context_object_name = "atalhos"
+
+    def get_queryset(self):
+        atalhos = list(AtalhoAdministracao.objects.all())
+        atalhos.sort(key=lambda item: item.get_funcionalidade_display().casefold())
+        return atalhos
+
+
+class AtalhoAdministracaoCreateView(AtalhoAdministracaoAccessMixin, CreateView):
+    """Cria configuracao de card administrativo da home."""
+
+    model = AtalhoAdministracao
+    form_class = AtalhoAdministracaoForm
+    template_name = "administracao/atalho_administracao_form.html"
+    success_url = reverse_lazy("administracao_atalho_administracao_list")
+
+    def get_initial(self):
+        initial = super().get_initial()
+        funcionalidade = self.request.GET.get("funcionalidade", "").strip()
+        if funcionalidade:
+            initial["funcionalidade"] = funcionalidade
+        return initial
+
+
+class AtalhoAdministracaoUpdateView(AtalhoAdministracaoAccessMixin, UpdateView):
+    """Atualiza configuracao de card administrativo existente."""
+
+    model = AtalhoAdministracao
+    form_class = AtalhoAdministracaoForm
+    template_name = "administracao/atalho_administracao_form.html"
+    success_url = reverse_lazy("administracao_atalho_administracao_list")
+
+
+class AtalhoAdministracaoDeleteView(AtalhoAdministracaoAccessMixin, DeleteView):
+    """Exclui configuracao de card administrativo."""
+
+    model = AtalhoAdministracao
+    template_name = "administracao/atalho_administracao_confirm_delete.html"
+    success_url = reverse_lazy("administracao_atalho_administracao_list")
 
 
 class RFChangelogAccessMixin(UserPassesTestMixin):

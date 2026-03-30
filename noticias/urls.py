@@ -12,11 +12,11 @@ from . import views
 
 # Rotas do app de notícias.
 urlpatterns = [
-    # Página inicial da intranet: lista paginada das notícias publicadas.
-    path('', views.NoticiaListView.as_view(), name='home'),
+    # Listagem administrativa de notícias.
+    path('', views.NoticiaListView.as_view(), name='noticia_list'),
     # Fluxos de manutenção de notícia (com checagem de permissões nas views).
-    path('noticias/nova/', views.NoticiaCreateView.as_view(), name='noticia_create'),
-    path('noticias/<int:pk>/', views.NoticiaDetailView.as_view(), name='noticia_detail'),
-    path('noticias/<int:pk>/editar/', views.NoticiaUpdateView.as_view(), name='noticia_update'),
-    path('noticias/<int:pk>/excluir/', views.NoticiaDeleteView.as_view(), name='noticia_delete'),
+    path('nova/', views.NoticiaCreateView.as_view(), name='noticia_create'),
+    path('<int:pk>/', views.NoticiaDetailView.as_view(), name='noticia_detail'),
+    path('<int:pk>/editar/', views.NoticiaUpdateView.as_view(), name='noticia_update'),
+    path('<int:pk>/excluir/', views.NoticiaDeleteView.as_view(), name='noticia_delete'),
 ]

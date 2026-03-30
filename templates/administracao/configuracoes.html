@@ -46,6 +46,16 @@
         </a>
       </article>
     {% endif %}
+    {% if show_card_atalhos_administracao %}
+      <article class="card card-square">
+        <a class="card-link card-square-link" href="{% url 'administracao_atalho_administracao_list' %}">
+          <div class="card-body">
+            <h3 class="card-title">Cards da home</h3>
+            <p class="card-text">Gerenciar imagens dos cards da coluna Administracao.</p>
+          </div>
+        </a>
+      </article>
+    {% endif %}
     {% if show_card_rh %}
       <article class="card card-square">
         <a class="card-link card-square-link" href="{% url 'administracao_rh' %}">

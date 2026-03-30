@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-03-30
+
+### Home, Atalhos e Noticias
+- substituida a home baseada em noticias por uma home em duas colunas, com cards administrativos na esquerda e atalhos livres na direita;
+- movida a listagem de noticias para a rota dedicada `/noticias/`, mantendo o CRUD e removendo noticias da raiz do site;
+- criado o cadastro de `Cards administrativos` no modulo `administracao`, com upload de imagem por funcionalidade e uso da mesma identidade visual dos atalhos;
+- alterada a home para exibir apenas os cards administrativos cadastrados e ativos em `atalhos-administracao`, sem itens fixos renderizados por fora desse cadastro;
+- ampliado o catalogo de funcionalidades configuraveis para cobrir os apps do projeto, incluindo `Administracao`, `Ramais`, `Empresas`, `Prepostos`, `Folha de Ponto`, `Sala de Situacao`, `Sala de Situacao (Legado)` e modulos ja existentes;
+- ajustada a tela administrativa de cards para refletir exatamente os itens cadastrados, e o formulario de criacao/edicao passou a listar todas as funcionalidades disponiveis no projeto;
+- removido o dropdown `Administracao` da navbar, concentrando a navegacao dessas funcionalidades na tela inicial;
+- alterado o comportamento da home para sempre exibir os cards administrativos cadastrados a usuarios anonimos, solicitando login apenas no clique;
+- restaurado o tamanho anterior dos cards e ajustada a grade para preencher melhor a largura das colunas sem prender os atalhos em duas colunas internas;
+- ordenados alfabeticamente os cards administrativos tanto na home quanto na tela de gestao;
+- adicionadas migrations para o novo model `AtalhoAdministracao` e para a evolucao do catalogo de funcionalidades administrativas;
+- ampliada a cobertura de testes para a nova home, listagem/edicao de cards administrativos e rotas de noticias.
+
 ## 2026-03-26
 
 ### Autenticacao e Navegacao

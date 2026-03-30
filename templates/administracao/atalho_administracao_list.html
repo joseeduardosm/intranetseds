@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Cards administrativos</h2>
+  </section>
+
+  <div class="card-actions">
+    <a class="btn" href="{% url 'administracao_atalho_administracao_create' %}">Novo card</a>
+    <a class="btn btn-secondary" href="{% url 'administracao_configuracoes' %}">Voltar</a>
+  </div>
+
+  {% if atalhos %}
+    <div class="card-grid">
+      {% for atalho in atalhos %}
+        <article class="card">
+          <div class="card-body">
+            <h3 class="card-title">{{ atalho.get_funcionalidade_display }}</h3>
+            <p class="card-text"><strong>Status:</strong> {% if atalho.ativo %}Ativo{% else %}Inativo{% endif %}</p>
+            <p class="card-text"><strong>Imagem:</strong> {% if atalho.imagem %}Configurada{% else %}Usando fallback{% endif %}</p>
+          </div>
+          <div class="card-footer">
+            <a class="btn btn-small" href="{% url 'administracao_atalho_administracao_update' atalho.pk %}">Editar</a>
+            <a class="btn btn-small btn-danger" href="{% url 'administracao_atalho_administracao_delete' atalho.pk %}">Excluir</a>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p>Nenhum card administrativo cadastrado.</p>
+  {% endif %}
+{% endblock %}

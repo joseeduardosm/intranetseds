@@ -20,7 +20,7 @@ from .models import Noticia
 
 class NoticiaListView(ListView):
     """
-    Controla o endpoint de listagem pública de notícias (home da intranet).
+    Controla o endpoint de listagem de notícias.
 
     Fluxo HTTP:
     - Recebe requisição GET.
@@ -43,8 +43,8 @@ class NoticiaListView(ListView):
             dict: contexto final para renderização do template.
 
         Regra de negócio:
-        - Apenas atalhos com `ativo=True` devem aparecer na home, evitando
-          exibição de funcionalidades desativadas operacionalmente.
+    - Apenas atalhos com `ativo=True` devem aparecer na listagem, evitando
+      exibição de funcionalidades desativadas operacionalmente.
         """
         context = super().get_context_data(**kwargs)
         # Consulta ORM para recuperar atalhos disponíveis na home.
@@ -99,7 +99,7 @@ class NoticiaCreateView(PermissionRequiredMixin, CreateView):
     model = Noticia
     fields = ['titulo', 'texto', 'data_publicacao', 'categoria', 'imagem_destaque']
     template_name = 'noticias/noticia_form.html'
-    success_url = reverse_lazy('home')
+    success_url = reverse_lazy('noticia_list')
     permission_required = "noticias.add_noticia"
 
 
@@ -117,7 +117,7 @@ class NoticiaUpdateView(PermissionRequiredMixin, UpdateView):
     model = Noticia
     fields = ['titulo', 'texto', 'data_publicacao', 'categoria', 'imagem_destaque']
     template_name = 'noticias/noticia_form.html'
-    success_url = reverse_lazy('home')
+    success_url = reverse_lazy('noticia_list')
     permission_required = "noticias.change_noticia"
 
 
@@ -134,5 +134,5 @@ class NoticiaDeleteView(PermissionRequiredMixin, DeleteView):
     """
     model = Noticia
     template_name = 'noticias/noticia_confirm_delete.html'
-    success_url = reverse_lazy('home')
+    success_url = reverse_lazy('noticia_list')
     permission_required = "noticias.delete_noticia"

@@ -38,48 +38,6 @@
             <a href="{% url 'sala_situacao_home' %}">Sala de Situação</a>
           {% endif %}
           {% if user.is_authenticated %}
-            {% if perms.contratos.view_contrato or perms.diario_bordo.view_blocotrabalho or perms.licitacoes.view_termoreferencia or perms.licitacoes.add_termoreferencia or perms.licitacoes.change_termoreferencia or perms.licitacoes.delete_termoreferencia or perms.reserva_salas.view_sala or user.is_staff or perms.administracao.view_adconfiguration or perms.administracao.change_adconfiguration or perms.administracao.view_atalhoservico or perms.administracao.add_atalhoservico or perms.administracao.change_atalhoservico or perms.administracao.delete_atalhoservico or perms.folha_ponto.view_feriado or perms.folha_ponto.view_feriasservidor or perms.folha_ponto.change_feriado or perms.folha_ponto.change_feriasservidor or perms.noticias.add_noticia or user.is_authenticated %}
-              <details class="nav-dropdown">
-                <summary class="nav-dropdown-toggle">Administracao</summary>
-                <div class="nav-dropdown-menu">
-                  {% if user.is_superuser %}
-                    <a href="{% url 'audit_log_list' %}">Auditoria</a>
-                  {% endif %}
-                  {% if user.is_superuser or perms.administracao.add_atalhoservico or perms.administracao.change_atalhoservico or perms.administracao.delete_atalhoservico or perms.noticias.add_noticia or perms.noticias.change_noticia or perms.noticias.delete_noticia or perms.folha_ponto.add_feriado or perms.folha_ponto.change_feriado or perms.folha_ponto.delete_feriado or perms.folha_ponto.add_feriasservidor or perms.folha_ponto.change_feriasservidor or perms.folha_ponto.delete_feriasservidor or perms.folha_ponto.change_configuracaorh %}
-                    <a href="{% url 'administracao_configuracoes' %}">Configuracoes</a>
-                  {% endif %}
-                  {% if user.is_superuser or perms.monitoramento.view_projetomonitoramento or perms.monitoramento.add_projetomonitoramento or perms.monitoramento.change_projetomonitoramento %}
-                    <a href="{% url 'monitoramento_home' %}">Monitoramento</a>
-                  {% endif %}
-                  {% if perms.contratos.view_contrato %}
-                    <a href="{% url 'contratos_list' %}">Contratos</a>
-                  {% endif %}
-                  {% if perms.diario_bordo.view_blocotrabalho %}
-                    <a href="{% url 'diario_bordo_list' %}">Diario de Bordo</a>
-                  {% endif %}
-                  {% if user.is_staff or perms.licitacoes.view_termoreferencia or perms.licitacoes.add_termoreferencia or perms.licitacoes.change_termoreferencia or perms.licitacoes.delete_termoreferencia %}
-                    <a href="{% url 'licitacoes_home' %}">Licitacoes</a>
-                  {% endif %}
-                  {% if user.is_authenticated %}
-                    <a href="{% url 'salas_list' %}">Reserva de Salas</a>
-                  {% endif %}
-                  {% if user.is_authenticated %}
-                    <a href="{% url 'lousa_digital_list' %}">Lousa Digital</a>
-                  {% endif %}
-                  {% if user.is_superuser or perms.administracao.add_atalhoservico or perms.administracao.change_atalhoservico or perms.administracao.delete_atalhoservico or perms.noticias.add_noticia or perms.noticias.change_noticia or perms.noticias.delete_noticia or perms.folha_ponto.add_feriado or perms.folha_ponto.change_feriado or perms.folha_ponto.delete_feriado or perms.folha_ponto.add_feriasservidor or perms.folha_ponto.change_feriasservidor or perms.folha_ponto.delete_feriasservidor or perms.folha_ponto.change_configuracaorh %}
-                    <a href="{% url 'administracao_rfs' %}">RFs</a>
-                  {% endif %}
-                  {% if perms.folha_ponto.view_feriado or perms.folha_ponto.view_feriasservidor or perms.folha_ponto.change_feriado or perms.folha_ponto.change_feriasservidor or user.is_superuser %}
-                    <a href="{% url 'administracao_rh' %}">RH</a>
-                  {% endif %}
-                  {% if user.is_staff %}
-                    <a href="{% url 'usuarios_list' %}">Usuarios</a>
-                  {% endif %}
-                </div>
-              </details>
-            {% endif %}
-          {% endif %}
-          {% if user.is_authenticated %}
             <!-- Logout via POST com CSRF -->
             <form class="nav-logout" method="post" action="{% url 'logout' %}">
               {% csrf_token %}

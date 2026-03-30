@@ -212,3 +212,20 @@ def identidade_visual(request):
         ),
         "theme_shortcuts_bg_color": background_color,
     }
+
+
+def administracao_navigation(request):
+    try:
+        from administracao.navigation import get_administracao_menu_items
+    except Exception:
+        return {
+            "administracao_menu_items": [],
+            "administracao_menu_visible": False,
+        }
+
+    user = getattr(request, "user", None)
+    items = get_administracao_menu_items(user)
+    return {
+        "administracao_menu_items": items,
+        "administracao_menu_visible": bool(items),
+    }

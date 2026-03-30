@@ -1,59 +1,45 @@
 {% extends 'base.html' %}
 
 {% block content %}
-  <section class="home-layout">
-    <div class="home-main">
-      <section class="page-header">
-        <h2>Últimas noticias</h2>
-      </section>
+  <section class="page-header">
+    <h2>Noticias</h2>
+  </section>
 
-      {% if noticias %}
-        <div class="card-grid card-grid-fixed">
-          {% for noticia in noticias %}
-            <article class="card card-noticia-home">
-              <a class="card-link" href="{% url 'noticia_detail' noticia.pk %}">
-                {% if noticia.imagem_destaque %}
-                  <img class="card-image" src="{{ noticia.imagem_destaque.url }}" alt="{{ noticia.titulo }}" />
-                {% endif %}
-                <div class="card-body card-body-center card-body-noticia-home">
-                  <h3 class="card-title">{{ noticia.titulo }}</h3>
-                  <p class="card-meta">{{ noticia.categoria }} · {{ noticia.data_publicacao|date:"d/m/Y" }}</p>
-                </div>
-              </a>
-            </article>
-          {% endfor %}
-        </div>
+  {% if perms.noticias.add_noticia %}
+    <div class="card-actions">
+      <a class="btn" href="{% url 'noticia_create' %}">Nova noticia</a>
+    </div>
+  {% endif %}
 
-        {% if is_paginated %}
-          <nav class="pagination" aria-label="Paginacao de noticias">
-            {% if page_obj.has_previous %}
-              <a class="btn btn-secondary" href="?page={{ page_obj.previous_page_number }}">Anterior</a>
+  {% if noticias %}
+    <div class="card-grid card-grid-fixed">
+      {% for noticia in noticias %}
+        <article class="card card-noticia-home">
+          <a class="card-link" href="{% url 'noticia_detail' noticia.pk %}">
+            {% if noticia.imagem_destaque %}
+              <img class="card-image" src="{{ noticia.imagem_destaque.url }}" alt="{{ noticia.titulo }}" />
             {% endif %}
-            <span class="pagination-meta">Pagina {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
-            {% if page_obj.has_next %}
-              <a class="btn btn-secondary" href="?page={{ page_obj.next_page_number }}">Proxima</a>
-            {% endif %}
-          </nav>
-        {% endif %}
-      {% else %}
-        <p>Nenhuma noticia cadastrada.</p>
-      {% endif %}
+            <div class="card-body card-body-center card-body-noticia-home">
+              <h3 class="card-title">{{ noticia.titulo }}</h3>
+              <p class="card-meta">{{ noticia.categoria }} · {{ noticia.data_publicacao|date:"d/m/Y" }}</p>
+            </div>
+          </a>
+        </article>
+      {% endfor %}
     </div>
 
-    <aside class="servicos-sidebar" aria-label="Atalhos">
-      <div class="servicos-header">
-        <h3>Atalhos</h3>
-      </div>
-      <div class="servicos-grid">
-        {% for atalho in atalhos_servicos %}
-          <a class="servico-card" href="{{ atalho.url_destino }}" target="_blank" rel="noopener noreferrer">
-            <img src="{{ atalho.imagem.url }}" alt="{{ atalho.titulo }}" />
-            <span class="servico-card-footer">{{ atalho.titulo }}</span>
-          </a>
-        {% empty %}
-          <p class="servicos-empty">Nenhum atalho ativo.</p>
-        {% endfor %}
-      </div>
-    </aside>
-  </section>
+    {% if is_paginated %}
+      <nav class="pagination" aria-label="Paginacao de noticias">
+        {% if page_obj.has_previous %}
+          <a class="btn btn-secondary" href="?page={{ page_obj.previous_page_number }}">Anterior</a>
+        {% endif %}
+        <span class="pagination-meta">Pagina {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+          <a class="btn btn-secondary" href="?page={{ page_obj.next_page_number }}">Proxima</a>
+        {% endif %}
+      </nav>
+    {% endif %}
+  {% else %}
+    <p>Nenhuma noticia cadastrada.</p>
+  {% endif %}
 {% endblock %}

@@ -164,6 +164,81 @@ class AtalhoServico(models.Model):
         return self.titulo
 
 
+class AtalhoAdministracao(models.Model):
+    """
+    Configura os cards fixos da coluna administrativa da home.
+
+    Cada funcionalidade administrativa possui um registro único para definir
+    imagem e status de exibição, enquanto título e destino permanecem fixos
+    em código para evitar divergência com o menu da navbar.
+    """
+
+    FUNCIONALIDADE_ADMINISTRACAO = "administracao"
+    FUNCIONALIDADE_CONFIGURACOES = "configuracoes"
+    FUNCIONALIDADE_NOTICIAS = "noticias"
+    FUNCIONALIDADE_RAMAIS = "ramais"
+    FUNCIONALIDADE_MONITORAMENTO = "monitoramento"
+    FUNCIONALIDADE_CONTRATOS = "contratos"
+    FUNCIONALIDADE_EMPRESAS = "empresas"
+    FUNCIONALIDADE_PREPOSTOS = "prepostos"
+    FUNCIONALIDADE_DIARIO_BORDO = "diario_bordo"
+    FUNCIONALIDADE_FOLHA_PONTO = "folha_ponto"
+    FUNCIONALIDADE_LICITACOES = "licitacoes"
+    FUNCIONALIDADE_RESERVA_SALAS = "reserva_salas"
+    FUNCIONALIDADE_SALA_SITUACAO = "sala_situacao"
+    FUNCIONALIDADE_SALA_SITUACAO_OLD = "sala_situacao_old"
+    FUNCIONALIDADE_LOUSA_DIGITAL = "lousa_digital"
+    FUNCIONALIDADE_RFS = "rfs"
+    FUNCIONALIDADE_RH = "rh"
+    FUNCIONALIDADE_USUARIOS = "usuarios"
+    FUNCIONALIDADE_AUDITORIA = "auditoria"
+
+    FUNCIONALIDADE_CHOICES = [
+        (FUNCIONALIDADE_ADMINISTRACAO, "Administracao"),
+        (FUNCIONALIDADE_CONFIGURACOES, "Configuracoes"),
+        (FUNCIONALIDADE_NOTICIAS, "Noticias"),
+        (FUNCIONALIDADE_RAMAIS, "Ramais"),
+        (FUNCIONALIDADE_MONITORAMENTO, "Monitoramento"),
+        (FUNCIONALIDADE_CONTRATOS, "Contratos"),
+        (FUNCIONALIDADE_EMPRESAS, "Empresas"),
+        (FUNCIONALIDADE_PREPOSTOS, "Prepostos"),
+        (FUNCIONALIDADE_DIARIO_BORDO, "Diario de Bordo"),
+        (FUNCIONALIDADE_FOLHA_PONTO, "Folha de Ponto"),
+        (FUNCIONALIDADE_LICITACOES, "Licitacoes"),
+        (FUNCIONALIDADE_RESERVA_SALAS, "Reserva de Salas"),
+        (FUNCIONALIDADE_SALA_SITUACAO, "Sala de Situacao"),
+        (FUNCIONALIDADE_SALA_SITUACAO_OLD, "Sala de Situacao (Legado)"),
+        (FUNCIONALIDADE_LOUSA_DIGITAL, "Lousa Digital"),
+        (FUNCIONALIDADE_RFS, "RFs"),
+        (FUNCIONALIDADE_RH, "RH"),
+        (FUNCIONALIDADE_USUARIOS, "Usuarios"),
+        (FUNCIONALIDADE_AUDITORIA, "Auditoria"),
+    ]
+
+    funcionalidade = models.CharField(
+        max_length=40,
+        choices=FUNCIONALIDADE_CHOICES,
+        unique=True,
+    )
+    imagem = models.ImageField(
+        upload_to="atalhos_administracao/",
+        validators=[FileExtensionValidator(allowed_extensions=["png", "jpg", "jpeg"])],
+        blank=True,
+        null=True,
+    )
+    ativo = models.BooleanField(default=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["id"]
+        verbose_name = "Card administrativo"
+        verbose_name_plural = "Cards administrativos"
+
+    def __str__(self) -> str:
+        return self.get_funcionalidade_display()
+
+
 class RFChangelogEntry(models.Model):
     """
     Registro estruturado de alteracoes funcionais (RF/changelog).

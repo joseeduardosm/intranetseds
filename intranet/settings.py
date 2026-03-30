@@ -121,6 +121,7 @@ TEMPLATES = [
                 'intranet.context_processors.diario_bordo_alert',
                 'intranet.context_processors.sala_situacao_access',
                 'intranet.context_processors.identidade_visual',
+                'intranet.context_processors.administracao_navigation',
             ],
         },
     },

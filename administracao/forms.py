@@ -11,6 +11,7 @@ from django import forms
 
 from .models import (
     ADConfiguration,
+    AtalhoAdministracao,
     AtalhoServico,
     IdentidadeVisualConfig,
     RFChangelogEntry,
@@ -69,6 +70,24 @@ class AtalhoServicoForm(forms.ModelForm):
             "titulo": "Titulo",
             "imagem": "Imagem (PNG, JPG ou JPEG)",
             "url_destino": "URL de destino",
+            "ativo": "Ativo",
+        }
+
+
+class AtalhoAdministracaoForm(forms.ModelForm):
+    """
+    Formulario de cadastro/edicao de cards administrativos da home.
+
+    A funcionalidade identifica o destino fixo do card; a imagem e o status
+    permitem customizar sua apresentação sem alterar a navegação.
+    """
+
+    class Meta:
+        model = AtalhoAdministracao
+        fields = ["funcionalidade", "imagem", "ativo"]
+        labels = {
+            "funcionalidade": "Funcionalidade",
+            "imagem": "Imagem (PNG, JPG ou JPEG)",
             "ativo": "Ativo",
         }
 

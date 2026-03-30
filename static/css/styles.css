@@ -577,16 +577,12 @@ main.container {
 
 .home-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 24px;
   align-items: start;
 }
 
-.home-main {
-  min-width: 0;
-}
-
-.servicos-sidebar {
+.servicos-panel {
   background: var(--shortcuts-bg);
   border: 1px solid #d7d7d7;
   border-radius: 18px;
@@ -608,8 +604,9 @@ main.container {
 
 .servicos-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 170px));
+  justify-content: space-evenly;
+  gap: 10px;
   padding: 10px;
   background: var(--shortcuts-bg);
 }
@@ -618,6 +615,7 @@ main.container {
   background: #ffffff;
   color: #ffffff;
   text-decoration: none;
+  width: 170px;
   aspect-ratio: 1 / 1;
   display: flex;
   flex-direction: column;
@@ -642,6 +640,22 @@ main.container {
   object-fit: cover;
   display: block;
   background: #ffffff;
+}
+
+.servico-card-media-fallback {
+  min-height: 88px;
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background:
+    linear-gradient(140deg, rgba(31, 42, 68, 0.18), rgba(217, 79, 4, 0.22)),
+    #f6f2ea;
+  color: var(--primary);
+  font-size: 1rem;
+  font-weight: 700;
+  text-align: center;
 }
 
 .servico-card-footer {
@@ -1174,8 +1188,13 @@ main.container {
     grid-template-columns: 1fr;
   }
 
-  .servicos-sidebar {
-    max-width: 420px;
+  .servicos-panel {
+    max-width: none;
+  }
+
+  .servicos-grid {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 170px));
+    justify-content: center;
   }
 }
 

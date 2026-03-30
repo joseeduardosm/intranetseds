@@ -10,7 +10,7 @@ from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import include, path
 
-from .views import IntranetLoginView
+from .views import HomeView, IntranetLoginView
 
 urlpatterns = [
     # Admin do Django.
@@ -18,8 +18,10 @@ urlpatterns = [
     # Autenticação padrão.
     path('login/', IntranetLoginView.as_view(), name='login'),
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),
-    # App de notícias como home.
-    path('', include('noticias.urls')),
+    # Home com atalhos.
+    path('', HomeView.as_view(), name='home'),
+    # App de notícias.
+    path('noticias/', include('noticias.urls')),
     # App de ramais.
     path('ramais/', include('ramais.urls')),
     # App de diário de bordo.

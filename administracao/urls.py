@@ -59,4 +59,24 @@ urlpatterns = [
         views.AtalhoServicoDeleteView.as_view(),
         name="administracao_atalho_delete",
     ),
+    path(
+        "atalhos-administracao/",
+        views.AtalhoAdministracaoListView.as_view(),
+        name="administracao_atalho_administracao_list",
+    ),
+    path(
+        "atalhos-administracao/novo/",
+        views.AtalhoAdministracaoCreateView.as_view(),
+        name="administracao_atalho_administracao_create",
+    ),
+    path(
+        "atalhos-administracao/<int:pk>/editar/",
+        views.AtalhoAdministracaoUpdateView.as_view(),
+        name="administracao_atalho_administracao_update",
+    ),
+    path(
+        "atalhos-administracao/<int:pk>/excluir/",
+        views.AtalhoAdministracaoDeleteView.as_view(),
+        name="administracao_atalho_administracao_delete",
+    ),
 ]
