@@ -54,6 +54,42 @@ def _destinatarios_sistema(sistema: Sistema) -> list[str]:
     return sistema.interessados_emails
 
 
+def _conteudo_email_historico(historico: HistoricoEtapaSistema) -> str:
+    if (
+        historico.tipo_evento == HistoricoEtapaSistema.TipoEvento.STATUS
+        and historico.status_anterior
+        and historico.status_novo
+    ):
+        status_anterior = EtapaSistema.Status(historico.status_anterior).label.lower()
+        status_novo = EtapaSistema.Status(historico.status_novo).label.lower()
+        return f"Status alterado de {status_anterior} para {status_novo}."
+    return (historico.descricao or "-").strip() or "-"
+
+
+def _corpo_email_historico(historico: HistoricoEtapaSistema, *, responsavel: str, link: str) -> str:
+    sistema = historico.etapa.entrega.sistema
+    linhas = [
+        f"Sistema: {sistema.nome}",
+        f"Entrega: {historico.etapa.entrega.titulo}",
+        f"Etapa: {historico.etapa.get_tipo_etapa_display()}",
+        f"Tipo de atualização: {historico.get_tipo_evento_display()}",
+        f"Conteúdo: {_conteudo_email_historico(historico)}",
+    ]
+    if historico.justificativa:
+        linhas.append(f"Justificativa: {historico.justificativa}")
+    linhas.extend(
+        [
+            f"Responsável: {responsavel}",
+            f"Data/hora: {timezone.localtime(historico.criado_em).strftime('%d/%m/%Y %H:%M')}",
+            "",
+            "Este é um e-mail automático. Não responda.",
+            "Para mais informações, acesse:",
+            link,
+        ]
+    )
+    return "\n".join(linhas)
+
+
 def recalcular_tempos_etapas(entrega: EntregaSistema):
     etapas = list(entrega.etapas.order_by("ordem", "id"))
     anterior = None
@@ -94,7 +130,7 @@ def criar_entrega_com_etapas(sistema: Sistema, *, usuario=None, titulo="", descr
         HistoricoEtapaSistema.objects.create(
             etapa=etapa,
             tipo_evento=HistoricoEtapaSistema.TipoEvento.CRIACAO,
-            descricao="Etapa criada automaticamente na abertura da entrega.",
+            descricao="Etapa criada automaticamente na abertura do ciclo.",
             status_novo=etapa.status,
             data_nova=etapa.data_etapa,
             criado_por=_usuario_ativo(usuario),
@@ -163,18 +199,7 @@ def enviar_notificacao_historico(historico: HistoricoEtapaSistema, *, request=No
     responsavel = "Sistema"
     if historico.criado_por:
         responsavel = nome_usuario_exibicao(historico.criado_por) or "Sistema"
-    corpo = (
-        f"Sistema: {sistema.nome}\n"
-        f"Entrega: {historico.etapa.entrega.titulo}\n"
-        f"Etapa: {historico.etapa.get_tipo_etapa_display()}\n"
-        f"Tipo de atualização: {historico.get_tipo_evento_display()}\n"
-        f"Conteúdo: {historico.descricao or '-'}\n"
-        f"Responsável: {responsavel}\n"
-        f"Data/hora: {timezone.localtime(historico.criado_em).strftime('%d/%m/%Y %H:%M')}\n\n"
-        "Este é um e-mail automático. Não responda.\n"
-        "Para mais informações, acesse:\n"
-        f"{link}"
-    )
+    corpo = _corpo_email_historico(historico, responsavel=responsavel, link=link)
     message = EmailMessage(
         subject=assunto,
         body=corpo,

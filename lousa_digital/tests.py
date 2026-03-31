@@ -13,6 +13,7 @@ from django.utils import timezone
 from auditoria.models import AuditLog
 from administracao.models import SMTPConfiguration
 from ramais.models import PessoaRamal
+from usuarios.models import SetorNode, UserSetorMembership
 from .forms import EncaminhamentoForm
 from .models import Encaminhamento, EventoTimeline, Processo
 from .views import (
@@ -26,28 +27,79 @@ from .views import (
 
 
 class EncaminhamentoFormTests(TestCase):
+    def setUp(self):
+        self.grupo_setor = Group.objects.create(name="Coordenadoria de Tecnologia da Informacao")
+        SetorNode.objects.create(group=self.grupo_setor)
+
     def test_email_notificacao_opcional(self):
         hoje = timezone.localdate()
         form = EncaminhamentoForm(
             data={
-                "destino": "COETIC",
+                "destino": str(self.grupo_setor.id),
                 "prazo_data": (hoje + timedelta(days=1)).isoformat(),
                 "email_notificacao": "",
             }
         )
         self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data["destino"], "COORDENADORIA DE TECNOLOGIA DA INFORMACAO")
 
     def test_email_notificacao_invalido_rejeitado(self):
         hoje = timezone.localdate()
         form = EncaminhamentoForm(
             data={
-                "destino": "COETIC",
+                "destino": str(self.grupo_setor.id),
                 "prazo_data": (hoje + timedelta(days=1)).isoformat(),
                 "email_notificacao": "invalido",
             }
         )
         self.assertFalse(form.is_valid())
         self.assertIn("email_notificacao", form.errors)
+
+    def test_destino_exibe_apenas_setores_ativos_sem_admin(self):
+        grupo_admin = Group.objects.create(name="ADMIN")
+        SetorNode.objects.create(group=grupo_admin)
+        grupo_inativo = Group.objects.create(name="Setor Inativo")
+        SetorNode.objects.create(group=grupo_inativo, ativo=False)
+
+        form = EncaminhamentoForm()
+
+        self.assertEqual(
+            form.fields["destino"].choices,
+            [(str(self.grupo_setor.id), "Coordenadoria de Tecnologia da Informacao")],
+        )
+
+
+class LousaDigitalDestinosSetorTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(username="lousa-setores", password="123456")
+        self.grupo_usuario = Group.objects.create(name="Setor de Origem")
+        self.setor_usuario = SetorNode.objects.create(group=self.grupo_usuario)
+        UserSetorMembership.objects.create(user=self.user, setor=self.setor_usuario)
+        self.user.groups.add(self.grupo_usuario)
+        self.processo = Processo.objects.create(
+            numero_sei="012.00000009/2026-00",
+            assunto="Processo com setor",
+            caixa_origem="SGC",
+            criado_por=self.user,
+            atualizado_por=self.user,
+        )
+
+    def test_detalhe_exibe_select_de_setores_e_chip_com_sigla(self):
+        grupo_destino = Group.objects.create(name="Diretoria de Desenvolvimento Social")
+        SetorNode.objects.create(group=grupo_destino)
+        Encaminhamento.objects.create(
+            processo=self.processo,
+            destino=grupo_destino.name.upper(),
+            prazo_data=timezone.localdate() + timedelta(days=2),
+        )
+
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("lousa_digital_detail", kwargs={"pk": self.processo.pk}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '<option value="%s">Diretoria de Desenvolvimento Social</option>' % grupo_destino.id, html=True)
+        self.assertContains(response, "DDS")
+        self.assertContains(response, 'title="DIRETORIA DE DESENVOLVIMENTO SOCIAL"', html=False)
 
 
 class NotificarPrazosLousaCommandTests(TestCase):

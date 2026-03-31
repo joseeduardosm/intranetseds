@@ -6,8 +6,16 @@
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
 }
 
+.acompanhamento-card-actions--tight {
+  margin-bottom: 4px;
+}
+
 .acompanhamento-form p {
   margin: 0 0 14px;
+}
+
+.acompanhamento-form--compact-top {
+  margin-top: 4px;
 }
 
 .acompanhamento-form label {
@@ -102,8 +110,20 @@
   align-items: end;
 }
 
+.acompanhamento-filter-grid p {
+  margin: 0;
+}
+
+.acompanhamento-filter-grid .form-actions {
+  margin-top: 6px;
+}
+
 .acompanhamento-card-grid {
-  margin-top: 18px;
+  margin-top: 8px;
+}
+
+.page-header + .card-actions {
+  margin-bottom: 14px;
 }
 
 .acompanhamento-card-body {
@@ -126,6 +146,12 @@
 .acompanhamento-card-description {
   margin-bottom: 0;
   line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-height: calc(1.45em * 2);
 }
 
 .acompanhamento-card-summary {
@@ -137,14 +163,54 @@
   font-weight: 600;
 }
 
+.acompanhamento-card-highlight {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #f7f3ec;
+}
+
+.acompanhamento-card-highlight__label {
+  color: #6b7280;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.acompanhamento-card-highlight__value {
+  color: #1f2a44;
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
 .acompanhamento-progresso {
   display: grid;
   gap: 6px;
 }
 
+.acompanhamento-progresso-duplo {
+  display: grid;
+  gap: 10px;
+}
+
+.acompanhamento-progresso--prazo .progresso-titulo,
+.acompanhamento-progresso--prazo .progresso-valor {
+  color: #6b7280;
+}
+
 .acompanhamento-card h3,
 .acompanhamento-card h4 {
   margin-top: 0;
+}
+
+.acompanhamento-subtitle {
+  margin-bottom: 10px;
+}
+
+.acompanhamento-subtitle--compact {
+  margin-bottom: 8px;
 }
 
 .acompanhamento-chip-list {
@@ -204,7 +270,8 @@
 .acompanhamento-lista-curta {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 0;
+  margin-bottom: 2px;
 }
 
 .acompanhamento-item-curto {
@@ -212,15 +279,78 @@
   justify-content: space-between;
   gap: 12px;
   align-items: center;
-  border: 1px solid #ece7de;
-  border-radius: 12px;
-  padding: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid #ece7de;
+}
+
+.acompanhamento-item-curto:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.acompanhamento-item-curto:first-child {
+  padding-top: 0;
+}
+
+.acompanhamento-item-curto__conteudo {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.acompanhamento-item-curto strong,
+.acompanhamento-item-curto span {
+  display: inline;
+}
+
+.acompanhamento-item-curto strong {
+  font-size: 0.94rem;
+  line-height: 1.25;
 }
 
 .acompanhamento-item-curto span {
-  display: block;
   color: #6b7280;
-  font-size: 0.92rem;
+  font-size: 0.88rem;
+  line-height: 1.25;
+}
+
+.acompanhamento-remove-btn {
+  border: 0;
+  background: transparent;
+  color: #9ca3af;
+  font-size: 1.15rem;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+.acompanhamento-remove-btn:hover,
+.acompanhamento-remove-btn:focus {
+  color: #b42318;
+  background: #fef3f2;
+  outline: none;
+}
+
+.acompanhamento-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.acompanhamento-pagination-info {
+  color: #6b7280;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.acompanhamento-section-divider--compact {
+  margin: 12px 0 10px;
 }
 
 .acompanhamento-section-head {
@@ -309,6 +439,44 @@
   max-width: 560px;
 }
 
+.acompanhamento-date-calendar-modal {
+  width: min(1100px, 94vw);
+  max-width: 1100px;
+}
+
+.acompanhamento-form-calendar-shell {
+  --calendar-shell-height: min(70vh, 760px);
+  padding-bottom: 18px;
+}
+
+.acompanhamento-date-calendar-hint {
+  color: #6b7280;
+  font-size: 0.85rem;
+}
+
+.acompanhamento-date-calendar-actions {
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.acompanhamento-date-calendar-cell {
+  appearance: none;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.acompanhamento-date-calendar-cell:hover {
+  border-color: rgba(217, 79, 4, 0.5);
+  box-shadow: 0 8px 18px rgba(31, 42, 68, 0.08);
+  transform: translateY(-1px);
+}
+
+.acompanhamento-date-calendar-cell.is-selected-date {
+  border-color: rgba(217, 79, 4, 0.7);
+  box-shadow: 0 0 0 2px rgba(217, 79, 4, 0.18);
+}
+
 .acompanhamento-note-text {
   margin: 0 0 14px;
   color: #6b7280;
@@ -319,6 +487,13 @@
   flex-direction: column;
   gap: 6px;
   margin-top: 8px;
+}
+
+.acompanhamento-card-footer {
+  padding: 7px 12px;
+  font-size: 0.7rem;
+  color: #6b7280;
+  background: #fbfaf7;
 }
 
 @media (max-width: 1000px) {

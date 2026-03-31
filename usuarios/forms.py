@@ -28,6 +28,7 @@ from .permissions import (
     ensure_profiles,
     get_profile_permission_ids_map,
 )
+from .utils import usuarios_visiveis
 
 
 def _profile_choices():
@@ -259,7 +260,7 @@ class UsuarioBaseForm(forms.ModelForm):
         self.fields["setor"].choices = _setor_choices()
 
         # Consulta ORM para listar possíveis superiores (exceto o próprio usuário).
-        superiores_qs = User.objects.order_by("first_name", "username")
+        superiores_qs = usuarios_visiveis(User.objects.order_by("first_name", "username"))
         if self.instance and self.instance.pk:
             superiores_qs = superiores_qs.exclude(pk=self.instance.pk)
         self.fields["superior_usuario"].queryset = superiores_qs
@@ -541,7 +542,9 @@ class GrupoBaseForm(forms.ModelForm):
         )
         for field in self.fields.values():
             field.help_text = ""
-        self.fields["usuarios"].queryset = User.objects.order_by("first_name", "last_name", "username")
+        self.fields["usuarios"].queryset = usuarios_visiveis(
+            User.objects.order_by("first_name", "last_name", "username")
+        )
 
         if self.instance and self.instance.pk:
             setor_node = ensure_setor_node_for_group(self.instance)

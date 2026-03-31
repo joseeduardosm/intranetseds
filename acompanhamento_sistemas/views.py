@@ -5,15 +5,17 @@ from types import SimpleNamespace
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+from django.core.paginator import Paginator
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import OuterRef, Prefetch, Q, Subquery
-from django.http import Http404, HttpResponseRedirect
+from django.http import Http404, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.views import View
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
 
 from auditoria.models import AuditLog
+from usuarios.utils import usuarios_visiveis
 
 from .forms import (
     EntregaSistemaForm,
@@ -87,6 +89,21 @@ def _timeline_sistema(sistema):
     return sorted(itens, key=lambda item: (item.criado_em, getattr(item, "id", 0)), reverse=True)
 
 
+def _timeline_etapa(etapa):
+    historicos = list(
+        etapa.historicos.select_related("criado_por").prefetch_related("anexos").order_by("-criado_em", "-id")
+    )
+    for historico in historicos:
+        historico.timeline_titulo = f"{etapa.entrega.titulo_com_numeracao}: {etapa.get_tipo_etapa_display()}"
+    return historicos
+
+
+def _paginar_itens(request, itens, *, query_param="pagina_timeline", por_pagina=6):
+    paginator = Paginator(itens, por_pagina)
+    pagina = request.GET.get(query_param) or 1
+    return paginator.get_page(pagina)
+
+
 class SistemaListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     permission_required = ("acompanhamento_sistemas.view_sistema",)
     model = Sistema
@@ -127,9 +144,9 @@ class SistemaListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        responsaveis = User.objects.filter(
+        responsaveis = usuarios_visiveis(User.objects.filter(
             pk__in=HistoricoEtapaSistema.objects.exclude(criado_por__isnull=True).values_list("criado_por_id", flat=True)
-        ).order_by("first_name", "username")
+        )).order_by("first_name", "username")
         context["filtro_form"] = SistemaFiltroForm(self.request.GET or None, responsaveis=responsaveis)
         context["pode_editar_sistema"] = self.request.user.has_perm("acompanhamento_sistemas.change_sistema")
         return context
@@ -201,8 +218,12 @@ class SistemaDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView)
         sistema = self.object
         context["entrega_form"] = kwargs.get("entrega_form") or EntregaSistemaForm()
         context["interessado_form"] = kwargs.get("interessado_form") or InteressadoSistemaForm(sistema=sistema)
-        context["historicos"] = _timeline_sistema(sistema)
+        historicos_page = _paginar_itens(self.request, _timeline_sistema(sistema))
+        context["historicos"] = historicos_page.object_list
+        context["historicos_page"] = historicos_page
+        context["timeline_query_param"] = "pagina_timeline"
         context["abrir_modal_ciclo"] = kwargs.get("abrir_modal_ciclo", False)
+        context["abrir_modal_interessado"] = kwargs.get("abrir_modal_interessado", False)
         context["pode_editar_sistema"] = self.request.user.has_perm("acompanhamento_sistemas.change_sistema")
         context["pode_criar_entrega"] = self.request.user.has_perm("acompanhamento_sistemas.add_entregasistema")
         context["pode_excluir_sistema"] = self.request.user.has_perm("acompanhamento_sistemas.delete_sistema")
@@ -302,6 +323,41 @@ class EntregaSistemaDeleteView(LoginRequiredMixin, PermissionRequiredMixin, Dele
         return reverse("acompanhamento_sistemas_detail", kwargs={"pk": sistema_pk})
 
 
+class EtapaSistemaCalendarioView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    permission_required = ("acompanhamento_sistemas.view_etapasistema",)
+
+    def get(self, request):
+        try:
+            ano = int(request.GET.get("ano", "0"))
+            mes = int(request.GET.get("mes", "0"))
+        except (TypeError, ValueError):
+            return JsonResponse({"results": []})
+
+        if ano <= 0 or mes < 1 or mes > 12:
+            return JsonResponse({"results": []})
+
+        etapas = (
+            EtapaSistema.objects.filter(data_etapa__year=ano, data_etapa__month=mes)
+            .select_related("entrega", "entrega__sistema")
+            .order_by("data_etapa", "entrega__sistema__nome", "entrega__ordem", "ordem", "id")
+        )
+
+        results = [
+            {
+                "id": etapa.pk,
+                "data": etapa.data_etapa.isoformat(),
+                "sistema": etapa.entrega.sistema.nome,
+                "ciclo": etapa.entrega.titulo_com_numeracao,
+                "etapa": etapa.get_tipo_etapa_display(),
+                "status": etapa.status,
+                "status_label": etapa.get_status_display(),
+                "url": reverse("acompanhamento_sistemas_etapa_detail", kwargs={"pk": etapa.pk}),
+            }
+            for etapa in etapas
+        ]
+        return JsonResponse({"results": results})
+
+
 class EtapaSistemaDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
     permission_required = ("acompanhamento_sistemas.view_etapasistema",)
     model = EtapaSistema
@@ -325,7 +381,11 @@ class EtapaSistemaDetailView(LoginRequiredMixin, PermissionRequiredMixin, Detail
         context = super().get_context_data(**kwargs)
         etapa = self.object
         sistema = etapa.entrega.sistema
-        context["historicos"] = _timeline_sistema(sistema)
+        historicos_page = _paginar_itens(self.request, _timeline_etapa(etapa))
+        context["historicos"] = historicos_page.object_list
+        context["historicos_page"] = historicos_page
+        context["timeline_query_param"] = "pagina_timeline"
+        context["etapas_calendario_api_url"] = reverse("acompanhamento_sistemas_etapa_calendario")
         context["etapa_form"] = kwargs.get("etapa_form") or EtapaSistemaAtualizacaoForm(instance=etapa)
         context["nota_form"] = kwargs.get("nota_form") or NotaEtapaSistemaForm()
         context["abrir_modal_nota"] = kwargs.get("abrir_modal_nota", False)
@@ -426,6 +486,12 @@ class InteressadoSistemaCreateView(LoginRequiredMixin, PermissionRequiredMixin, 
         else:
             messages.error(request, "Não foi possível adicionar o interessado.")
             _enfileirar_erros_formulario(request, form)
+            view = SistemaDetailView()
+            view.setup(request, pk=pk)
+            view.object = sistema
+            return view.render_to_response(
+                view.get_context_data(interessado_form=form, abrir_modal_interessado=True)
+            )
         proxima_url = request.POST.get("next") or reverse("acompanhamento_sistemas_detail", kwargs={"pk": sistema.pk})
         return HttpResponseRedirect(proxima_url)
 

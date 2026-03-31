@@ -9,6 +9,8 @@ from django import forms
 import re
 from django.utils import timezone
 
+from usuarios.models import SetorNode
+
 from .models import Encaminhamento, EventoTimeline, Processo
 
 
@@ -62,19 +64,32 @@ class ProcessoForm(forms.ModelForm):
 class EncaminhamentoForm(forms.ModelForm):
     """Formulário de abertura de encaminhamento com controle de prazo."""
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setores_disponiveis = list(
+            SetorNode.objects.select_related("group")
+            .filter(ativo=True, group__isnull=False)
+            .exclude(group__name__iexact="admin")
+            .order_by("group__name")
+        )
+        self._grupos_setor_por_id = {
+            str(setor.group_id): setor.group
+            for setor in self.setores_disponiveis
+            if setor.group_id
+        }
+        self.fields["destino"].choices = [
+            (str(setor.group_id), " / ".join(setor.get_path_labels()))
+            for setor in self.setores_disponiveis
+            if setor.group_id
+        ]
+
     class Meta:
         """Expõe destino e data de prazo com input de data HTML5."""
 
         model = Encaminhamento
         fields = ["destino", "prazo_data", "email_notificacao"]
         widgets = {
-            "destino": forms.TextInput(
-                attrs={
-                    "class": "form-control",
-                    "style": "text-transform: uppercase;",
-                    "oninput": "this.value = this.value.toUpperCase();",
-                }
-            ),
+            "destino": forms.Select(attrs={"class": "form-control"}),
             "prazo_data": forms.DateInput(
                 format="%Y-%m-%d",
                 attrs={"class": "form-control", "type": "date"},
@@ -103,12 +118,13 @@ class EncaminhamentoForm(forms.ModelForm):
         return cleaned_data
 
     def clean_destino(self):
-        """Normaliza e valida destino com apenas letras maiúsculas e espaços."""
+        """Converte o setor selecionado para o nome textual persistido no modelo."""
 
-        destino = (self.cleaned_data.get("destino") or "").strip().upper()
-        if not re.fullmatch(r"[A-ZÀ-ÖØ-Ý\s]+", destino):
-            raise forms.ValidationError("Destino deve conter apenas letras maiúsculas.")
-        return destino
+        destino = str(self.cleaned_data.get("destino") or "").strip()
+        grupo = self._grupos_setor_por_id.get(destino)
+        if not grupo:
+            raise forms.ValidationError("Selecione um setor válido.")
+        return re.sub(r"\s+", " ", (grupo.name or "").strip()).upper()
 
 
 class NotaTimelineForm(forms.ModelForm):

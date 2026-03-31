@@ -12,6 +12,7 @@ urlpatterns = [
     path("entregas/<int:pk>/", views.EntregaSistemaDetailView.as_view(), name="acompanhamento_sistemas_entrega_detail"),
     path("entregas/<int:pk>/editar/", views.EntregaSistemaUpdateView.as_view(), name="acompanhamento_sistemas_entrega_update"),
     path("entregas/<int:pk>/excluir/", views.EntregaSistemaDeleteView.as_view(), name="acompanhamento_sistemas_entrega_delete"),
+    path("etapas/calendario/", views.EtapaSistemaCalendarioView.as_view(), name="acompanhamento_sistemas_etapa_calendario"),
     path("etapas/<int:pk>/", views.EtapaSistemaDetailView.as_view(), name="acompanhamento_sistemas_etapa_detail"),
     path("etapas/<int:pk>/atualizar/", views.EtapaSistemaUpdateView.as_view(), name="acompanhamento_sistemas_etapa_update"),
     path("etapas/<int:pk>/nota/", views.EtapaSistemaNotaView.as_view(), name="acompanhamento_sistemas_etapa_nota"),

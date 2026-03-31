@@ -113,6 +113,12 @@ class UsuarioListViewTests(TestCase):
             email="super.admin@example.com",
             is_superuser=True,
         )
+        self.tmp_user = User.objects.create_user(
+            username="tmpnota",
+            password="senha123",
+            first_name="Tmp",
+            email="tmp@example.com",
+        )
 
     def _get_queryset(self, params=None):
         request = self.factory.get("/usuarios/", data=params or {})
@@ -146,6 +152,43 @@ class UsuarioListViewTests(TestCase):
         queryset = self._get_queryset({"sort": "email", "dir": "desc"})
 
         self.assertEqual(list(queryset[:3]), [self.superuser, self.user_rh, self.user_ti])
+
+    def test_lista_de_usuarios_oculta_contas_tecnicas_tmp_e_smoke(self):
+        queryset = self._get_queryset()
+
+        self.assertNotIn(self.tmp_user, queryset)
+
+
+class UsuariosOcultosFormsTests(TestCase):
+    def test_formulario_de_usuario_exibe_perfil_acompanhamento_de_sistemas(self):
+        usuario_editado = User.objects.create_user(username="usuario_perfis", password="senha123", first_name="Perfis")
+
+        form = UsuarioUpdateForm(instance=usuario_editado)
+        labels = [label for _value, label in form.fields["perfis"].choices]
+
+        self.assertTrue(
+            any(label.startswith("Acompanhamento de Sistemas - ") for label in labels)
+        )
+
+    def test_formulario_de_usuario_nao_lista_superior_tecnico(self):
+        usuario_editado = User.objects.create_user(username="usuario_editado", password="senha123", first_name="Editado")
+        visivel = User.objects.create_user(username="usuario_comum", password="senha123", first_name="Usuario")
+        oculto = User.objects.create_user(username="tmpuser", password="senha123", first_name="Tmp")
+
+        form = UsuarioUpdateForm(instance=usuario_editado)
+
+        self.assertIn(visivel, form.fields["superior_usuario"].queryset)
+        self.assertNotIn(oculto, form.fields["superior_usuario"].queryset)
+
+    def test_formulario_de_grupo_nao_lista_usuario_tecnico(self):
+        visivel = User.objects.create_user(username="grupo_visivel", password="senha123", first_name="Grupo")
+        oculto = User.objects.create_user(username="smokev2", password="senha123", first_name="Smoke")
+        group = Group.objects.create(name="Grupo Teste")
+
+        form = GrupoUpdateForm(instance=group)
+
+        self.assertIn(visivel, form.fields["usuarios"].queryset)
+        self.assertNotIn(oculto, form.fields["usuarios"].queryset)
 
 
 class SetorPermissionBackendTests(TestCase):

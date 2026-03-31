@@ -980,6 +980,7 @@ class ProcessoDetailView(LoginRequiredMixin, DetailView):
         encaminhamento_form = EncaminhamentoForm()
         encaminhamento_form.fields["email_notificacao"].widget.attrs["list"] = "email-notificacao-opcoes"
         context["encaminhamento_form"] = encaminhamento_form
+        context["setores_destino_disponiveis"] = encaminhamento_form.setores_disponiveis
         context["nota_form"] = NotaTimelineForm()
         context["eventos"] = processo.eventos.select_related("usuario", "encaminhamento")
         context["emails_notificacao_sugeridos"] = list(

@@ -152,6 +152,22 @@ PROFILE_DEFINITIONS = {
             ("Administracao", ["view", "add", "change", "delete"]),
         ],
     },
+    "Acompanhamento de Sistemas": {
+        "models": [
+            "acompanhamento_sistemas.Sistema",
+            "acompanhamento_sistemas.EntregaSistema",
+            "acompanhamento_sistemas.EtapaSistema",
+            "acompanhamento_sistemas.HistoricoEtapaSistema",
+            "acompanhamento_sistemas.InteressadoSistema",
+            "acompanhamento_sistemas.InteressadoSistemaManual",
+            "acompanhamento_sistemas.AnexoHistoricoEtapa",
+        ],
+        "levels": [
+            ("Leitura", ["view"]),
+            ("Edicao", ["view", "add", "change"]),
+            ("Administracao", ["view", "add", "change", "delete"]),
+        ],
+    },
     "Monitoramento": {
         "models": [
             "monitoramento.ProjetoMonitoramento",

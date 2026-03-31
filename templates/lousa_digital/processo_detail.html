@@ -44,16 +44,17 @@
         {{ encaminhamento_form.non_field_errors }}
         <p>
           <label for="{{ encaminhamento_form.destino.id_for_label }}">{{ encaminhamento_form.destino.label }}</label>
-          <input
-            type="text"
+          <select
             name="destino"
             id="{{ encaminhamento_form.destino.id_for_label }}"
             class="form-control"
-            maxlength="180"
-            style="text-transform: uppercase;"
-            oninput="this.value = this.value.toUpperCase();"
             {% if processo_arquivo_morto %}disabled{% endif %}
-          />
+          >
+            <option value="">Selecione um setor</option>
+            {% for setor in setores_destino_disponiveis %}
+              <option value="{{ setor.group_id }}">{{ setor.get_path_labels|join:" / " }}</option>
+            {% endfor %}
+          </select>
         </p>
         <p>
           <label for="{{ encaminhamento_form.prazo_data.id_for_label }}">{{ encaminhamento_form.prazo_data.label }}</label>
@@ -114,11 +115,12 @@
                   type="button"
                   class="sala-marcador-chip lousa-marcador-acao"
                   style="--marcador-cor: {{ enc.destino|marcador_cor }};"
-                  title="processo devolvido"
+                  title="{{ enc.destino }}"
+                  aria-label="{{ enc.destino }}"
                   data-devolver-open
                   data-devolver-url="{% url 'lousa_digital_devolver' processo.pk enc.pk %}"
                 >
-                  {{ enc.destino }}
+                  {{ enc.destino|marcador_sigla }}
                 </button>
               {% endif %}
             </article>

@@ -27,11 +27,12 @@
                   type="button"
                   class="sala-marcador-chip lousa-marcador-acao"
                   style="--marcador-cor: {{ enc.destino|marcador_cor }};"
-                  title="processo devolvido"
+                  title="{{ enc.destino }}"
+                  aria-label="{{ enc.destino }}"
                   data-devolver-open
                   data-devolver-url="{% url 'lousa_digital_devolver' processo.pk enc.pk %}"
                 >
-                  {{ enc.destino }}
+                  {{ enc.destino|marcador_sigla }}
                 </button>
                 <span class="lousa-progress-date">{{ enc.prazo_data|date:"d/m/Y" }}</span>
               </div>

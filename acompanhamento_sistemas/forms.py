@@ -3,6 +3,8 @@ from __future__ import annotations
 from django import forms
 from django.contrib.auth import get_user_model
 
+from usuarios.utils import usuarios_visiveis
+
 from .models import EntregaSistema, EtapaSistema, InteressadoSistema, InteressadoSistemaManual, Sistema, TipoInteressado
 from .utils import nome_usuario_exibicao
 
@@ -134,7 +136,7 @@ class NotaEtapaSistemaForm(forms.Form):
 
 class InteressadoSistemaForm(forms.Form):
     usuario = UsuarioDisplayChoiceField(
-        queryset=User.objects.order_by("username"),
+        queryset=usuarios_visiveis(User.objects.order_by("username")),
         required=False,
         label="Usuário existente",
         widget=UsuarioComEmailSelect(attrs={"class": "form-control"}),
@@ -158,7 +160,7 @@ class InteressadoSistemaForm(forms.Form):
     def __init__(self, *args, sistema=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.sistema = sistema
-        self.fields["usuario"].queryset = User.objects.order_by("first_name", "username")
+        self.fields["usuario"].queryset = usuarios_visiveis(User.objects.order_by("first_name", "username"))
 
     def clean(self):
         cleaned_data = super().clean()

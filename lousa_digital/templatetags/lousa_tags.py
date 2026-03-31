@@ -9,6 +9,8 @@ import hashlib
 
 from django import template
 
+from sala_situacao_v2.models import sigla_marcador
+
 
 register = template.Library()
 
@@ -38,3 +40,10 @@ def marcador_cor(valor):
         return DESTINO_PALETA[0]
     indice = int(hashlib.md5(texto.encode("utf-8")).hexdigest(), 16) % len(DESTINO_PALETA)
     return DESTINO_PALETA[indice]
+
+
+@register.filter
+def marcador_sigla(valor):
+    """Retorna a sigla visual do destino usando a mesma regra da Sala de Situacao V2."""
+
+    return sigla_marcador(valor)

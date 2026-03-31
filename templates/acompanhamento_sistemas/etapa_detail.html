@@ -19,7 +19,7 @@
   <div class="acompanhamento-detail-grid acompanhamento-detail-grid--etapa">
     <section class="detail-card acompanhamento-card">
       <h3>Edição da etapa</h3>
-      <p><strong>Entrega:</strong> {{ etapa.entrega.titulo }}</p>
+      <p><strong>Ciclo:</strong> {{ etapa.entrega.titulo_com_numeracao }}</p>
       <p><strong>Prazo relativo:</strong> {{ etapa.expira_em_texto }}</p>
       <p><strong>Tempo desde a etapa anterior:</strong> {{ etapa.tempo_desde_etapa_anterior_em_dias|default:"-" }}</p>
       <p>
@@ -44,7 +44,7 @@
           {% csrf_token %}
           {{ etapa_form.non_field_errors }}
           <p>
-            {{ etapa_form.data_etapa.label_tag }}
+            <label for="{{ etapa_form.data_etapa.id_for_label }}">{{ etapa_form.data_etapa.label }}</label>
             {{ etapa_form.data_etapa }}
             {% if etapa_form.data_etapa.help_text %}
               <span class="helptext">{{ etapa_form.data_etapa.help_text }}</span>
@@ -78,7 +78,7 @@
 
     <section class="detail-card detail-card-tall acompanhamento-card">
       <div class="acompanhamento-timeline-head">
-        <h3>Timeline consolidada do sistema</h3>
+        <h3>Timeline da etapa - {{ etapa.get_tipo_etapa_display }}</h3>
         {% if pode_editar_etapa %}
           <button class="btn" type="button" id="acompanhamento-open-note-modal">Lançar nota</button>
         {% endif %}
@@ -105,9 +105,10 @@
             {% endif %}
           </li>
         {% empty %}
-          <li class="incremento-item">Nenhum histórico consolidado registrado.</li>
+          <li class="incremento-item">Nenhum histórico da etapa registrado.</li>
         {% endfor %}
       </ul>
+      {% include "acompanhamento_sistemas/_timeline_pagination.html" %}
     </section>
   </div>
 
@@ -115,7 +116,7 @@
     <div class="profile-alert-backdrop{% if not abrir_modal_nota %} auth-required-hidden{% endif %}" id="acompanhamento-note-backdrop" aria-hidden="{% if abrir_modal_nota %}false{% else %}true{% endif %}"></div>
     <div class="profile-alert-modal{% if not abrir_modal_nota %} auth-required-hidden{% endif %} acompanhamento-note-modal" id="acompanhamento-note-modal" role="dialog" aria-modal="true" aria-label="Lançar nota da etapa">
       <h3>Lançar nota da etapa</h3>
-      <p class="acompanhamento-note-text">Registre aqui a nota da atualização. Ela será exibida na timeline consolidada do sistema.</p>
+      <p class="acompanhamento-note-text">Registre aqui a nota da atualização. Ela será exibida na timeline desta etapa.</p>
       <form method="post" enctype="multipart/form-data" action="{% url 'acompanhamento_sistemas_etapa_nota' etapa.pk %}" class="acompanhamento-form acompanhamento-note-form">
         {% csrf_token %}
         {{ nota_form.non_field_errors }}
@@ -135,6 +136,43 @@
         </div>
       </form>
     </div>
+
+    <div class="profile-alert-backdrop auth-required-hidden" id="acompanhamento-date-calendar-backdrop" aria-hidden="true"></div>
+    <div
+      class="profile-alert-modal auth-required-hidden acompanhamento-date-calendar-modal"
+      id="acompanhamento-date-calendar-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Selecionar data da etapa"
+    >
+      <div class="calendar-shell acompanhamento-form-calendar-shell" data-calendar-url="{{ etapas_calendario_api_url }}">
+        <div class="calendar-toolbar">
+          <div class="calendar-controls">
+            <strong>Selecionar data da etapa</strong>
+            <span class="acompanhamento-date-calendar-hint">Clique em um dia para preencher o campo e veja todas as etapas agendadas no mês.</span>
+          </div>
+          <div class="calendar-nav">
+            <button class="btn btn-light btn-small" type="button" data-date-calendar-action="today">Hoje</button>
+            <button class="btn btn-light btn-icon" type="button" data-date-calendar-action="prev" aria-label="Voltar">&#8249;</button>
+            <div class="calendar-title" id="acompanhamento-date-calendar-title"></div>
+            <button class="btn btn-light btn-icon" type="button" data-date-calendar-action="next" aria-label="Avançar">&#8250;</button>
+          </div>
+        </div>
+        <div class="calendar-weekdays">
+          <span>Dom</span>
+          <span>Seg</span>
+          <span>Ter</span>
+          <span>Qua</span>
+          <span>Qui</span>
+          <span>Sex</span>
+          <span>Sab</span>
+        </div>
+        <div class="calendar-body calendar-grid" id="acompanhamento-date-calendar-body"></div>
+        <div class="profile-alert-actions acompanhamento-date-calendar-actions">
+          <button class="btn btn-light" type="button" id="acompanhamento-date-calendar-close">Fechar</button>
+        </div>
+      </div>
+    </div>
   {% endif %}
 {% endblock %}
 
@@ -142,14 +180,34 @@
   {% if pode_editar_etapa %}
     <script>
       (() => {
+        const parseDateAny = (value) => {
+          const raw = (value || "").trim();
+          if (!raw) return null;
+          let year;
+          let month;
+          let day;
+          if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+            [year, month, day] = raw.split("-").map((item) => Number(item));
+          } else if (/^\d{2}\/\d{2}\/\d{4}$/.test(raw)) {
+            const parts = raw.split("/");
+            day = Number(parts[0]);
+            month = Number(parts[1]);
+            year = Number(parts[2]);
+          } else {
+            return null;
+          }
+          const date = new Date(year, month - 1, day);
+          if (Number.isNaN(date.getTime())) return null;
+          if (date.getFullYear() !== year || date.getMonth() !== (month - 1) || date.getDate() !== day) return null;
+          return date;
+        };
+
         const openBtn = document.getElementById("acompanhamento-open-note-modal");
         const closeBtn = document.getElementById("acompanhamento-note-cancel");
         const modal = document.getElementById("acompanhamento-note-modal");
         const backdrop = document.getElementById("acompanhamento-note-backdrop");
         const textarea = document.getElementById("id_texto_nota");
-        if (!openBtn || !closeBtn || !modal || !backdrop) return;
-
-        const openModal = () => {
+        const openNoteModal = () => {
           modal.classList.remove("auth-required-hidden");
           backdrop.classList.remove("auth-required-hidden");
           modal.setAttribute("aria-hidden", "false");
@@ -157,19 +215,243 @@
           if (textarea) textarea.focus();
         };
 
-        const closeModal = () => {
+        const closeNoteModal = () => {
           modal.classList.add("auth-required-hidden");
           backdrop.classList.add("auth-required-hidden");
           modal.setAttribute("aria-hidden", "true");
           backdrop.setAttribute("aria-hidden", "true");
         };
 
-        openBtn.addEventListener("click", openModal);
-        closeBtn.addEventListener("click", closeModal);
-        backdrop.addEventListener("click", closeModal);
+        if (openBtn && closeBtn && modal && backdrop) {
+          openBtn.addEventListener("click", openNoteModal);
+          closeBtn.addEventListener("click", closeNoteModal);
+          backdrop.addEventListener("click", closeNoteModal);
+        }
+
+        const dateModal = document.getElementById("acompanhamento-date-calendar-modal");
+        const dateBackdrop = document.getElementById("acompanhamento-date-calendar-backdrop");
+        const dateCloseBtn = document.getElementById("acompanhamento-date-calendar-close");
+        const calendarBody = document.getElementById("acompanhamento-date-calendar-body");
+        const calendarTitle = document.getElementById("acompanhamento-date-calendar-title");
+        const calendarShell = dateModal ? dateModal.querySelector("[data-calendar-url]") : null;
+        const calendarUrl = calendarShell ? (calendarShell.dataset.calendarUrl || "") : "";
+        const locale = "pt-BR";
+        const today = new Date();
+        let currentDate = new Date();
+        let targetInput = null;
+        let etapas = [];
+        let etapaIndex = {};
+
+        const pad = (value) => value.toString().padStart(2, "0");
+        const dateKey = (date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+        const formatDateISO = (date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+        const escapeHtml = (value) =>
+          String(value || "")
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#039;");
+
+        const openDateModal = () => {
+          dateModal.classList.remove("auth-required-hidden");
+          dateBackdrop.classList.remove("auth-required-hidden");
+          dateModal.setAttribute("aria-hidden", "false");
+          dateBackdrop.setAttribute("aria-hidden", "false");
+        };
+
+        const closeDateModal = () => {
+          dateModal.classList.add("auth-required-hidden");
+          dateBackdrop.classList.add("auth-required-hidden");
+          dateModal.setAttribute("aria-hidden", "true");
+          dateBackdrop.setAttribute("aria-hidden", "true");
+        };
+
+        const rebuildIndex = () => {
+          etapaIndex = {};
+          etapas.forEach((etapaItem) => {
+            const key = dateKey(etapaItem.date);
+            if (!etapaIndex[key]) etapaIndex[key] = [];
+            etapaIndex[key].push(etapaItem);
+          });
+        };
+
+        const getEtapasForDate = (date) => etapaIndex[dateKey(date)] || [];
+
+        const setTitle = (date) => {
+          calendarTitle.textContent = date.toLocaleDateString(locale, {
+            month: "long",
+            year: "numeric",
+          });
+        };
+
+        const getStatusColor = (status) => {
+          if (status === "ENTREGUE") return "var(--calendar-entrega-ok, #2e9d44)";
+          if (status === "EM_ANDAMENTO") return "#d97706";
+          return "var(--calendar-entrega-pendente, #c73b2e)";
+        };
+
+        const buildDot = (etapaItem) => {
+          const element = document.createElement("a");
+          element.className = "event-dot";
+          element.href = etapaItem.url;
+          element.target = "_blank";
+          element.rel = "noopener";
+          element.style.setProperty("--event-color", getStatusColor(etapaItem.status));
+
+          const tooltip = document.createElement("span");
+          tooltip.className = "event-tooltip";
+          tooltip.innerHTML = `
+            <strong>${escapeHtml(etapaItem.sistema)}</strong>
+            <span>${escapeHtml(`${etapaItem.ciclo} - ${etapaItem.etapa}`)}</span>
+            <span>${escapeHtml(etapaItem.status_label || "")}</span>
+          `;
+          element.appendChild(tooltip);
+          return element;
+        };
+
+        const selectDate = (date) => {
+          if (!targetInput) return;
+          targetInput.value = formatDateISO(date);
+          targetInput.dispatchEvent(new Event("input", { bubbles: true }));
+          targetInput.dispatchEvent(new Event("change", { bubbles: true }));
+          closeDateModal();
+        };
+
+        const buildCell = (dateObj, label, muted = false) => {
+          const cell = document.createElement("button");
+          cell.type = "button";
+          cell.className = "calendar-cell acompanhamento-date-calendar-cell";
+          if (muted) cell.classList.add("is-muted");
+          if (dateKey(dateObj) === dateKey(today)) cell.classList.add("is-today");
+          if (targetInput && targetInput.value === formatDateISO(dateObj)) cell.classList.add("is-selected-date");
+
+          const header = document.createElement("span");
+          header.className = "day-number";
+          header.textContent = label;
+
+          const body = document.createElement("div");
+          body.className = "day-body";
+
+          const eventos = getEtapasForDate(dateObj);
+          if (eventos.length) {
+            const list = document.createElement("div");
+            list.className = "day-events";
+            eventos.forEach((etapaItem) => list.appendChild(buildDot(etapaItem)));
+            body.appendChild(list);
+          } else {
+            body.textContent = "Sem etapas";
+          }
+
+          cell.appendChild(header);
+          cell.appendChild(body);
+          cell.addEventListener("click", () => selectDate(dateObj));
+          return cell;
+        };
+
+        const renderCalendar = () => {
+          calendarBody.innerHTML = "";
+          setTitle(currentDate);
+
+          const start = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+          const end = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+          const startWeekday = start.getDay();
+          const daysInMonth = end.getDate();
+          const prevMonthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth(), 0).getDate();
+
+          for (let index = startWeekday - 1; index >= 0; index -= 1) {
+            const dateObj = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, prevMonthEnd - index);
+            calendarBody.appendChild(buildCell(dateObj, dateObj.getDate(), true));
+          }
+
+          for (let day = 1; day <= daysInMonth; day += 1) {
+            const dateObj = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+            calendarBody.appendChild(buildCell(dateObj, day));
+          }
+
+          const totalCells = calendarBody.children.length;
+          const nextDays = (7 - (totalCells % 7)) % 7;
+          for (let day = 1; day <= nextDays; day += 1) {
+            const dateObj = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, day);
+            calendarBody.appendChild(buildCell(dateObj, day, true));
+          }
+        };
+
+        const carregarEtapasMes = async (date) => {
+          const params = new URLSearchParams({
+            ano: String(date.getFullYear()),
+            mes: String(date.getMonth() + 1),
+          });
+          const response = await fetch(`${calendarUrl}?${params.toString()}`, {
+            headers: { "X-Requested-With": "XMLHttpRequest" },
+          });
+          if (!response.ok) {
+            etapas = [];
+            rebuildIndex();
+            return;
+          }
+          const payload = await response.json();
+          const lista = Array.isArray(payload.results) ? payload.results : [];
+          etapas = lista.map((item) => ({
+            ...item,
+            date: new Date(`${item.data}T00:00:00`),
+          }));
+          rebuildIndex();
+        };
+
+        const syncAndRender = async () => {
+          await carregarEtapasMes(currentDate);
+          renderCalendar();
+        };
+
+        const openCalendarForField = async (fieldId) => {
+          targetInput = document.getElementById(fieldId);
+          const selectedDate = targetInput ? parseDateAny(targetInput.value) : null;
+          currentDate = selectedDate || new Date();
+          openDateModal();
+          await syncAndRender();
+        };
+
+        if (dateModal && dateBackdrop && dateCloseBtn && calendarBody && calendarTitle && calendarUrl) {
+          const input = document.getElementById("id_data_etapa");
+          if (input) {
+            input.setAttribute("readonly", "readonly");
+
+            input.addEventListener("mousedown", async (event) => {
+              event.preventDefault();
+              await openCalendarForField(input.id);
+            });
+
+            input.addEventListener("keydown", async (event) => {
+              if (event.key === "Enter" || event.key === " " || event.key === "ArrowDown") {
+                event.preventDefault();
+                await openCalendarForField(input.id);
+              }
+            });
+          }
+
+          dateModal.querySelectorAll("[data-date-calendar-action]").forEach((button) => {
+            button.addEventListener("click", async () => {
+              const action = button.getAttribute("data-date-calendar-action");
+              if (action === "today") {
+                currentDate = new Date();
+              } else if (action === "prev") {
+                currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
+              } else if (action === "next") {
+                currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
+              }
+              await syncAndRender();
+            });
+          });
+
+          dateCloseBtn.addEventListener("click", closeDateModal);
+          dateBackdrop.addEventListener("click", closeDateModal);
+        }
+
         document.addEventListener("keydown", (event) => {
-          if (event.key === "Escape" && !modal.classList.contains("auth-required-hidden")) {
-            closeModal();
+          if (event.key === "Escape") {
+            if (modal && !modal.classList.contains("auth-required-hidden")) closeNoteModal();
+            if (dateModal && !dateModal.classList.contains("auth-required-hidden")) closeDateModal();
           }
         });
       })();

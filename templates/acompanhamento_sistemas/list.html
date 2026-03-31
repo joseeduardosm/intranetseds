@@ -17,31 +17,6 @@
     {% endif %}
   </div>
 
-  <section class="detail-card acompanhamento-card">
-    <form method="get" class="acompanhamento-filter-grid">
-      <p>
-        {{ filtro_form.q.label_tag }}
-        {{ filtro_form.q }}
-      </p>
-      <p>
-        {{ filtro_form.etapa.label_tag }}
-        {{ filtro_form.etapa }}
-      </p>
-      <p>
-        {{ filtro_form.status.label_tag }}
-        {{ filtro_form.status }}
-      </p>
-      <p>
-        {{ filtro_form.responsavel.label_tag }}
-        {{ filtro_form.responsavel }}
-      </p>
-      <div class="form-actions">
-        <button class="btn" type="submit">Filtrar</button>
-        <a class="btn btn-light" href="{% url 'acompanhamento_sistemas_list' %}">Limpar</a>
-      </div>
-    </form>
-  </section>
-
   <div class="card-grid card-grid-fixed acompanhamento-card-grid">
     {% for sistema in sistemas %}
       <article class="card card-bloco acompanhamento-card">
@@ -59,6 +34,11 @@
               <span>{{ sistema.progresso_percentual|floatformat:0 }}% concluído</span>
             </div>
 
+            <div class="acompanhamento-card-highlight">
+              <span class="acompanhamento-card-highlight__label">Tempo de atendimento</span>
+              <strong class="acompanhamento-card-highlight__value">{{ sistema.lead_time_texto }}</strong>
+            </div>
+
             <div class="acompanhamento-chip-list">
               {% for entrega in sistema.entregas.all %}
                 <span class="acompanhamento-chip acompanhamento-chip--entrega">
@@ -68,8 +48,12 @@
                 <span class="card-meta">Sem entregas lançadas.</span>
               {% endfor %}
             </div>
+          </div>
+          <div class="card-footer acompanhamento-card-footer">
             {% if sistema.ultimo_historico_em %}
-              <p class="card-meta">Última ação em {{ sistema.ultimo_historico_em|date:"d/m/Y H:i" }}</p>
+              Última ação em {{ sistema.ultimo_historico_em|date:"d/m/Y H:i" }}
+            {% else %}
+              Sistema cadastrado em {{ sistema.criado_em|date:"d/m/Y H:i" }}
             {% endif %}
           </div>
         </a>

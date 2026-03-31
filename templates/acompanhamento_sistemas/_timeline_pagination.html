@@ -1,0 +1,11 @@
+{% if historicos_page and historicos_page.paginator.num_pages > 1 %}
+  <nav class="acompanhamento-pagination" aria-label="Navegação da timeline">
+    {% if historicos_page.has_previous %}
+      <a class="btn btn-light" href="?{{ timeline_query_param }}={{ historicos_page.previous_page_number }}">Anterior</a>
+    {% endif %}
+    <span class="acompanhamento-pagination-info">Página {{ historicos_page.number }} de {{ historicos_page.paginator.num_pages }}</span>
+    {% if historicos_page.has_next %}
+      <a class="btn btn-light" href="?{{ timeline_query_param }}={{ historicos_page.next_page_number }}">Próxima</a>
+    {% endif %}
+  </nav>
+{% endif %}

@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from django.db import models
 from django.urls import reverse
 from django.utils import timezone
+from datetime import datetime, time
 
 
 User = get_user_model()
@@ -85,6 +86,45 @@ class Sistema(models.Model):
             "classe": self.progresso_classe,
         }
 
+    @property
+    def possui_etapas_em_aberto(self) -> bool:
+        return self.entregas.filter(etapas__status__in=[
+            EtapaSistema.Status.PENDENTE,
+            EtapaSistema.Status.EM_ANDAMENTO,
+        ]).exists()
+
+    @property
+    def ultima_data_etapa(self):
+        return (
+            self.entregas.order_by()
+            .values_list("etapas__data_etapa", flat=True)
+            .exclude(etapas__data_etapa__isnull=True)
+            .order_by("-etapas__data_etapa")
+            .first()
+        )
+
+    @property
+    def data_fim_lead_time(self):
+        ultima_data = self.ultima_data_etapa
+        if ultima_data and not self.possui_etapas_em_aberto:
+            return ultima_data
+        return timezone.localdate()
+
+    @property
+    def lead_time_dias(self) -> int:
+        data_inicio = timezone.localtime(self.criado_em).date() if self.criado_em else timezone.localdate()
+        data_fim = self.data_fim_lead_time or timezone.localdate()
+        return max((data_fim - data_inicio).days, 0)
+
+    @property
+    def lead_time_texto(self) -> str:
+        dias = self.lead_time_dias
+        if dias == 0:
+            return "0 dia"
+        if dias == 1:
+            return "1 dia"
+        return f"{dias} dias"
+
 
 class EntregaSistema(models.Model):
     sistema = models.ForeignKey(Sistema, on_delete=models.CASCADE, related_name="entregas")
@@ -120,6 +160,35 @@ class EntregaSistema(models.Model):
     def get_absolute_url(self):
         return reverse("acompanhamento_sistemas_entrega_detail", kwargs={"pk": self.pk})
 
+    def _ciclos_ordenados_no_sistema(self):
+        if not self.sistema_id:
+            return EntregaSistema.objects.none()
+        return self.sistema.entregas.order_by("ordem", "id")
+
+    def numero_no_sistema(self):
+        if not self.pk:
+            return None
+        ids_ordenados = list(self._ciclos_ordenados_no_sistema().values_list("id", flat=True))
+        if self.pk not in ids_ordenados:
+            return None
+        return ids_ordenados.index(self.pk) + 1
+
+    def total_no_sistema(self):
+        return self._ciclos_ordenados_no_sistema().count()
+
+    @property
+    def rotulo_numeracao_no_sistema(self):
+        numero = self.numero_no_sistema()
+        if numero is None:
+            return ""
+        return f"{numero}/{self.total_no_sistema()}"
+
+    @property
+    def titulo_com_numeracao(self):
+        if not self.rotulo_numeracao_no_sistema:
+            return self.titulo
+        return f"{self.rotulo_numeracao_no_sistema} {self.titulo}"
+
     @property
     def progresso_percentual(self) -> float:
         etapas = list(self.etapas.all())
@@ -137,11 +206,60 @@ class EntregaSistema(models.Model):
         return "progresso-verde"
 
     @property
+    def prazo_final_ciclo(self):
+        ultima_data = self.etapas.order_by("-data_etapa", "-ordem", "-id").values_list("data_etapa", flat=True).first()
+        return ultima_data
+
+    @property
+    def progresso_prazo(self) -> float:
+        prazo_final = self.prazo_final_ciclo
+        if not prazo_final:
+            return 0.0
+
+        agora = timezone.now()
+        inicio = self.criado_em
+        if not inicio:
+            inicio = timezone.now()
+
+        if timezone.is_naive(inicio):
+            inicio = timezone.make_aware(inicio, timezone.get_current_timezone())
+
+        fim = timezone.make_aware(
+            datetime.combine(prazo_final, time.max),
+            timezone.get_current_timezone(),
+        )
+
+        if agora <= inicio:
+            return 0.0
+        if fim <= inicio or agora >= fim:
+            return 100.0
+
+        percentual = ((agora - inicio).total_seconds() / (fim - inicio).total_seconds()) * 100
+        return max(0.0, min(round(percentual, 2), 100.0))
+
+    @property
+    def prazo_classe(self) -> str:
+        percentual = self.progresso_prazo
+        if percentual <= 50:
+            return "progresso-vermelho"
+        if percentual <= 75:
+            return "progresso-amarelo"
+        return "progresso-verde"
+
+    @property
     def progresso_snapshot(self) -> dict[str, object]:
         return {
             "titulo": "Evolução da Entrega",
             "percentual": float(self.progresso_percentual or 0),
             "classe": self.progresso_classe,
+        }
+
+    @property
+    def prazo_snapshot(self) -> dict[str, object]:
+        return {
+            "titulo": "Evolução do Prazo",
+            "percentual": float(self.progresso_prazo or 0),
+            "classe": self.prazo_classe,
         }
 
 

@@ -11,6 +11,12 @@
 - ajustado o fluxo de etapas para exigir justificativa em mudanca de status, exigir anexo ao concluir `Requisitos` e avancar automaticamente a proxima etapa para `Em andamento`;
 - adicionados botoes de editar e excluir ciclo, com tela de confirmacao dedicada;
 - integrado o novo modulo aos atalhos administrativos e a navegacao principal do projeto;
+- refinada a linguagem do dominio para `Ciclos`, com numeracao `1/x`, cards proprios, detalhe dedicado e timeline de sistema separada da timeline da etapa;
+- paginadas as timelines do modulo com limite de 6 eventos por pagina, mantendo consolidacao no sistema e historico especifico na etapa;
+- adicionado calendario modal na etapa, mostrando todas as etapas de todos os sistemas no mes, com tooltip de sistema, ciclo e etapa;
+- implementado o `tempo de atendimento` (lead time) do sistema na listagem e reorganizado o card com rodape de `Ultima acao`;
+- reestruturado o corpo dos e-mails para destacar `Conteudo` e `Justificativa`, e removido o log de destinatarios da timeline;
+- incluido `Acompanhamento de Sistemas` na matriz de perfis do modulo `usuarios`;
 - ampliada a cobertura de testes do app para criacao, permissao, timeline, notificacao, anexos, progresso e exclusao.
 
 ## 2026-03-30

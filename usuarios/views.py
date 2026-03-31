@@ -29,6 +29,7 @@ from auditoria.models import AuditLog
 from .forms import GrupoCreateForm, GrupoUpdateForm, UsuarioCreateForm, UsuarioUpdateForm
 from .models import GrantEffect, PermissionResolutionAudit, SetorGrant, SetorNode, UserSetorMembership
 from .permissions import ADMIN_GROUP_NAME, build_profile_matrix, get_profile_permission_ids_map
+from .utils import usuarios_visiveis
 
 
 def _compute_inherited_profile_names_for_group(group: Group | None) -> set[str]:
@@ -162,7 +163,7 @@ class UsuarioListView(StaffOnlyMixin, ListView):
         Retorno:
         - `QuerySet[User]` com `distinct()` quando há filtro por relacionamento.
         """
-        queryset = User.objects.prefetch_related(
+        queryset = usuarios_visiveis(User.objects.prefetch_related(
             "groups",
             Prefetch(
                 "setor_memberships",
@@ -170,7 +171,7 @@ class UsuarioListView(StaffOnlyMixin, ListView):
                     "setor__group__name"
                 ),
             ),
-        ).annotate(
+        )).annotate(
             setor_sort=Coalesce(
                 Case(
                     When(is_superuser=True, then=Value("Admin")),
@@ -587,7 +588,7 @@ class PermissionAuditListView(StaffOnlyMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["users"] = User.objects.order_by("first_name", "username")
+        context["users"] = usuarios_visiveis(User.objects.order_by("first_name", "username"))
         context["selected_user"] = self.request.GET.get("user", "").strip()
         context["selected_permission"] = self.request.GET.get("permission", "").strip()
         return context

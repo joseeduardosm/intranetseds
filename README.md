@@ -21,9 +21,13 @@ Sistema web interno da Secretaria de Desenvolvimento Social (SEDS), construído 
 ## Destaques recentes
 
 - novo app `acompanhamento_sistemas` com cadastro de sistemas, ciclos e etapas fixas de acompanhamento;
-- timeline consolidada por sistema com anotações, anexos e registro automático das transições mais relevantes;
+- timeline consolidada por sistema e timeline específica por etapa, ambas com paginação de 6 eventos por navegação;
 - progresso processual por sistema e por ciclo, seguindo a mesma lógica visual da `sala_situacao_v2`;
+- indicador de `tempo de atendimento` (lead time) do sistema na listagem, calculado da criação até hoje ou até a última etapa concluída;
 - gestão de interessados no nível do sistema, com reaproveitamento de usuários já cadastrados e notificações por e-mail;
+- modal de calendário na etapa com visão mensal de todas as etapas de todos os sistemas;
+- transição automática entre etapas, com obrigatoriedade de anexo ao concluir `Requisitos`;
+- integração do módulo à matriz de perfis do app `usuarios`, permitindo concessão de acesso por Leitura, Edição e Administração;
 - integração do novo módulo com a área de atalhos administrativos.
 
 ## Estrutura do projeto

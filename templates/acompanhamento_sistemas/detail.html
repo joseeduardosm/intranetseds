@@ -12,7 +12,7 @@
     <h2>{{ sistema.nome }}</h2>
   </section>
 
-  <div class="card-actions">
+  <div class="card-actions acompanhamento-card-actions--tight">
     {% if perms.acompanhamento_sistemas.change_sistema %}
       <a class="btn" href="{% url 'acompanhamento_sistemas_update' sistema.pk %}">Editar sistema</a>
     {% endif %}
@@ -46,35 +46,35 @@
       <p><strong>Cadastrado em:</strong> {{ sistema.criado_em|date:"d/m/Y H:i" }}</p>
       <p><strong>Responsável pelo cadastro:</strong> {{ sistema.criado_por|usuario_nome|default:"-" }}</p>
       <div class="lousa-section-divider"></div>
-      <h3>Interessados</h3>
+      <h3 class="acompanhamento-subtitle">Interessados</h3>
       <div class="acompanhamento-lista-curta">
         {% if sistema.interessados.all or sistema.interessados_manuais.all %}
           {% for interessado in sistema.interessados.all %}
             <article class="acompanhamento-item-curto">
-              <div>
-                <strong>{{ interessado.nome_snapshot }}</strong>
+              <div class="acompanhamento-item-curto__conteudo">
+                <strong>{{ interessado.nome_snapshot|primeiros_dois_nomes }}</strong>
                 <span>{{ interessado.get_tipo_interessado_display }} · {{ interessado.email_snapshot|default:"sem e-mail" }}</span>
               </div>
               {% if pode_editar_sistema %}
                 <form method="post" action="{% url 'acompanhamento_sistemas_interessado_remove' sistema.pk interessado.pk %}">
                   {% csrf_token %}
                   <input type="hidden" name="next" value="{{ request.path }}" />
-                  <button class="btn btn-light" type="submit">Remover</button>
+                  <button class="acompanhamento-remove-btn" type="submit" aria-label="Remover interessado" title="Remover interessado">&times;</button>
                 </form>
               {% endif %}
             </article>
           {% endfor %}
           {% for interessado in sistema.interessados_manuais.all %}
             <article class="acompanhamento-item-curto">
-              <div>
-                <strong>{{ interessado.nome }}</strong>
+              <div class="acompanhamento-item-curto__conteudo">
+                <strong>{{ interessado.nome|primeiros_dois_nomes }}</strong>
                 <span>{{ interessado.get_tipo_interessado_display }} · {{ interessado.email }}</span>
               </div>
               {% if pode_editar_sistema %}
                 <form method="post" action="{% url 'acompanhamento_sistemas_interessado_remove' sistema.pk interessado.pk %}">
                   {% csrf_token %}
                   <input type="hidden" name="next" value="{{ request.path }}" />
-                  <button class="btn btn-light" type="submit">Remover</button>
+                  <button class="acompanhamento-remove-btn" type="submit" aria-label="Remover interessado" title="Remover interessado">&times;</button>
                 </form>
               {% endif %}
             </article>
@@ -85,20 +85,8 @@
       </div>
 
       {% if pode_editar_sistema %}
-        <div class="lousa-section-divider"></div>
-        <h3>Adicionar interessado</h3>
-        <form method="post" action="{% url 'acompanhamento_sistemas_interessado_add' sistema.pk %}" class="acompanhamento-form">
-          {% csrf_token %}
-          <input type="hidden" name="next" value="{{ request.path }}" />
-          {{ interessado_form.non_field_errors }}
-          <p>{{ interessado_form.usuario.label_tag }}{{ interessado_form.usuario }}</p>
-          <p>{{ interessado_form.tipo_interessado.label_tag }}{{ interessado_form.tipo_interessado }}</p>
-          <p>{{ interessado_form.nome_manual.label_tag }}{{ interessado_form.nome_manual }}</p>
-          <p>{{ interessado_form.email_manual.label_tag }}{{ interessado_form.email_manual }}</p>
-          <div class="form-actions">
-            <button class="btn" type="submit">Vincular</button>
-          </div>
-        </form>
+        <div class="lousa-section-divider acompanhamento-section-divider--compact"></div>
+        <button class="btn" type="button" id="acompanhamento-open-interessado-modal">Adicionar interessado</button>
       {% endif %}
     </section>
 
@@ -129,6 +117,7 @@
           <li class="incremento-item">Nenhum histórico consolidado registrado.</li>
         {% endfor %}
       </ul>
+      {% include "acompanhamento_sistemas/_timeline_pagination.html" %}
     </section>
   </div>
 
@@ -146,12 +135,12 @@
           <a class="card-link" href="{% url 'acompanhamento_sistemas_entrega_detail' entrega.pk %}">
             <div class="card-body acompanhamento-card-body">
               <div class="acompanhamento-card-top">
-                <h4 class="card-title acompanhamento-card-title">{{ entrega.titulo }}</h4>
+                <h4 class="card-title acompanhamento-card-title">{{ entrega.titulo_com_numeracao }}</h4>
                 {% if entrega.descricao %}
-                  <p class="card-meta acompanhamento-card-description">{{ entrega.descricao|truncatechars:140 }}</p>
+                  <p class="card-meta acompanhamento-card-description">{{ entrega.descricao }}</p>
                 {% endif %}
               </div>
-              {% include "acompanhamento_sistemas/_progresso_simples.html" with item=entrega %}
+              {% include "acompanhamento_sistemas/_progresso_ciclo_duplo.html" with entrega=entrega %}
               <div class="acompanhamento-chip-list">
                 {% for etapa in entrega.etapas.all %}
                   <span class="acompanhamento-chip acompanhamento-chip--{{ etapa.status|lower }}">
@@ -163,7 +152,7 @@
           </a>
         </article>
       {% empty %}
-        <p>Sem entregas cadastradas.</p>
+        <p>Sem ciclos cadastrados.</p>
       {% endfor %}
     </div>
   </section>
@@ -193,6 +182,26 @@
       </form>
     </div>
   {% endif %}
+
+  {% if pode_editar_sistema %}
+    <div class="profile-alert-backdrop{% if not abrir_modal_interessado %} auth-required-hidden{% endif %}" id="acompanhamento-interessado-backdrop" aria-hidden="{% if abrir_modal_interessado %}false{% else %}true{% endif %}"></div>
+    <div class="profile-alert-modal{% if not abrir_modal_interessado %} auth-required-hidden{% endif %} acompanhamento-note-modal" id="acompanhamento-interessado-modal" role="dialog" aria-modal="true" aria-label="Adicionar interessado">
+      <h3>Adicionar interessado</h3>
+      <form method="post" action="{% url 'acompanhamento_sistemas_interessado_add' sistema.pk %}" class="acompanhamento-form acompanhamento-form--compact-top">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.path }}" />
+        {{ interessado_form.non_field_errors }}
+        <p>{{ interessado_form.usuario.label_tag }}{{ interessado_form.usuario }}</p>
+        <p>{{ interessado_form.tipo_interessado.label_tag }}{{ interessado_form.tipo_interessado }}</p>
+        <p>{{ interessado_form.nome_manual.label_tag }}{{ interessado_form.nome_manual }}</p>
+        <p>{{ interessado_form.email_manual.label_tag }}{{ interessado_form.email_manual }}</p>
+        <div class="profile-alert-actions">
+          <button class="btn" type="submit">Vincular</button>
+          <button class="btn btn-secondary" type="button" id="acompanhamento-interessado-cancel">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  {% endif %}
 {% endblock %}
 
 {% block extra_js %}
@@ -215,31 +224,46 @@
         const modal = document.getElementById("acompanhamento-ciclo-modal");
         const backdrop = document.getElementById("acompanhamento-ciclo-backdrop");
         const tituloInput = document.getElementById("id_titulo");
-        if (!openBtn || !closeBtn || !modal || !backdrop) {
-          return;
+        const openInteressadoBtn = document.getElementById("acompanhamento-open-interessado-modal");
+        const closeInteressadoBtn = document.getElementById("acompanhamento-interessado-cancel");
+        const interessadoModal = document.getElementById("acompanhamento-interessado-modal");
+        const interessadoBackdrop = document.getElementById("acompanhamento-interessado-backdrop");
+
+        const openBox = (targetModal, targetBackdrop, focusTarget = null) => {
+          if (!targetModal || !targetBackdrop) return;
+          targetModal.classList.remove("auth-required-hidden");
+          targetBackdrop.classList.remove("auth-required-hidden");
+          targetModal.setAttribute("aria-hidden", "false");
+          targetBackdrop.setAttribute("aria-hidden", "false");
+          if (focusTarget) focusTarget.focus();
+        };
+
+        const closeBox = (targetModal, targetBackdrop) => {
+          if (!targetModal || !targetBackdrop) return;
+          targetModal.classList.add("auth-required-hidden");
+          targetBackdrop.classList.add("auth-required-hidden");
+          targetModal.setAttribute("aria-hidden", "true");
+          targetBackdrop.setAttribute("aria-hidden", "true");
+        };
+
+        if (openBtn && closeBtn && modal && backdrop) {
+          openBtn.addEventListener("click", () => openBox(modal, backdrop, tituloInput));
+          closeBtn.addEventListener("click", () => closeBox(modal, backdrop));
+          backdrop.addEventListener("click", () => closeBox(modal, backdrop));
         }
 
-        const openModal = () => {
-          modal.classList.remove("auth-required-hidden");
-          backdrop.classList.remove("auth-required-hidden");
-          modal.setAttribute("aria-hidden", "false");
-          backdrop.setAttribute("aria-hidden", "false");
-          if (tituloInput) tituloInput.focus();
-        };
+        if (openInteressadoBtn && closeInteressadoBtn && interessadoModal && interessadoBackdrop) {
+          openInteressadoBtn.addEventListener("click", () => openBox(interessadoModal, interessadoBackdrop, usuarioSelect || emailInput));
+          closeInteressadoBtn.addEventListener("click", () => closeBox(interessadoModal, interessadoBackdrop));
+          interessadoBackdrop.addEventListener("click", () => closeBox(interessadoModal, interessadoBackdrop));
+        }
 
-        const closeModal = () => {
-          modal.classList.add("auth-required-hidden");
-          backdrop.classList.add("auth-required-hidden");
-          modal.setAttribute("aria-hidden", "true");
-          backdrop.setAttribute("aria-hidden", "true");
-        };
-
-        openBtn.addEventListener("click", openModal);
-        closeBtn.addEventListener("click", closeModal);
-        backdrop.addEventListener("click", closeModal);
         document.addEventListener("keydown", (event) => {
-          if (event.key === "Escape" && !modal.classList.contains("auth-required-hidden")) {
-            closeModal();
+          if (event.key === "Escape") {
+            if (modal && !modal.classList.contains("auth-required-hidden")) closeBox(modal, backdrop);
+            if (interessadoModal && !interessadoModal.classList.contains("auth-required-hidden")) {
+              closeBox(interessadoModal, interessadoBackdrop);
+            }
           }
         });
       })();

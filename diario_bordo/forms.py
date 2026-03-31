@@ -9,6 +9,8 @@ incrementos.
 from django import forms
 from django.contrib.auth.models import User
 
+from usuarios.utils import usuarios_visiveis
+
 from .models import BlocoTrabalho, Incremento, IncrementoAnexo
 
 
@@ -65,7 +67,7 @@ class BlocoTrabalhoCreateForm(BaseBlocoTrabalhoForm):
     participantes = forms.ModelMultipleChoiceField(
         label="Participantes",
         required=False,
-        queryset=User.objects.order_by("username"),
+        queryset=usuarios_visiveis(User.objects.order_by("username")),
         widget=forms.SelectMultiple(attrs={"class": "form-select"}),
     )
 
@@ -132,7 +134,7 @@ class BlocoTrabalhoUpdateForm(BaseBlocoTrabalhoForm):
     participantes = forms.ModelMultipleChoiceField(
         label="Participantes",
         required=False,
-        queryset=User.objects.order_by("username"),
+        queryset=usuarios_visiveis(User.objects.order_by("username")),
         widget=forms.SelectMultiple(attrs={"class": "form-select"}),
     )
 
