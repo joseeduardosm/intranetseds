@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block container_class %}container-wide{% endblock %}
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/acompanhamento_sistemas/acompanhamento_sistemas.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>{% if modo_ciclo %}Excluir ciclo{% else %}Excluir sistema{% endif %}</h2>
+  </section>
+
+  <section class="detail-card acompanhamento-card">
+    {% if modo_ciclo %}
+      <p>Tem certeza que deseja excluir o ciclo <strong>{{ object.titulo }}</strong>?</p>
+      <p>Esta ação removerá também as etapas, históricos e anexos vinculados a este ciclo.</p>
+    {% else %}
+      <p>Tem certeza que deseja excluir o sistema <strong>{{ object.nome }}</strong>?</p>
+      <p>Esta ação removerá também os ciclos, etapas, históricos, anexos e interessados vinculados.</p>
+    {% endif %}
+
+    <form method="post" class="acompanhamento-form">
+      {% csrf_token %}
+      <div class="form-actions">
+        <button class="btn btn-secondary" type="submit">Confirmar exclusão</button>
+        {% if modo_ciclo %}
+          <a class="btn btn-light" href="{% url 'acompanhamento_sistemas_entrega_detail' object.pk %}">Cancelar</a>
+        {% else %}
+          <a class="btn btn-light" href="{% url 'acompanhamento_sistemas_update' object.pk %}">Cancelar</a>
+        {% endif %}
+      </div>
+    </form>
+  </section>
+{% endblock %}

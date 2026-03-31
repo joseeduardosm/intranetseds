@@ -114,6 +114,17 @@ def can_access_lousa_digital(user) -> bool:
     return bool(getattr(user, "is_authenticated", False))
 
 
+def can_access_acompanhamento_sistemas(user) -> bool:
+    if not getattr(user, "is_authenticated", False):
+        return False
+    return (
+        user.is_superuser
+        or user.has_perm("acompanhamento_sistemas.view_sistema")
+        or user.has_perm("acompanhamento_sistemas.add_sistema")
+        or user.has_perm("acompanhamento_sistemas.change_sistema")
+    )
+
+
 def can_access_usuarios(user) -> bool:
     return bool(getattr(user, "is_authenticated", False) and user.is_staff)
 
@@ -226,6 +237,12 @@ ADMINISTRACAO_NAV_ITEMS = [
         titulo="Lousa Digital",
         url_name="lousa_digital_list",
         visibility_check=can_access_lousa_digital,
+    ),
+    AdministracaoNavItemDefinition(
+        funcionalidade=AtalhoAdministracao.FUNCIONALIDADE_ACOMPANHAMENTO_SISTEMAS,
+        titulo="Acompanhamento de Sistemas",
+        url_name="acompanhamento_sistemas_list",
+        visibility_check=can_access_acompanhamento_sistemas,
     ),
     AdministracaoNavItemDefinition(
         funcionalidade=AtalhoAdministracao.FUNCIONALIDADE_RFS,

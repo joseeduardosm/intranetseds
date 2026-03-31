@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block container_class %}container-wide{% endblock %}
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/acompanhamento_sistemas/acompanhamento_sistemas.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>
+      {% if modo_ciclo %}
+        {% if object %}Editar ciclo{% else %}Novo ciclo{% endif %}
+      {% else %}
+        {% if object %}Editar sistema{% else %}Novo sistema{% endif %}
+      {% endif %}
+    </h2>
+  </section>
+
+  <div class="card-actions">
+    {% if modo_ciclo %}
+      {% if object and pode_excluir_ciclo %}
+        <a class="btn btn-secondary" href="{% url 'acompanhamento_sistemas_entrega_delete' object.pk %}">Excluir ciclo</a>
+      {% endif %}
+      <a class="btn btn-light" href="{% if object %}{% url 'acompanhamento_sistemas_entrega_detail' object.pk %}{% else %}{% url 'acompanhamento_sistemas_list' %}{% endif %}">Voltar</a>
+    {% else %}
+      {% if object and pode_excluir_sistema %}
+        <a class="btn btn-secondary" href="{% url 'acompanhamento_sistemas_delete' object.pk %}">Excluir sistema</a>
+      {% endif %}
+      <a class="btn btn-light" href="{% url 'acompanhamento_sistemas_list' %}">Voltar</a>
+    {% endif %}
+  </div>
+
+  <section class="detail-card acompanhamento-card">
+    <form method="post" class="acompanhamento-form">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      {% if modo_ciclo %}
+        <p>
+          {{ form.titulo.label_tag }}
+          {{ form.titulo }}
+          {% for error in form.titulo.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
+        </p>
+      {% else %}
+        <p>
+          {{ form.nome.label_tag }}
+          {{ form.nome }}
+          {% for error in form.nome.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
+        </p>
+      {% endif %}
+      <p>
+        {{ form.descricao.label_tag }}
+        {{ form.descricao }}
+        {% for error in form.descricao.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
+      </p>
+      {% if not modo_ciclo %}
+        <p>
+          {{ form.url_homologacao.label_tag }}
+          {{ form.url_homologacao }}
+        </p>
+        <p>
+          {{ form.url_producao.label_tag }}
+          {{ form.url_producao }}
+        </p>
+      {% endif %}
+      <div class="form-actions">
+        <button class="btn" type="submit">Salvar</button>
+      </div>
+    </form>
+  </section>
+{% endblock %}

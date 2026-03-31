@@ -52,6 +52,8 @@ urlpatterns = [
     path('sala-de-situacao-old/', include('sala_situacao.urls_old')),
     # App de lousa digital.
     path('lousa-digital/', include('lousa_digital.urls')),
+    # App de acompanhamento de sistemas.
+    path('acompanhamento-sistemas/', include('acompanhamento_sistemas.urls')),
 ]
 
 if settings.DEBUG:

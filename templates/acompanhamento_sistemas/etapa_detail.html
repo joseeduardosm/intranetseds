@@ -1,0 +1,178 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load acompanhamento_tags %}
+
+{% block container_class %}container-wide{% endblock %}
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/acompanhamento_sistemas/acompanhamento_sistemas.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>{{ etapa.entrega.sistema.nome }} · {{ etapa.get_tipo_etapa_display }}</h2>
+  </section>
+
+  <div class="card-actions">
+    <a class="btn btn-light" href="{% url 'acompanhamento_sistemas_detail' etapa.entrega.sistema.pk %}">Voltar ao sistema</a>
+  </div>
+
+  <div class="acompanhamento-detail-grid acompanhamento-detail-grid--etapa">
+    <section class="detail-card acompanhamento-card">
+      <h3>Edição da etapa</h3>
+      <p><strong>Entrega:</strong> {{ etapa.entrega.titulo }}</p>
+      <p><strong>Prazo relativo:</strong> {{ etapa.expira_em_texto }}</p>
+      <p><strong>Tempo desde a etapa anterior:</strong> {{ etapa.tempo_desde_etapa_anterior_em_dias|default:"-" }}</p>
+      <p>
+        <strong>URL de homologação:</strong>
+        {% if etapa.entrega.sistema.url_homologacao %}
+          <a href="{{ etapa.entrega.sistema.url_homologacao }}" target="_blank" rel="noopener">Abrir</a>
+        {% else %}
+          -
+        {% endif %}
+      </p>
+      <p>
+        <strong>URL de produção:</strong>
+        {% if etapa.entrega.sistema.url_producao %}
+          <a href="{{ etapa.entrega.sistema.url_producao }}" target="_blank" rel="noopener">Abrir</a>
+        {% else %}
+          -
+        {% endif %}
+      </p>
+
+      {% if pode_editar_etapa %}
+        <form method="post" enctype="multipart/form-data" action="{% url 'acompanhamento_sistemas_etapa_update' etapa.pk %}" class="acompanhamento-form">
+          {% csrf_token %}
+          {{ etapa_form.non_field_errors }}
+          <p>
+            {{ etapa_form.data_etapa.label_tag }}
+            {{ etapa_form.data_etapa }}
+            {% if etapa_form.data_etapa.help_text %}
+              <span class="helptext">{{ etapa_form.data_etapa.help_text }}</span>
+            {% endif %}
+            {% for error in etapa_form.data_etapa.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
+          </p>
+          <p>
+            {{ etapa_form.status.label_tag }}
+            {{ etapa_form.status }}
+            {% for error in etapa_form.status.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
+          </p>
+          <p>
+            {{ etapa_form.justificativa_status.label_tag }}
+            {{ etapa_form.justificativa_status }}
+            {% for error in etapa_form.justificativa_status.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
+          </p>
+          <p>
+            {{ etapa_form.anexos.label_tag }}
+            {{ etapa_form.anexos }}
+            {% if etapa_form.anexos.help_text %}
+              <span class="helptext">{{ etapa_form.anexos.help_text }}</span>
+            {% endif %}
+            {% for error in etapa_form.anexos.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
+          </p>
+          <div class="form-actions">
+            <button class="btn" type="submit">Salvar atualização</button>
+          </div>
+        </form>
+      {% endif %}
+    </section>
+
+    <section class="detail-card detail-card-tall acompanhamento-card">
+      <div class="acompanhamento-timeline-head">
+        <h3>Timeline consolidada do sistema</h3>
+        {% if pode_editar_etapa %}
+          <button class="btn" type="button" id="acompanhamento-open-note-modal">Lançar nota</button>
+        {% endif %}
+      </div>
+      <ul class="incrementos-timeline">
+        {% for historico in historicos %}
+          <li class="incremento-item">
+            <div class="incremento-meta">
+              <span>{{ historico.timeline_titulo }}</span>
+              <span>{{ historico.get_tipo_evento_display }}</span>
+              <span>{{ historico.criado_em|date:"d/m/Y H:i" }}</span>
+              <span>{{ historico.criado_por|usuario_nome|default:"Sistema" }}</span>
+            </div>
+            <div class="incremento-text">{{ historico.descricao|linebreaksbr }}</div>
+            {% if historico.justificativa %}
+              <p class="card-meta"><strong>Justificativa:</strong> {{ historico.justificativa }}</p>
+            {% endif %}
+            {% if historico.anexos.all %}
+              <div class="acompanhamento-anexos">
+                {% for anexo in historico.anexos.all %}
+                  <a href="{{ anexo.arquivo.url }}" target="_blank" rel="noopener">{{ anexo.nome_exibicao }}</a>
+                {% endfor %}
+              </div>
+            {% endif %}
+          </li>
+        {% empty %}
+          <li class="incremento-item">Nenhum histórico consolidado registrado.</li>
+        {% endfor %}
+      </ul>
+    </section>
+  </div>
+
+  {% if pode_editar_etapa %}
+    <div class="profile-alert-backdrop{% if not abrir_modal_nota %} auth-required-hidden{% endif %}" id="acompanhamento-note-backdrop" aria-hidden="{% if abrir_modal_nota %}false{% else %}true{% endif %}"></div>
+    <div class="profile-alert-modal{% if not abrir_modal_nota %} auth-required-hidden{% endif %} acompanhamento-note-modal" id="acompanhamento-note-modal" role="dialog" aria-modal="true" aria-label="Lançar nota da etapa">
+      <h3>Lançar nota da etapa</h3>
+      <p class="acompanhamento-note-text">Registre aqui a nota da atualização. Ela será exibida na timeline consolidada do sistema.</p>
+      <form method="post" enctype="multipart/form-data" action="{% url 'acompanhamento_sistemas_etapa_nota' etapa.pk %}" class="acompanhamento-form acompanhamento-note-form">
+        {% csrf_token %}
+        {{ nota_form.non_field_errors }}
+        <p>
+          {{ nota_form.texto_nota.label_tag }}
+          {{ nota_form.texto_nota }}
+          {% for error in nota_form.texto_nota.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
+        </p>
+        <p>
+          {{ nota_form.anexos.label_tag }}
+          {{ nota_form.anexos }}
+          {% for error in nota_form.anexos.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
+        </p>
+        <div class="profile-alert-actions">
+          <button class="btn" type="submit">Registrar anotação</button>
+          <button class="btn btn-secondary" type="button" id="acompanhamento-note-cancel">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+  {% if pode_editar_etapa %}
+    <script>
+      (() => {
+        const openBtn = document.getElementById("acompanhamento-open-note-modal");
+        const closeBtn = document.getElementById("acompanhamento-note-cancel");
+        const modal = document.getElementById("acompanhamento-note-modal");
+        const backdrop = document.getElementById("acompanhamento-note-backdrop");
+        const textarea = document.getElementById("id_texto_nota");
+        if (!openBtn || !closeBtn || !modal || !backdrop) return;
+
+        const openModal = () => {
+          modal.classList.remove("auth-required-hidden");
+          backdrop.classList.remove("auth-required-hidden");
+          modal.setAttribute("aria-hidden", "false");
+          backdrop.setAttribute("aria-hidden", "false");
+          if (textarea) textarea.focus();
+        };
+
+        const closeModal = () => {
+          modal.classList.add("auth-required-hidden");
+          backdrop.classList.add("auth-required-hidden");
+          modal.setAttribute("aria-hidden", "true");
+          backdrop.setAttribute("aria-hidden", "true");
+        };
+
+        openBtn.addEventListener("click", openModal);
+        closeBtn.addEventListener("click", closeModal);
+        backdrop.addEventListener("click", closeModal);
+        document.addEventListener("keydown", (event) => {
+          if (event.key === "Escape" && !modal.classList.contains("auth-required-hidden")) {
+            closeModal();
+          }
+        });
+      })();
+    </script>
+  {% endif %}
+{% endblock %}

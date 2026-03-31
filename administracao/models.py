@@ -188,6 +188,7 @@ class AtalhoAdministracao(models.Model):
     FUNCIONALIDADE_SALA_SITUACAO = "sala_situacao"
     FUNCIONALIDADE_SALA_SITUACAO_OLD = "sala_situacao_old"
     FUNCIONALIDADE_LOUSA_DIGITAL = "lousa_digital"
+    FUNCIONALIDADE_ACOMPANHAMENTO_SISTEMAS = "acompanhamento_sistemas"
     FUNCIONALIDADE_RFS = "rfs"
     FUNCIONALIDADE_RH = "rh"
     FUNCIONALIDADE_USUARIOS = "usuarios"
@@ -209,6 +210,7 @@ class AtalhoAdministracao(models.Model):
         (FUNCIONALIDADE_SALA_SITUACAO, "Sala de Situacao"),
         (FUNCIONALIDADE_SALA_SITUACAO_OLD, "Sala de Situacao (Legado)"),
         (FUNCIONALIDADE_LOUSA_DIGITAL, "Lousa Digital"),
+        (FUNCIONALIDADE_ACOMPANHAMENTO_SISTEMAS, "Acompanhamento de Sistemas"),
         (FUNCIONALIDADE_RFS, "RFs"),
         (FUNCIONALIDADE_RH, "RH"),
         (FUNCIONALIDADE_USUARIOS, "Usuarios"),

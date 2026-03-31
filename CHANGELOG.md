@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-03-31
+
+### Acompanhamento de Sistemas
+- criado o novo app `acompanhamento_sistemas`, com cadastro de sistemas, ciclos livres e cinco etapas fixas por ciclo;
+- adicionadas telas de listagem, detalhe do sistema, detalhe do ciclo e detalhe da etapa, com visual alinhado ao restante da intranet;
+- implementada timeline consolidada do sistema, priorizando eventos de negocio, notas livres e anexos;
+- incluida a gestao de interessados no nivel do sistema, com selecao de usuarios existentes, cadastro manual e preenchimento automatico do e-mail ao escolher usuario;
+- criado o indicador processual de progresso para sistemas e ciclos, com barras e cores no mesmo padrao da `sala_situacao_v2`;
+- ajustado o fluxo de etapas para exigir justificativa em mudanca de status, exigir anexo ao concluir `Requisitos` e avancar automaticamente a proxima etapa para `Em andamento`;
+- adicionados botoes de editar e excluir ciclo, com tela de confirmacao dedicada;
+- integrado o novo modulo aos atalhos administrativos e a navegacao principal do projeto;
+- ampliada a cobertura de testes do app para criacao, permissao, timeline, notificacao, anexos, progresso e exclusao.
+
 ## 2026-03-30
 
 ### Home, Atalhos e Noticias

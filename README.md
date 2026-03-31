@@ -13,9 +13,18 @@ Sistema web interno da Secretaria de Desenvolvimento Social (SEDS), construído 
 
 - `usuarios`: gestão de usuários, setores e permissões
 - `sala_situacao`: indicadores, processos e entregas
+- `acompanhamento_sistemas`: governança do ciclo de vida de sistemas com ciclos, etapas, timeline e interessados
 - `administracao`: configurações administrativas do sistema
 - `ramais`: diretório de pessoas e estrutura organizacional
 - `contratos`, `licitacoes`, `diario_bordo`, `noticias`, `reserva_salas`, `monitoramento`, `folha_ponto`, `empresas`, `prepostos`, `auditoria`, `lousa_digital`
+
+## Destaques recentes
+
+- novo app `acompanhamento_sistemas` com cadastro de sistemas, ciclos e etapas fixas de acompanhamento;
+- timeline consolidada por sistema com anotações, anexos e registro automático das transições mais relevantes;
+- progresso processual por sistema e por ciclo, seguindo a mesma lógica visual da `sala_situacao_v2`;
+- gestão de interessados no nível do sistema, com reaproveitamento de usuários já cadastrados e notificações por e-mail;
+- integração do novo módulo com a área de atalhos administrativos.
 
 ## Estrutura do projeto
 

@@ -1,0 +1,340 @@
+.acompanhamento-card {
+  border: 1px solid #d7d4cc;
+  border-radius: 16px;
+  background: #fff;
+  padding: 20px 22px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+}
+
+.acompanhamento-form p {
+  margin: 0 0 14px;
+}
+
+.acompanhamento-form label {
+  display: block;
+  font-weight: 600;
+}
+
+.acompanhamento-form input,
+.acompanhamento-form textarea,
+.acompanhamento-form select {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 1px solid #d7d4cc;
+  border-radius: 10px;
+  margin-top: 6px;
+  background: #fff;
+  color: #1f2937;
+  font-size: 0.96rem;
+  line-height: 1.4;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.acompanhamento-form textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.acompanhamento-form select {
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #6b7280 50%),
+    linear-gradient(135deg, #6b7280 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) calc(50% - 3px),
+    calc(100% - 12px) calc(50% - 3px);
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+  padding-right: 36px;
+}
+
+.acompanhamento-form input[type="file"] {
+  padding: 8px 10px;
+  background: #f8fafc;
+  border-style: dashed;
+  cursor: pointer;
+}
+
+.acompanhamento-form input[type="file"]::file-selector-button {
+  margin-right: 12px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: #d95f02;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.acompanhamento-form input:focus,
+.acompanhamento-form textarea:focus,
+.acompanhamento-form select:focus {
+  outline: none;
+  border-color: #d95f02;
+  box-shadow: 0 0 0 3px rgba(217, 95, 2, 0.14);
+}
+
+.acompanhamento-form .form-error,
+.acompanhamento-form .errorlist,
+.acompanhamento-form .errorlist li {
+  color: #b42318;
+  font-size: 0.88rem;
+}
+
+.acompanhamento-form .errorlist {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+
+.acompanhamento-form .helptext {
+  display: block;
+  margin-top: 6px;
+  color: #6b7280;
+  font-size: 0.86rem;
+}
+
+.acompanhamento-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.acompanhamento-card-grid {
+  margin-top: 18px;
+}
+
+.acompanhamento-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.acompanhamento-card-top {
+  display: grid;
+  gap: 4px;
+}
+
+.acompanhamento-card-title {
+  min-height: 0;
+  max-height: none;
+  margin-bottom: 0;
+}
+
+.acompanhamento-card-description {
+  margin-bottom: 0;
+  line-height: 1.45;
+}
+
+.acompanhamento-card-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: #6b7280;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.acompanhamento-progresso {
+  display: grid;
+  gap: 6px;
+}
+
+.acompanhamento-card h3,
+.acompanhamento-card h4 {
+  margin-top: 0;
+}
+
+.acompanhamento-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.acompanhamento-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #1f2937;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.acompanhamento-chip--pendente {
+  background: #fde2e2;
+  color: #991b1b;
+}
+
+.acompanhamento-chip--em_andamento {
+  background: #fff4cc;
+  color: #92400e;
+}
+
+.acompanhamento-chip--entregue {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.acompanhamento-chip--entrega {
+  background: #eef0f6;
+  color: #24324a;
+}
+
+.acompanhamento-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.acompanhamento-detail-grid--etapa {
+  align-items: start;
+}
+
+.acompanhamento-detail-grid--entrega {
+  grid-template-columns: minmax(280px, 30%) minmax(0, 70%);
+  align-items: start;
+}
+
+.acompanhamento-lista-curta {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.acompanhamento-item-curto {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid #ece7de;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.acompanhamento-item-curto span {
+  display: block;
+  color: #6b7280;
+  font-size: 0.92rem;
+}
+
+.acompanhamento-section-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.acompanhamento-form-inline {
+  margin-bottom: 18px;
+  display: grid;
+  grid-template-columns: 1.2fr 2fr auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.acompanhamento-entrega-card-grid {
+  margin-bottom: 18px;
+}
+
+.acompanhamento-entrega-card .card-body {
+  padding: 16px 18px;
+}
+
+.acompanhamento-entrega + .acompanhamento-entrega {
+  margin-top: 18px;
+}
+
+.acompanhamento-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  background: #fffdfa;
+  border: 1px solid #ece7de;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.acompanhamento-table th,
+.acompanhamento-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #ece7de;
+  text-align: left;
+  vertical-align: top;
+}
+
+.acompanhamento-table th {
+  background: #f7f3ec;
+  font-weight: 700;
+}
+
+.acompanhamento-row--pendente td {
+  background: #fde2e2;
+  color: #991b1b;
+}
+
+.acompanhamento-row--em_andamento td {
+  background: #fff4cc;
+  color: #92400e;
+}
+
+.acompanhamento-row--entregue td {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.acompanhamento-row td a {
+  color: inherit;
+  font-weight: 700;
+}
+
+.acompanhamento-note-form {
+  margin-bottom: 18px;
+}
+
+.acompanhamento-timeline-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.acompanhamento-note-modal {
+  max-width: 560px;
+}
+
+.acompanhamento-note-text {
+  margin: 0 0 14px;
+  color: #6b7280;
+}
+
+.acompanhamento-anexos {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+@media (max-width: 1000px) {
+  .acompanhamento-filter-grid,
+  .acompanhamento-detail-grid,
+  .acompanhamento-form-inline {
+    grid-template-columns: 1fr;
+  }
+
+  .acompanhamento-item-curto {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .acompanhamento-card-summary {
+    flex-direction: column;
+    gap: 4px;
+  }
+}

@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block container_class %}container-wide{% endblock %}
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/acompanhamento_sistemas/acompanhamento_sistemas.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>{{ entrega.titulo }}</h2>
+  </section>
+
+  <div class="card-actions">
+    {% if perms.acompanhamento_sistemas.change_entregasistema %}
+      <a class="btn" href="{% url 'acompanhamento_sistemas_entrega_update' entrega.pk %}">Editar ciclo</a>
+    {% endif %}
+    {% if pode_excluir_ciclo %}
+      <a class="btn btn-secondary" href="{% url 'acompanhamento_sistemas_entrega_delete' entrega.pk %}">Excluir ciclo</a>
+    {% endif %}
+    <a class="btn btn-light" href="{% url 'acompanhamento_sistemas_detail' entrega.sistema.pk %}">Voltar ao sistema</a>
+  </div>
+
+  <div class="acompanhamento-detail-grid acompanhamento-detail-grid--entrega">
+    <section class="detail-card acompanhamento-card">
+      <h3>Resumo do ciclo</h3>
+      {% include "acompanhamento_sistemas/_progresso_simples.html" with item=entrega %}
+      {% if entrega.descricao %}
+        <p><strong>Descrição:</strong> {{ entrega.descricao|linebreaksbr }}</p>
+      {% endif %}
+      <p><strong>Sistema:</strong> <a href="{% url 'acompanhamento_sistemas_detail' entrega.sistema.pk %}">{{ entrega.sistema.nome }}</a></p>
+      <p><strong>Cadastrada em:</strong> {{ entrega.criado_em|date:"d/m/Y H:i" }}</p>
+    </section>
+
+    <section class="detail-card acompanhamento-card">
+      <h3>Etapas do ciclo</h3>
+      <table class="acompanhamento-table">
+        <thead>
+          <tr>
+            <th>Etapa</th>
+            <th>Status</th>
+            <th>Data</th>
+            <th>Tempo entre etapas</th>
+            <th>Prazo relativo</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for etapa in entrega.etapas.all %}
+            <tr class="acompanhamento-row acompanhamento-row--{{ etapa.status|lower }}">
+              <td><a href="{% url 'acompanhamento_sistemas_etapa_detail' etapa.pk %}">{{ etapa.get_tipo_etapa_display }}</a></td>
+              <td>{{ etapa.get_status_display }}</td>
+              <td>{{ etapa.data_etapa|date:"d/m/Y" }}</td>
+              <td>{{ etapa.tempo_desde_etapa_anterior_em_dias|default:"-" }}</td>
+              <td>{{ etapa.expira_em_texto }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  </div>
+{% endblock %}

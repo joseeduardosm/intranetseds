@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block container_class %}container-wide{% endblock %}
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/acompanhamento_sistemas/acompanhamento_sistemas.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Acompanhamento de Sistemas</h2>
+  </section>
+
+  <div class="card-actions">
+    {% if perms.acompanhamento_sistemas.add_sistema %}
+      <a class="btn" href="{% url 'acompanhamento_sistemas_create' %}">Novo sistema</a>
+    {% endif %}
+  </div>
+
+  <section class="detail-card acompanhamento-card">
+    <form method="get" class="acompanhamento-filter-grid">
+      <p>
+        {{ filtro_form.q.label_tag }}
+        {{ filtro_form.q }}
+      </p>
+      <p>
+        {{ filtro_form.etapa.label_tag }}
+        {{ filtro_form.etapa }}
+      </p>
+      <p>
+        {{ filtro_form.status.label_tag }}
+        {{ filtro_form.status }}
+      </p>
+      <p>
+        {{ filtro_form.responsavel.label_tag }}
+        {{ filtro_form.responsavel }}
+      </p>
+      <div class="form-actions">
+        <button class="btn" type="submit">Filtrar</button>
+        <a class="btn btn-light" href="{% url 'acompanhamento_sistemas_list' %}">Limpar</a>
+      </div>
+    </form>
+  </section>
+
+  <div class="card-grid card-grid-fixed acompanhamento-card-grid">
+    {% for sistema in sistemas %}
+      <article class="card card-bloco acompanhamento-card">
+        <a class="card-link" href="{% url 'acompanhamento_sistemas_detail' sistema.pk %}">
+          <div class="card-body acompanhamento-card-body">
+            <div class="acompanhamento-card-top">
+              <h3 class="card-title acompanhamento-card-title">{{ sistema.nome }}</h3>
+              <p class="card-meta acompanhamento-card-description">{{ sistema.descricao|truncatechars:180 }}</p>
+            </div>
+
+            {% include "acompanhamento_sistemas/_progresso_simples.html" with item=sistema %}
+
+            <div class="acompanhamento-card-summary">
+              <span>{{ sistema.entregas.count }} entrega(s)</span>
+              <span>{{ sistema.progresso_percentual|floatformat:0 }}% concluído</span>
+            </div>
+
+            <div class="acompanhamento-chip-list">
+              {% for entrega in sistema.entregas.all %}
+                <span class="acompanhamento-chip acompanhamento-chip--entrega">
+                  {{ entrega.titulo }} · {{ entrega.progresso_percentual|floatformat:0 }}%
+                </span>
+              {% empty %}
+                <span class="card-meta">Sem entregas lançadas.</span>
+              {% endfor %}
+            </div>
+            {% if sistema.ultimo_historico_em %}
+              <p class="card-meta">Última ação em {{ sistema.ultimo_historico_em|date:"d/m/Y H:i" }}</p>
+            {% endif %}
+          </div>
+        </a>
+      </article>
+    {% empty %}
+      <p>Nenhum sistema encontrado.</p>
+    {% endfor %}
+  </div>
+{% endblock %}

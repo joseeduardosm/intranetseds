@@ -1,0 +1,248 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load acompanhamento_tags %}
+
+{% block container_class %}container-wide{% endblock %}
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/acompanhamento_sistemas/acompanhamento_sistemas.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>{{ sistema.nome }}</h2>
+  </section>
+
+  <div class="card-actions">
+    {% if perms.acompanhamento_sistemas.change_sistema %}
+      <a class="btn" href="{% url 'acompanhamento_sistemas_update' sistema.pk %}">Editar sistema</a>
+    {% endif %}
+    {% if pode_excluir_sistema %}
+      <a class="btn btn-secondary" href="{% url 'acompanhamento_sistemas_delete' sistema.pk %}">Excluir sistema</a>
+    {% endif %}
+    <a class="btn btn-light" href="{% url 'acompanhamento_sistemas_list' %}">Voltar</a>
+  </div>
+
+  <div class="acompanhamento-detail-grid">
+    <section class="detail-card acompanhamento-card">
+      <h3>Dados do sistema</h3>
+      {% include "acompanhamento_sistemas/_progresso_simples.html" with item=sistema %}
+      <p><strong>Descrição:</strong> {{ sistema.descricao|linebreaksbr }}</p>
+      <p>
+        <strong>URL de homologação:</strong>
+        {% if sistema.url_homologacao %}
+          <a href="{{ sistema.url_homologacao }}" target="_blank" rel="noopener">{{ sistema.url_homologacao }}</a>
+        {% else %}
+          -
+        {% endif %}
+      </p>
+      <p>
+        <strong>URL de produção:</strong>
+        {% if sistema.url_producao %}
+          <a href="{{ sistema.url_producao }}" target="_blank" rel="noopener">{{ sistema.url_producao }}</a>
+        {% else %}
+          -
+        {% endif %}
+      </p>
+      <p><strong>Cadastrado em:</strong> {{ sistema.criado_em|date:"d/m/Y H:i" }}</p>
+      <p><strong>Responsável pelo cadastro:</strong> {{ sistema.criado_por|usuario_nome|default:"-" }}</p>
+      <div class="lousa-section-divider"></div>
+      <h3>Interessados</h3>
+      <div class="acompanhamento-lista-curta">
+        {% if sistema.interessados.all or sistema.interessados_manuais.all %}
+          {% for interessado in sistema.interessados.all %}
+            <article class="acompanhamento-item-curto">
+              <div>
+                <strong>{{ interessado.nome_snapshot }}</strong>
+                <span>{{ interessado.get_tipo_interessado_display }} · {{ interessado.email_snapshot|default:"sem e-mail" }}</span>
+              </div>
+              {% if pode_editar_sistema %}
+                <form method="post" action="{% url 'acompanhamento_sistemas_interessado_remove' sistema.pk interessado.pk %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="next" value="{{ request.path }}" />
+                  <button class="btn btn-light" type="submit">Remover</button>
+                </form>
+              {% endif %}
+            </article>
+          {% endfor %}
+          {% for interessado in sistema.interessados_manuais.all %}
+            <article class="acompanhamento-item-curto">
+              <div>
+                <strong>{{ interessado.nome }}</strong>
+                <span>{{ interessado.get_tipo_interessado_display }} · {{ interessado.email }}</span>
+              </div>
+              {% if pode_editar_sistema %}
+                <form method="post" action="{% url 'acompanhamento_sistemas_interessado_remove' sistema.pk interessado.pk %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="next" value="{{ request.path }}" />
+                  <button class="btn btn-light" type="submit">Remover</button>
+                </form>
+              {% endif %}
+            </article>
+          {% endfor %}
+        {% else %}
+          <p>Nenhum interessado vinculado.</p>
+        {% endif %}
+      </div>
+
+      {% if pode_editar_sistema %}
+        <div class="lousa-section-divider"></div>
+        <h3>Adicionar interessado</h3>
+        <form method="post" action="{% url 'acompanhamento_sistemas_interessado_add' sistema.pk %}" class="acompanhamento-form">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.path }}" />
+          {{ interessado_form.non_field_errors }}
+          <p>{{ interessado_form.usuario.label_tag }}{{ interessado_form.usuario }}</p>
+          <p>{{ interessado_form.tipo_interessado.label_tag }}{{ interessado_form.tipo_interessado }}</p>
+          <p>{{ interessado_form.nome_manual.label_tag }}{{ interessado_form.nome_manual }}</p>
+          <p>{{ interessado_form.email_manual.label_tag }}{{ interessado_form.email_manual }}</p>
+          <div class="form-actions">
+            <button class="btn" type="submit">Vincular</button>
+          </div>
+        </form>
+      {% endif %}
+    </section>
+
+    <section class="detail-card detail-card-tall acompanhamento-card">
+      <h3>Timeline consolidada do sistema</h3>
+      <ul class="incrementos-timeline">
+        {% for historico in historicos %}
+          <li class="incremento-item">
+            <div class="incremento-meta">
+              <span>{{ historico.timeline_titulo }}</span>
+              <span>{{ historico.get_tipo_evento_display }}</span>
+              <span>{{ historico.criado_em|date:"d/m/Y H:i" }}</span>
+              <span>{{ historico.criado_por|usuario_nome|default:"Sistema" }}</span>
+            </div>
+            <div class="incremento-text">{{ historico.descricao|linebreaksbr }}</div>
+            {% if historico.justificativa %}
+              <p class="card-meta"><strong>Justificativa:</strong> {{ historico.justificativa }}</p>
+            {% endif %}
+            {% if historico.anexos.all %}
+              <div class="acompanhamento-anexos">
+                {% for anexo in historico.anexos.all %}
+                  <a href="{{ anexo.arquivo.url }}" target="_blank" rel="noopener">{{ anexo.nome_exibicao }}</a>
+                {% endfor %}
+              </div>
+            {% endif %}
+          </li>
+        {% empty %}
+          <li class="incremento-item">Nenhum histórico consolidado registrado.</li>
+        {% endfor %}
+      </ul>
+    </section>
+  </div>
+
+  <section class="detail-card acompanhamento-card">
+    <div class="acompanhamento-section-head">
+      <h3>Ciclos</h3>
+      {% if pode_criar_entrega %}
+        <button class="btn" type="button" id="acompanhamento-open-ciclo-modal">Novo Ciclo</button>
+      {% endif %}
+    </div>
+
+    <div class="card-grid card-grid-fixed acompanhamento-entrega-card-grid">
+      {% for entrega in sistema.entregas.all %}
+        <article class="card card-bloco acompanhamento-card acompanhamento-entrega-card">
+          <a class="card-link" href="{% url 'acompanhamento_sistemas_entrega_detail' entrega.pk %}">
+            <div class="card-body acompanhamento-card-body">
+              <div class="acompanhamento-card-top">
+                <h4 class="card-title acompanhamento-card-title">{{ entrega.titulo }}</h4>
+                {% if entrega.descricao %}
+                  <p class="card-meta acompanhamento-card-description">{{ entrega.descricao|truncatechars:140 }}</p>
+                {% endif %}
+              </div>
+              {% include "acompanhamento_sistemas/_progresso_simples.html" with item=entrega %}
+              <div class="acompanhamento-chip-list">
+                {% for etapa in entrega.etapas.all %}
+                  <span class="acompanhamento-chip acompanhamento-chip--{{ etapa.status|lower }}">
+                    {{ etapa.get_tipo_etapa_display }}
+                  </span>
+                {% endfor %}
+              </div>
+            </div>
+          </a>
+        </article>
+      {% empty %}
+        <p>Sem entregas cadastradas.</p>
+      {% endfor %}
+    </div>
+  </section>
+
+  {% if pode_criar_entrega %}
+    <div class="profile-alert-backdrop{% if not abrir_modal_ciclo %} auth-required-hidden{% endif %}" id="acompanhamento-ciclo-backdrop" aria-hidden="{% if abrir_modal_ciclo %}false{% else %}true{% endif %}"></div>
+    <div class="profile-alert-modal{% if not abrir_modal_ciclo %} auth-required-hidden{% endif %} acompanhamento-note-modal" id="acompanhamento-ciclo-modal" role="dialog" aria-modal="true" aria-label="Novo ciclo">
+      <h3>Novo Ciclo</h3>
+      <p class="acompanhamento-note-text">Defina o nome e a descrição do ciclo. As cinco etapas obrigatórias serão criadas automaticamente.</p>
+      <form method="post" action="{% url 'acompanhamento_sistemas_entrega_create' sistema.pk %}" class="acompanhamento-form">
+        {% csrf_token %}
+        {{ entrega_form.non_field_errors }}
+        <p>
+          <label for="{{ entrega_form.titulo.id_for_label }}">Nome do ciclo</label>
+          {{ entrega_form.titulo }}
+          {% for error in entrega_form.titulo.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
+        </p>
+        <p>
+          <label for="{{ entrega_form.descricao.id_for_label }}">Descrição</label>
+          {{ entrega_form.descricao }}
+          {% for error in entrega_form.descricao.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
+        </p>
+        <div class="profile-alert-actions">
+          <button class="btn" type="submit">Novo Ciclo</button>
+          <button class="btn btn-secondary" type="button" id="acompanhamento-ciclo-cancel">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+  {% if pode_editar_sistema or pode_criar_entrega %}
+    <script>
+      (function() {
+        const usuarioSelect = document.getElementById("id_usuario");
+        const emailInput = document.getElementById("id_email_manual");
+        if (usuarioSelect && emailInput) {
+          const sincronizarEmail = () => {
+            const selectedOption = usuarioSelect.options[usuarioSelect.selectedIndex];
+            emailInput.value = selectedOption ? (selectedOption.dataset.email || "") : "";
+          };
+
+          usuarioSelect.addEventListener("change", sincronizarEmail);
+        }
+
+        const openBtn = document.getElementById("acompanhamento-open-ciclo-modal");
+        const closeBtn = document.getElementById("acompanhamento-ciclo-cancel");
+        const modal = document.getElementById("acompanhamento-ciclo-modal");
+        const backdrop = document.getElementById("acompanhamento-ciclo-backdrop");
+        const tituloInput = document.getElementById("id_titulo");
+        if (!openBtn || !closeBtn || !modal || !backdrop) {
+          return;
+        }
+
+        const openModal = () => {
+          modal.classList.remove("auth-required-hidden");
+          backdrop.classList.remove("auth-required-hidden");
+          modal.setAttribute("aria-hidden", "false");
+          backdrop.setAttribute("aria-hidden", "false");
+          if (tituloInput) tituloInput.focus();
+        };
+
+        const closeModal = () => {
+          modal.classList.add("auth-required-hidden");
+          backdrop.classList.add("auth-required-hidden");
+          modal.setAttribute("aria-hidden", "true");
+          backdrop.setAttribute("aria-hidden", "true");
+        };
+
+        openBtn.addEventListener("click", openModal);
+        closeBtn.addEventListener("click", closeModal);
+        backdrop.addEventListener("click", closeModal);
+        document.addEventListener("keydown", (event) => {
+          if (event.key === "Escape" && !modal.classList.contains("auth-required-hidden")) {
+            closeModal();
+          }
+        });
+      })();
+    </script>
+  {% endif %}
+{% endblock %}

@@ -1,0 +1,11 @@
+{% with s=item.progresso_snapshot %}
+  <div class="acompanhamento-progresso">
+    <div class="progresso-linha-topo">
+      <span class="progresso-titulo">{{ s.titulo }}</span>
+      <span class="progresso-valor">{{ s.percentual|floatformat:2 }}%</span>
+    </div>
+    <div class="progresso-barra-bg">
+      <div class="progresso-barra-fill {{ s.classe }}" style="width: {{ s.percentual|floatformat:'2u' }}%;"></div>
+    </div>
+  </div>
+{% endwith %}

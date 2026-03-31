@@ -148,6 +148,7 @@ class HomeAtalhosTests(TestCase):
         self.assertContains(response, "Noticias")
         self.assertContains(response, "Reserva de Salas")
         self.assertContains(response, "Lousa Digital")
+        self.assertContains(response, "Acompanhamento de Sistemas")
         self.assertContains(response, "data-login-popup")
 
     def test_home_mostra_apenas_cards_administrativos_cadastrados_e_ativos(self):
@@ -215,6 +216,7 @@ class HomeAtalhosTests(TestCase):
         self.assertIn(AtalhoAdministracao.FUNCIONALIDADE_PREPOSTOS, funcionalidades)
         self.assertIn(AtalhoAdministracao.FUNCIONALIDADE_FOLHA_PONTO, funcionalidades)
         self.assertIn(AtalhoAdministracao.FUNCIONALIDADE_SALA_SITUACAO, funcionalidades)
+        self.assertIn(AtalhoAdministracao.FUNCIONALIDADE_ACOMPANHAMENTO_SISTEMAS, funcionalidades)
 
 
 class AtalhoAdministracaoFormTests(TestCase):
@@ -229,6 +231,7 @@ class AtalhoAdministracaoFormTests(TestCase):
         self.assertIn(AtalhoAdministracao.FUNCIONALIDADE_SALA_SITUACAO, values)
         self.assertIn(AtalhoAdministracao.FUNCIONALIDADE_ADMINISTRACAO, values)
         self.assertIn(AtalhoAdministracao.FUNCIONALIDADE_SALA_SITUACAO_OLD, values)
+        self.assertIn(AtalhoAdministracao.FUNCIONALIDADE_ACOMPANHAMENTO_SISTEMAS, values)
 
 
 class AtalhoAdministracaoListViewTests(TestCase):
@@ -249,4 +252,5 @@ class AtalhoAdministracaoListViewTests(TestCase):
         self.assertContains(response, "Prepostos")
         self.assertContains(response, "Folha de Ponto")
         self.assertContains(response, "Sala de Situacao")
+        self.assertContains(response, "Acompanhamento de Sistemas")
         self.assertContains(response, "Editar")

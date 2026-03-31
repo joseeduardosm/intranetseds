@@ -85,6 +85,7 @@ INSTALLED_APPS = [
     'sala_situacao.apps.SalaSituacaoConfig',
     'sala_situacao_v2.apps.SalaSituacaoV2Config',
     'lousa_digital.apps.LousaDigitalConfig',
+    'acompanhamento_sistemas.apps.AcompanhamentoSistemasConfig',
 ]
 
 # Pipeline de middlewares (ordem importa).
