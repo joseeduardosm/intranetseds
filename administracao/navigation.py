@@ -117,11 +117,14 @@ def can_access_lousa_digital(user) -> bool:
 def can_access_acompanhamento_sistemas(user) -> bool:
     if not getattr(user, "is_authenticated", False):
         return False
+    from acompanhamento_sistemas.models import InteressadoSistema
+
     return (
         user.is_superuser
         or user.has_perm("acompanhamento_sistemas.view_sistema")
         or user.has_perm("acompanhamento_sistemas.add_sistema")
         or user.has_perm("acompanhamento_sistemas.change_sistema")
+        or InteressadoSistema.objects.filter(usuario=user).exists()
     )
 
 

@@ -5,9 +5,12 @@ from types import SimpleNamespace
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.contrib.contenttypes.models import ContentType
+from django.db import connection
 from django.db.models import OuterRef, Prefetch, Q, Subquery
+from django.db.models.functions import Coalesce, Greatest
 from django.http import Http404, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
@@ -21,11 +24,13 @@ from .forms import (
     EntregaSistemaForm,
     EtapaSistemaAtualizacaoForm,
     InteressadoSistemaForm,
+    NotaSistemaForm,
     NotaEtapaSistemaForm,
     SistemaFiltroForm,
     SistemaForm,
 )
 from .models import (
+    HistoricoSistema,
     EntregaSistema,
     EtapaSistema,
     HistoricoEtapaSistema,
@@ -33,10 +38,70 @@ from .models import (
     InteressadoSistemaManual,
     Sistema,
 )
-from .services import adicionar_nota_etapa, atualizar_etapa_com_historico, criar_entrega_com_etapas
+from .services import adicionar_nota_etapa, adicionar_nota_sistema, atualizar_etapa_com_historico, criar_entrega_com_etapas, publicar_entrega
 
 
 User = get_user_model()
+
+
+def _historico_sistema_disponivel() -> bool:
+    tabela = HistoricoSistema._meta.db_table
+    cache = getattr(_historico_sistema_disponivel, "_cache", None)
+    if cache is None:
+        cache = set(connection.introspection.table_names())
+        _historico_sistema_disponivel._cache = cache
+    return tabela in cache
+
+
+def _usuario_tem_acesso_global_acompanhamento(user) -> bool:
+    if not getattr(user, "is_authenticated", False):
+        return False
+    return (
+        user.is_superuser
+        or user.has_perm("acompanhamento_sistemas.view_sistema")
+        or user.has_perm("acompanhamento_sistemas.add_sistema")
+        or user.has_perm("acompanhamento_sistemas.change_sistema")
+        or user.has_perm("acompanhamento_sistemas.delete_sistema")
+        or user.has_perm("acompanhamento_sistemas.view_entregasistema")
+        or user.has_perm("acompanhamento_sistemas.change_entregasistema")
+        or user.has_perm("acompanhamento_sistemas.view_etapasistema")
+        or user.has_perm("acompanhamento_sistemas.change_etapasistema")
+    )
+
+
+def _usuario_tem_acesso_como_interessado(user) -> bool:
+    return bool(
+        getattr(user, "is_authenticated", False)
+        and InteressadoSistema.objects.filter(usuario=user).exists()
+    )
+
+
+def _usuario_tem_acesso_leitura_acompanhamento(user) -> bool:
+    return _usuario_tem_acesso_global_acompanhamento(user) or _usuario_tem_acesso_como_interessado(user)
+
+
+def _filtrar_sistemas_visiveis_para_usuario(queryset, user):
+    if _usuario_tem_acesso_global_acompanhamento(user):
+        return queryset
+    if not getattr(user, "is_authenticated", False):
+        return queryset.none()
+    return queryset.filter(interessados__usuario=user).distinct()
+
+
+def _filtrar_entregas_visiveis_para_usuario(queryset, user):
+    if _usuario_tem_acesso_global_acompanhamento(user):
+        return queryset
+    if not getattr(user, "is_authenticated", False):
+        return queryset.none()
+    return queryset.filter(sistema__interessados__usuario=user).distinct()
+
+
+def _filtrar_etapas_visiveis_para_usuario(queryset, user):
+    if _usuario_tem_acesso_global_acompanhamento(user):
+        return queryset
+    if not getattr(user, "is_authenticated", False):
+        return queryset.none()
+    return queryset.filter(entrega__sistema__interessados__usuario=user).distinct()
 
 
 def _registrar_auditoria_view(objeto, *, usuario, acao, changes=None):
@@ -56,8 +121,27 @@ def _enfileirar_erros_formulario(request, form):
             messages.error(request, erro)
 
 
+def _eh_historico_avanco_automatico(historico) -> bool:
+    return (
+        getattr(historico, "tipo_evento", "") == HistoricoEtapaSistema.TipoEvento.STATUS
+        and (getattr(historico, "justificativa", "") or "").strip()
+        == "Avanço automático para a próxima etapa após conclusão da etapa anterior."
+    )
+
+
 def _timeline_sistema(sistema):
     itens = []
+    if _historico_sistema_disponivel():
+        historicos_sistema = (
+            sistema.historicos_sistema.select_related("criado_por")
+            .prefetch_related("anexos")
+            .order_by("-criado_em", "-id")
+        )
+        for historico in historicos_sistema:
+            historico.eh_criacao_entrega = False
+            historico.timeline_titulo = f"Sistema {historico.sistema.nome}: Nota"
+            itens.append(historico)
+
     for entrega in sistema.entregas.all():
         itens.append(
             SimpleNamespace(
@@ -75,6 +159,42 @@ def _timeline_sistema(sistema):
             )
         )
 
+    entrega_map = {str(entrega.pk): entrega for entrega in sistema.entregas.all()}
+    audit_logs_entrega = AuditLog.objects.filter(
+        content_type=ContentType.objects.get_for_model(EntregaSistema),
+        object_id__in=list(entrega_map.keys()),
+        action=AuditLog.Action.UPDATE,
+    ).select_related("user")
+    for audit in audit_logs_entrega:
+        changes = audit.changes if isinstance(audit.changes, dict) else {}
+        if not any(campo in changes for campo in ("titulo", "descricao")):
+            continue
+        entrega = entrega_map.get(str(audit.object_id))
+        if entrega is None:
+            continue
+        titulo_anterior, titulo_novo = _valor_anterior_novo_change(changes.get("titulo"), fallback=entrega.titulo)
+        _, descricao_nova = _valor_anterior_novo_change(changes.get("descricao"), fallback=entrega.descricao)
+        descricao = _descricao_evento_edicao_ciclo(
+            titulo_anterior=titulo_anterior,
+            titulo_novo=titulo_novo,
+            descricao_nova=descricao_nova,
+        )
+        itens.append(
+            SimpleNamespace(
+                entrega=entrega,
+                etapa=None,
+                tipo_evento="EDICAO",
+                criado_em=audit.timestamp,
+                criado_por=audit.user,
+                descricao=descricao,
+                justificativa="",
+                anexos=[],
+                eh_criacao_entrega=False,
+                timeline_titulo=f"Ciclo {titulo_novo}: Edicao",
+                get_tipo_evento_display=lambda: "Edicao",
+            )
+        )
+
     historicos = (
         HistoricoEtapaSistema.objects.filter(etapa__entrega__sistema=sistema)
         .exclude(tipo_evento=HistoricoEtapaSistema.TipoEvento.CRIACAO)
@@ -82,6 +202,8 @@ def _timeline_sistema(sistema):
         .prefetch_related("anexos")
     )
     for historico in historicos:
+        if _eh_historico_avanco_automatico(historico):
+            continue
         historico.eh_criacao_entrega = False
         historico.timeline_titulo = f"Ciclo {historico.etapa.entrega.titulo}: {historico.etapa.get_tipo_etapa_display()}"
         itens.append(historico)
@@ -89,13 +211,118 @@ def _timeline_sistema(sistema):
     return sorted(itens, key=lambda item: (item.criado_em, getattr(item, "id", 0)), reverse=True)
 
 
+def _valor_anterior_novo_change(valor, *, fallback=""):
+    if isinstance(valor, (list, tuple)):
+        if len(valor) >= 2:
+            return valor[0] or "", valor[1] or ""
+        if len(valor) == 1:
+            return "", valor[0] or ""
+    if isinstance(valor, str):
+        return "", valor
+    return "", fallback or ""
+
+
+def _descricao_evento_edicao_ciclo(*, titulo_anterior="", titulo_novo="", descricao_nova=""):
+    partes = []
+    if titulo_anterior and titulo_novo and titulo_anterior != titulo_novo:
+        partes.append(f'Ciclo renomeado de "{titulo_anterior}" para "{titulo_novo}".')
+    else:
+        partes.append(f'Ciclo {titulo_novo or titulo_anterior} atualizado.')
+    if descricao_nova:
+        partes.append(f"Descrição atualizada: {descricao_nova}")
+    return " ".join(partes)
+
+
 def _timeline_etapa(etapa):
-    historicos = list(
-        etapa.historicos.select_related("criado_por").prefetch_related("anexos").order_by("-criado_em", "-id")
-    )
+    historicos = []
+    for historico in etapa.historicos.select_related("criado_por").prefetch_related("anexos").order_by("-criado_em", "-id"):
+        if _eh_historico_avanco_automatico(historico):
+            continue
+        historicos.append(historico)
     for historico in historicos:
         historico.timeline_titulo = f"{etapa.entrega.titulo_com_numeracao}: {etapa.get_tipo_etapa_display()}"
-    return historicos
+
+    if etapa.tipo_etapa == EtapaSistema.TipoEtapa.HOMOLOGACAO_REQUISITOS:
+        historicos_requisitos = (
+            HistoricoEtapaSistema.objects.filter(
+                etapa__entrega=etapa.entrega,
+                etapa__tipo_etapa=EtapaSistema.TipoEtapa.REQUISITOS,
+            )
+            .exclude(anexos__isnull=True)
+            .select_related("etapa", "criado_por")
+            .prefetch_related("anexos")
+            .distinct()
+            .order_by("-criado_em", "-id")
+        )
+        for historico_requisitos in historicos_requisitos:
+            prefixo_status = ""
+            if etapa.status == EtapaSistema.Status.EM_ANDAMENTO:
+                prefixo_status = f"{etapa.get_tipo_etapa_display()} em Andamento. "
+            historicos.append(
+                SimpleNamespace(
+                    id=f"requisitos-{historico_requisitos.pk}",
+                    etapa=etapa,
+                    tipo_evento=HistoricoEtapaSistema.TipoEvento.ANEXO,
+                    criado_em=historico_requisitos.criado_em,
+                    criado_por=historico_requisitos.criado_por,
+                    descricao=f"{prefixo_status}Documento de requisitos disponibilizado para a etapa de Homologacao de Requisitos.",
+                    justificativa=historico_requisitos.justificativa,
+                    anexos=historico_requisitos.anexos,
+                    timeline_titulo=f"{etapa.entrega.titulo_com_numeracao}: Requisitos",
+                    get_tipo_evento_display=lambda: "Anexo",
+                )
+            )
+
+    proxima_etapa = (
+        etapa.entrega.etapas.filter(ordem__gt=etapa.ordem)
+        .order_by("ordem", "id")
+        .first()
+    )
+    if proxima_etapa is not None and proxima_etapa.eh_homologacao:
+        historicos_reprovacao = (
+            proxima_etapa.historicos.filter(status_novo=EtapaSistema.Status.REPROVADO)
+            .select_related("criado_por")
+            .prefetch_related("anexos")
+            .order_by("-criado_em", "-id")
+        )
+        for historico_reprovacao in historicos_reprovacao:
+            historicos.append(
+                SimpleNamespace(
+                    id=f"reprovacao-{historico_reprovacao.pk}",
+                    etapa=etapa,
+                    tipo_evento=HistoricoEtapaSistema.TipoEvento.STATUS,
+                    criado_em=historico_reprovacao.criado_em,
+                    criado_por=historico_reprovacao.criado_por,
+                    descricao="Homologação reprovada. Esta etapa retornou para tratamento.",
+                    justificativa=historico_reprovacao.justificativa,
+                    anexos=historico_reprovacao.anexos,
+                    timeline_titulo=f"{etapa.entrega.titulo_com_numeracao}: {proxima_etapa.get_tipo_etapa_display()}",
+                    get_tipo_evento_display=lambda: "Status",
+                )
+            )
+        historicos_aprovacao = (
+            proxima_etapa.historicos.filter(status_novo=EtapaSistema.Status.APROVADO)
+            .select_related("criado_por")
+            .prefetch_related("anexos")
+            .order_by("-criado_em", "-id")
+        )
+        for historico_aprovacao in historicos_aprovacao:
+            historicos.append(
+                SimpleNamespace(
+                    id=f"aprovacao-{historico_aprovacao.pk}",
+                    etapa=etapa,
+                    tipo_evento=HistoricoEtapaSistema.TipoEvento.STATUS,
+                    criado_em=historico_aprovacao.criado_em,
+                    criado_por=historico_aprovacao.criado_por,
+                    descricao="Homologação aprovada. Esta etapa foi validada e o fluxo avançou.",
+                    justificativa=historico_aprovacao.justificativa,
+                    anexos=historico_aprovacao.anexos,
+                    timeline_titulo=f"{etapa.entrega.titulo_com_numeracao}: {proxima_etapa.get_tipo_etapa_display()}",
+                    get_tipo_evento_display=lambda: "Status",
+                )
+            )
+
+    return sorted(historicos, key=lambda item: (item.criado_em, getattr(item, "id", 0)), reverse=True)
 
 
 def _paginar_itens(request, itens, *, query_param="pagina_timeline", por_pagina=6):
@@ -104,8 +331,14 @@ def _paginar_itens(request, itens, *, query_param="pagina_timeline", por_pagina=
     return paginator.get_page(pagina)
 
 
-class SistemaListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
-    permission_required = ("acompanhamento_sistemas.view_sistema",)
+class AcompanhamentoReadAccessMixin(LoginRequiredMixin):
+    def dispatch(self, request, *args, **kwargs):
+        if not _usuario_tem_acesso_leitura_acompanhamento(request.user):
+            raise Http404
+        return super().dispatch(request, *args, **kwargs)
+
+
+class SistemaListView(AcompanhamentoReadAccessMixin, ListView):
     model = Sistema
     template_name = "acompanhamento_sistemas/list.html"
     context_object_name = "sistemas"
@@ -114,20 +347,37 @@ class SistemaListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
         ultimo_historico = HistoricoEtapaSistema.objects.filter(
             etapa__entrega__sistema=OuterRef("pk")
         ).order_by("-criado_em", "-id")
-        queryset = (
-            Sistema.objects.select_related("criado_por", "atualizado_por")
-            .prefetch_related(
-                Prefetch(
-                    "entregas__etapas",
-                    queryset=EtapaSistema.objects.order_by("ordem", "id"),
-                )
+        queryset = Sistema.objects.select_related("criado_por", "atualizado_por").prefetch_related(
+            Prefetch(
+                "entregas__etapas",
+                queryset=EtapaSistema.objects.order_by("ordem", "id"),
             )
-            .annotate(
-                ultimo_historico_em=Subquery(ultimo_historico.values("criado_em")[:1]),
-                ultimo_historico_usuario_id=Subquery(ultimo_historico.values("criado_por_id")[:1]),
-            )
-            .distinct()
         )
+        if _historico_sistema_disponivel():
+            ultimo_historico_sistema = HistoricoSistema.objects.filter(
+                sistema=OuterRef("pk")
+            ).order_by("-criado_em", "-id")
+            queryset = queryset.prefetch_related(
+                "historicos_sistema__criado_por",
+                "historicos_sistema__anexos",
+            ).annotate(
+                ultimo_historico_etapa_em=Subquery(ultimo_historico.values("criado_em")[:1]),
+                ultimo_historico_etapa_usuario_id=Subquery(ultimo_historico.values("criado_por_id")[:1]),
+                ultimo_historico_sistema_em=Subquery(ultimo_historico_sistema.values("criado_em")[:1]),
+                ultimo_historico_sistema_usuario_id=Subquery(ultimo_historico_sistema.values("criado_por_id")[:1]),
+            ).annotate(
+                ultimo_historico_em=Greatest(
+                    Coalesce("ultimo_historico_etapa_em", "criado_em"),
+                    Coalesce("ultimo_historico_sistema_em", "criado_em"),
+                ),
+            )
+        else:
+            queryset = queryset.annotate(
+                ultimo_historico_etapa_em=Subquery(ultimo_historico.values("criado_em")[:1]),
+                ultimo_historico_etapa_usuario_id=Subquery(ultimo_historico.values("criado_por_id")[:1]),
+                ultimo_historico_em=Coalesce(Subquery(ultimo_historico.values("criado_em")[:1]), "criado_em"),
+            )
+        queryset = _filtrar_sistemas_visiveis_para_usuario(queryset.distinct(), self.request.user)
         q = (self.request.GET.get("q") or "").strip()
         etapa = (self.request.GET.get("etapa") or "").strip()
         status = (self.request.GET.get("status") or "").strip()
@@ -139,7 +389,10 @@ class SistemaListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
         if status:
             queryset = queryset.filter(entregas__etapas__status=status)
         if responsavel and responsavel.isdigit():
-            queryset = queryset.filter(ultimo_historico_usuario_id=int(responsavel))
+            filtro_responsavel = Q(ultimo_historico_etapa_usuario_id=int(responsavel))
+            if _historico_sistema_disponivel():
+                filtro_responsavel |= Q(ultimo_historico_sistema_usuario_id=int(responsavel))
+            queryset = queryset.filter(filtro_responsavel)
         return queryset.order_by("nome").distinct()
 
     def get_context_data(self, **kwargs):
@@ -147,8 +400,48 @@ class SistemaListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
         responsaveis = usuarios_visiveis(User.objects.filter(
             pk__in=HistoricoEtapaSistema.objects.exclude(criado_por__isnull=True).values_list("criado_por_id", flat=True)
         )).order_by("first_name", "username")
+        sistemas = list(context["sistemas"])
         context["filtro_form"] = SistemaFiltroForm(self.request.GET or None, responsaveis=responsaveis)
         context["pode_editar_sistema"] = self.request.user.has_perm("acompanhamento_sistemas.change_sistema")
+        context["dashboard"] = {
+            "total": len(sistemas),
+            "com_atraso": sum(
+                1
+                for sistema in sistemas
+                if any(
+                    etapa.prazo_marcador and etapa.prazo_marcador["classe"] == "atrasado"
+                    for entrega in sistema.entregas.all()
+                    for etapa in entrega.etapas.all()
+                )
+            ),
+            "com_atencao": sum(
+                1
+                for sistema in sistemas
+                if any(
+                    etapa.prazo_marcador and etapa.prazo_marcador["classe"] == "atencao"
+                    for entrega in sistema.entregas.all()
+                    for etapa in entrega.etapas.all()
+                )
+            ),
+            "com_retomada": sum(
+                1
+                for sistema in sistemas
+                if any(
+                    etapa.marcadores_historicos
+                    for entrega in sistema.entregas.all()
+                    for etapa in entrega.etapas.all()
+                )
+            ),
+            "aguardando_homologacao": sum(
+                1
+                for sistema in sistemas
+                if any(
+                    etapa.eh_homologacao and etapa.status_exibicao in {"Em andamento", "Reprovado"}
+                    for entrega in sistema.entregas.all()
+                    for etapa in entrega.etapas.all()
+                )
+            ),
+        }
         return context
 
 
@@ -200,30 +493,33 @@ class SistemaDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView)
         return reverse("acompanhamento_sistemas_list")
 
 
-class SistemaDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
-    permission_required = ("acompanhamento_sistemas.view_sistema",)
+class SistemaDetailView(AcompanhamentoReadAccessMixin, DetailView):
     model = Sistema
     template_name = "acompanhamento_sistemas/detail.html"
     context_object_name = "sistema"
 
     def get_queryset(self):
-        return Sistema.objects.prefetch_related(
+        queryset = Sistema.objects.prefetch_related(
             "interessados__usuario",
             "interessados_manuais",
             Prefetch("entregas", queryset=EntregaSistema.objects.prefetch_related("etapas").order_by("ordem", "id")),
         )
+        return _filtrar_sistemas_visiveis_para_usuario(queryset, self.request.user)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         sistema = self.object
         context["entrega_form"] = kwargs.get("entrega_form") or EntregaSistemaForm()
         context["interessado_form"] = kwargs.get("interessado_form") or InteressadoSistemaForm(sistema=sistema)
+        context["nota_sistema_form"] = kwargs.get("nota_sistema_form") or NotaSistemaForm()
         historicos_page = _paginar_itens(self.request, _timeline_sistema(sistema))
         context["historicos"] = historicos_page.object_list
         context["historicos_page"] = historicos_page
         context["timeline_query_param"] = "pagina_timeline"
         context["abrir_modal_ciclo"] = kwargs.get("abrir_modal_ciclo", False)
         context["abrir_modal_interessado"] = kwargs.get("abrir_modal_interessado", False)
+        context["abrir_modal_nota_sistema"] = kwargs.get("abrir_modal_nota_sistema", False)
+        context["historico_sistema_disponivel"] = _historico_sistema_disponivel()
         context["pode_editar_sistema"] = self.request.user.has_perm("acompanhamento_sistemas.change_sistema")
         context["pode_criar_entrega"] = self.request.user.has_perm("acompanhamento_sistemas.add_entregasistema")
         context["pode_excluir_sistema"] = self.request.user.has_perm("acompanhamento_sistemas.delete_sistema")
@@ -261,23 +557,30 @@ class EntregaSistemaCreateView(LoginRequiredMixin, PermissionRequiredMixin, View
         raise Http404
 
 
-class EntregaSistemaDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
-    permission_required = ("acompanhamento_sistemas.view_entregasistema",)
+class EntregaSistemaDetailView(AcompanhamentoReadAccessMixin, DetailView):
     model = EntregaSistema
     template_name = "acompanhamento_sistemas/entrega_detail.html"
     context_object_name = "entrega"
 
     def get_queryset(self):
-        return EntregaSistema.objects.select_related(
+        queryset = EntregaSistema.objects.select_related(
             "sistema",
             "criado_por",
             "atualizado_por",
         ).prefetch_related(
-            Prefetch("etapas", queryset=EtapaSistema.objects.order_by("ordem", "id"))
+            Prefetch(
+                "etapas",
+                queryset=EtapaSistema.objects.order_by("ordem", "id").prefetch_related("historicos"),
+            )
         )
+        return _filtrar_entregas_visiveis_para_usuario(queryset, self.request.user)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context["pode_publicar_ciclo"] = (
+            self.request.user.has_perm("acompanhamento_sistemas.change_entregasistema")
+            and self.object.status == EntregaSistema.Status.RASCUNHO
+        )
         context["pode_editar_sistema"] = self.request.user.has_perm("acompanhamento_sistemas.change_sistema")
         context["pode_excluir_ciclo"] = self.request.user.has_perm("acompanhamento_sistemas.delete_entregasistema")
         return context
@@ -291,11 +594,17 @@ class EntregaSistemaUpdateView(LoginRequiredMixin, PermissionRequiredMixin, Upda
 
     def form_valid(self, form):
         form.instance.atualizado_por = self.request.user
+        entrega_original = EntregaSistema.objects.get(pk=self.object.pk)
+        titulo_anterior = entrega_original.titulo
+        descricao_anterior = entrega_original.descricao
         _registrar_auditoria_view(
             self.object,
             usuario=self.request.user,
             acao=AuditLog.Action.UPDATE,
-            changes={"titulo": form.cleaned_data.get("titulo"), "descricao": form.cleaned_data.get("descricao")},
+            changes={
+                "titulo": [titulo_anterior, form.cleaned_data.get("titulo")],
+                "descricao": [descricao_anterior, form.cleaned_data.get("descricao")],
+            },
         )
         messages.success(self.request, "Ciclo atualizado com sucesso.")
         return super().form_valid(form)
@@ -323,8 +632,30 @@ class EntregaSistemaDeleteView(LoginRequiredMixin, PermissionRequiredMixin, Dele
         return reverse("acompanhamento_sistemas_detail", kwargs={"pk": sistema_pk})
 
 
-class EtapaSistemaCalendarioView(LoginRequiredMixin, PermissionRequiredMixin, View):
-    permission_required = ("acompanhamento_sistemas.view_etapasistema",)
+class EntregaSistemaPublishView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    permission_required = ("acompanhamento_sistemas.change_entregasistema",)
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.has_perm("acompanhamento_sistemas.change_entregasistema"):
+            return self.handle_no_permission()
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, request, pk):
+        entrega = get_object_or_404(EntregaSistema.objects.prefetch_related("etapas"), pk=pk)
+        try:
+            publicar_entrega(entrega, usuario=request.user, request=request)
+        except ValidationError as exc:
+            for mensagem in exc.messages:
+                messages.error(request, mensagem)
+        else:
+            messages.success(request, "Ciclo publicado com sucesso.")
+        return redirect("acompanhamento_sistemas_entrega_detail", pk=entrega.pk)
+
+    def handle_no_permission(self):
+        raise Http404
+
+
+class EtapaSistemaCalendarioView(AcompanhamentoReadAccessMixin, View):
 
     def get(self, request):
         try:
@@ -341,6 +672,7 @@ class EtapaSistemaCalendarioView(LoginRequiredMixin, PermissionRequiredMixin, Vi
             .select_related("entrega", "entrega__sistema")
             .order_by("data_etapa", "entrega__sistema__nome", "entrega__ordem", "ordem", "id")
         )
+        etapas = _filtrar_etapas_visiveis_para_usuario(etapas, request.user)
 
         results = [
             {
@@ -358,14 +690,13 @@ class EtapaSistemaCalendarioView(LoginRequiredMixin, PermissionRequiredMixin, Vi
         return JsonResponse({"results": results})
 
 
-class EtapaSistemaDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
-    permission_required = ("acompanhamento_sistemas.view_etapasistema",)
+class EtapaSistemaDetailView(AcompanhamentoReadAccessMixin, DetailView):
     model = EtapaSistema
     template_name = "acompanhamento_sistemas/etapa_detail.html"
     context_object_name = "etapa"
 
     def get_queryset(self):
-        return EtapaSistema.objects.select_related(
+        queryset = EtapaSistema.objects.select_related(
             "entrega",
             "entrega__sistema",
             "criado_por",
@@ -373,14 +704,18 @@ class EtapaSistemaDetailView(LoginRequiredMixin, PermissionRequiredMixin, Detail
         ).prefetch_related(
             "historicos__criado_por",
             "historicos__anexos",
+            "entrega__etapas__historicos",
             "entrega__sistema__interessados__usuario",
             "entrega__sistema__interessados_manuais",
         )
+        return _filtrar_etapas_visiveis_para_usuario(queryset, self.request.user)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         etapa = self.object
         sistema = etapa.entrega.sistema
+        ciclo_publicado = etapa.entrega.status == EntregaSistema.Status.PUBLICADO
+        pode_editar_etapa = self.request.user.has_perm("acompanhamento_sistemas.change_etapasistema")
         historicos_page = _paginar_itens(self.request, _timeline_etapa(etapa))
         context["historicos"] = historicos_page.object_list
         context["historicos_page"] = historicos_page
@@ -390,7 +725,10 @@ class EtapaSistemaDetailView(LoginRequiredMixin, PermissionRequiredMixin, Detail
         context["nota_form"] = kwargs.get("nota_form") or NotaEtapaSistemaForm()
         context["abrir_modal_nota"] = kwargs.get("abrir_modal_nota", False)
         context["interessado_form"] = kwargs.get("interessado_form") or InteressadoSistemaForm(sistema=sistema)
-        context["pode_editar_etapa"] = self.request.user.has_perm("acompanhamento_sistemas.change_etapasistema")
+        context["pode_editar_etapa"] = pode_editar_etapa
+        context["ciclo_publicado"] = ciclo_publicado
+        context["pode_alterar_status_etapa"] = pode_editar_etapa and ciclo_publicado
+        context["pode_lancar_nota_etapa"] = pode_editar_etapa and ciclo_publicado
         context["pode_editar_sistema"] = self.request.user.has_perm("acompanhamento_sistemas.change_sistema")
         return context
 
@@ -408,16 +746,26 @@ class EtapaSistemaUpdateView(LoginRequiredMixin, PermissionRequiredMixin, View):
         form = EtapaSistemaAtualizacaoForm(request.POST, request.FILES, instance=etapa)
         if form.is_valid():
             etapa_atual = EtapaSistema.objects.get(pk=etapa.pk)
-            atualizar_etapa_com_historico(
-                etapa_atual,
-                nova_data=form.cleaned_data["data_etapa"],
-                novo_status=form.cleaned_data["status"],
-                justificativa=form.cleaned_data.get("justificativa_status"),
-                texto_nota=form.cleaned_data.get("texto_nota"),
-                anexos=form.cleaned_data.get("anexos"),
-                usuario=request.user,
-                request=request,
-            )
+            try:
+                atualizar_etapa_com_historico(
+                    etapa_atual,
+                    nova_data=form.cleaned_data["data_etapa"],
+                    novo_status=form.cleaned_data["status"],
+                    justificativa=form.cleaned_data.get("justificativa_status"),
+                    texto_nota=form.cleaned_data.get("texto_nota"),
+                    anexos=form.cleaned_data.get("anexos"),
+                    usuario=request.user,
+                    request=request,
+                )
+            except ValidationError as exc:
+                messages.error(request, "Não foi possível atualizar a etapa.")
+                for mensagem in exc.messages:
+                    form.add_error(None, mensagem)
+                    messages.error(request, mensagem)
+                view = EtapaSistemaDetailView()
+                view.setup(request, pk=pk)
+                view.object = etapa
+                return view.render_to_response(view.get_context_data(etapa_form=form))
             messages.success(request, "Etapa atualizada com sucesso.")
             return redirect("acompanhamento_sistemas_etapa_detail", pk=etapa_atual.pk)
         messages.error(request, "Não foi possível atualizar a etapa.")
@@ -441,15 +789,28 @@ class EtapaSistemaNotaView(LoginRequiredMixin, PermissionRequiredMixin, View):
 
     def post(self, request, pk):
         etapa = get_object_or_404(EtapaSistema, pk=pk)
+        if etapa.entrega.status != EntregaSistema.Status.PUBLICADO:
+            messages.error(request, "Comentários e anexos da etapa só podem ser lançados após a publicação do ciclo.")
+            return redirect("acompanhamento_sistemas_etapa_detail", pk=etapa.pk)
         form = NotaEtapaSistemaForm(request.POST, request.FILES)
         if form.is_valid():
-            adicionar_nota_etapa(
-                etapa,
-                texto=form.cleaned_data.get("texto_nota"),
-                anexos=form.cleaned_data.get("anexos"),
-                usuario=request.user,
-                request=request,
-            )
+            try:
+                adicionar_nota_etapa(
+                    etapa,
+                    texto=form.cleaned_data.get("texto_nota"),
+                    anexos=form.cleaned_data.get("anexos"),
+                    usuario=request.user,
+                    request=request,
+                )
+            except ValidationError as exc:
+                messages.error(request, "Não foi possível registrar a anotação.")
+                for mensagem in exc.messages:
+                    form.add_error(None, mensagem)
+                    messages.error(request, mensagem)
+                view = EtapaSistemaDetailView()
+                view.setup(request, pk=pk)
+                view.object = etapa
+                return view.render_to_response(view.get_context_data(nota_form=form, abrir_modal_nota=True))
             messages.success(request, "Anotação registrada com sucesso.")
             return redirect("acompanhamento_sistemas_etapa_detail", pk=etapa.pk)
         messages.error(request, "Não foi possível registrar a anotação.")
@@ -494,6 +855,41 @@ class InteressadoSistemaCreateView(LoginRequiredMixin, PermissionRequiredMixin, 
             )
         proxima_url = request.POST.get("next") or reverse("acompanhamento_sistemas_detail", kwargs={"pk": sistema.pk})
         return HttpResponseRedirect(proxima_url)
+
+    def handle_no_permission(self):
+        raise Http404
+
+
+class SistemaNotaView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    permission_required = ("acompanhamento_sistemas.change_sistema",)
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.has_perm("acompanhamento_sistemas.change_sistema"):
+            return self.handle_no_permission()
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, request, pk):
+        sistema = get_object_or_404(Sistema, pk=pk)
+        if not _historico_sistema_disponivel():
+            messages.error(request, "A anotação do sistema estará disponível após aplicar a migration pendente do módulo.")
+            return redirect("acompanhamento_sistemas_detail", pk=sistema.pk)
+        form = NotaSistemaForm(request.POST, request.FILES)
+        if form.is_valid():
+            adicionar_nota_sistema(
+                sistema,
+                texto=form.cleaned_data.get("texto_nota"),
+                anexos=form.cleaned_data.get("anexos"),
+                usuario=request.user,
+                request=request,
+            )
+            messages.success(request, "Anotação do sistema registrada com sucesso.")
+            return redirect("acompanhamento_sistemas_detail", pk=sistema.pk)
+        messages.error(request, "Não foi possível registrar a anotação do sistema.")
+        _enfileirar_erros_formulario(request, form)
+        view = SistemaDetailView()
+        view.setup(request, pk=pk)
+        view.object = sistema
+        return view.render_to_response(view.get_context_data(nota_sistema_form=form, abrir_modal_nota_sistema=True))
 
     def handle_no_permission(self):
         raise Http404

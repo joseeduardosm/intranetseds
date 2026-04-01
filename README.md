@@ -25,10 +25,12 @@ Sistema web interno da Secretaria de Desenvolvimento Social (SEDS), construído 
 - progresso processual por sistema e por ciclo, seguindo a mesma lógica visual da `sala_situacao_v2`;
 - indicador de `tempo de atendimento` (lead time) do sistema na listagem, calculado da criação até hoje ou até a última etapa concluída;
 - gestão de interessados no nível do sistema, com reaproveitamento de usuários já cadastrados e notificações por e-mail;
+- acesso contextual por interessado interno, dashboard executivo, marcadores de prazo e stepper horizontal do ciclo no `acompanhamento_sistemas`;
 - modal de calendário na etapa com visão mensal de todas as etapas de todos os sistemas;
 - transição automática entre etapas, com obrigatoriedade de anexo ao concluir `Requisitos`;
 - integração do módulo à matriz de perfis do app `usuarios`, permitindo concessão de acesso por Leitura, Edição e Administração;
 - integração do novo módulo com a área de atalhos administrativos.
+- reorganização do `Termo de Referência 25` em `licitacoes`, com inserção de novos blocos técnicos de infraestrutura a partir de arquivos em `docs/`.
 
 ## Estrutura do projeto
 

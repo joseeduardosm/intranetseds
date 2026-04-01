@@ -91,7 +91,12 @@
     </section>
 
     <section class="detail-card detail-card-tall acompanhamento-card">
-      <h3>Timeline consolidada do sistema</h3>
+      <div class="acompanhamento-timeline-head">
+        <h3>Timeline consolidada do sistema</h3>
+        {% if pode_editar_sistema and historico_sistema_disponivel %}
+          <button class="btn" type="button" id="acompanhamento-open-sistema-note-modal">Lançar nota</button>
+        {% endif %}
+      </div>
       <ul class="incrementos-timeline">
         {% for historico in historicos %}
           <li class="incremento-item">
@@ -184,6 +189,32 @@
   {% endif %}
 
   {% if pode_editar_sistema %}
+    {% if historico_sistema_disponivel %}
+    <div class="profile-alert-backdrop{% if not abrir_modal_nota_sistema %} auth-required-hidden{% endif %}" id="acompanhamento-sistema-note-backdrop" aria-hidden="{% if abrir_modal_nota_sistema %}false{% else %}true{% endif %}"></div>
+    <div class="profile-alert-modal{% if not abrir_modal_nota_sistema %} auth-required-hidden{% endif %} acompanhamento-note-modal" id="acompanhamento-sistema-note-modal" role="dialog" aria-modal="true" aria-label="Lançar nota do sistema">
+      <h3>Lançar nota do sistema</h3>
+      <p class="acompanhamento-note-text">Registre aqui uma anotação geral do sistema. Ela será exibida na timeline consolidada e enviada aos interessados.</p>
+      <form method="post" enctype="multipart/form-data" action="{% url 'acompanhamento_sistemas_nota' sistema.pk %}" class="acompanhamento-form acompanhamento-form--compact-top">
+        {% csrf_token %}
+        {{ nota_sistema_form.non_field_errors }}
+        <p>
+          {{ nota_sistema_form.texto_nota.label_tag }}
+          {{ nota_sistema_form.texto_nota }}
+          {% for error in nota_sistema_form.texto_nota.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
+        </p>
+        <p>
+          {{ nota_sistema_form.anexos.label_tag }}
+          {{ nota_sistema_form.anexos }}
+          {% for error in nota_sistema_form.anexos.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
+        </p>
+        <div class="profile-alert-actions">
+          <button class="btn" type="submit">Registrar anotação</button>
+          <button class="btn btn-secondary" type="button" id="acompanhamento-sistema-note-cancel">Cancelar</button>
+        </div>
+      </form>
+    </div>
+    {% endif %}
+
     <div class="profile-alert-backdrop{% if not abrir_modal_interessado %} auth-required-hidden{% endif %}" id="acompanhamento-interessado-backdrop" aria-hidden="{% if abrir_modal_interessado %}false{% else %}true{% endif %}"></div>
     <div class="profile-alert-modal{% if not abrir_modal_interessado %} auth-required-hidden{% endif %} acompanhamento-note-modal" id="acompanhamento-interessado-modal" role="dialog" aria-modal="true" aria-label="Adicionar interessado">
       <h3>Adicionar interessado</h3>
@@ -228,6 +259,11 @@
         const closeInteressadoBtn = document.getElementById("acompanhamento-interessado-cancel");
         const interessadoModal = document.getElementById("acompanhamento-interessado-modal");
         const interessadoBackdrop = document.getElementById("acompanhamento-interessado-backdrop");
+        const openSistemaNoteBtn = document.getElementById("acompanhamento-open-sistema-note-modal");
+        const closeSistemaNoteBtn = document.getElementById("acompanhamento-sistema-note-cancel");
+        const sistemaNoteModal = document.getElementById("acompanhamento-sistema-note-modal");
+        const sistemaNoteBackdrop = document.getElementById("acompanhamento-sistema-note-backdrop");
+        const sistemaNoteTextarea = sistemaNoteModal ? sistemaNoteModal.querySelector("textarea") : null;
 
         const openBox = (targetModal, targetBackdrop, focusTarget = null) => {
           if (!targetModal || !targetBackdrop) return;
@@ -258,11 +294,20 @@
           interessadoBackdrop.addEventListener("click", () => closeBox(interessadoModal, interessadoBackdrop));
         }
 
+        if (openSistemaNoteBtn && closeSistemaNoteBtn && sistemaNoteModal && sistemaNoteBackdrop) {
+          openSistemaNoteBtn.addEventListener("click", () => openBox(sistemaNoteModal, sistemaNoteBackdrop, sistemaNoteTextarea));
+          closeSistemaNoteBtn.addEventListener("click", () => closeBox(sistemaNoteModal, sistemaNoteBackdrop));
+          sistemaNoteBackdrop.addEventListener("click", () => closeBox(sistemaNoteModal, sistemaNoteBackdrop));
+        }
+
         document.addEventListener("keydown", (event) => {
           if (event.key === "Escape") {
             if (modal && !modal.classList.contains("auth-required-hidden")) closeBox(modal, backdrop);
             if (interessadoModal && !interessadoModal.classList.contains("auth-required-hidden")) {
               closeBox(interessadoModal, interessadoBackdrop);
+            }
+            if (sistemaNoteModal && !sistemaNoteModal.classList.contains("auth-required-hidden")) {
+              closeBox(sistemaNoteModal, sistemaNoteBackdrop);
             }
           }
         });

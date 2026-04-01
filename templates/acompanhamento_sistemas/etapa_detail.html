@@ -14,18 +14,40 @@
 
   <div class="card-actions">
     <a class="btn btn-light" href="{% url 'acompanhamento_sistemas_detail' etapa.entrega.sistema.pk %}">Voltar ao sistema</a>
+    <a class="btn btn-light" href="{% url 'acompanhamento_sistemas_entrega_detail' etapa.entrega.pk %}">Voltar ao ciclo</a>
   </div>
 
   <div class="acompanhamento-detail-grid acompanhamento-detail-grid--etapa">
     <section class="detail-card acompanhamento-card">
       <h3>Edição da etapa</h3>
       <p><strong>Ciclo:</strong> {{ etapa.entrega.titulo_com_numeracao }}</p>
-      <p><strong>Prazo relativo:</strong> {{ etapa.expira_em_texto }}</p>
+      <p>
+        <strong>Status do ciclo:</strong>
+        <span class="acompanhamento-status-badge acompanhamento-status-badge--{{ etapa.entrega.status|lower }}">{{ etapa.entrega.get_status_display }}</span>
+      </p>
+      <div class="acompanhamento-etapa-status-inline">
+        <p><strong>Status da etapa:</strong> {{ etapa.status_exibicao }}</p>
+        {% if etapa.marcadores_historicos %}
+          <div class="acompanhamento-marcadores acompanhamento-marcadores--detail-inline">
+            {% for marcador in etapa.marcadores_historicos %}
+              <span class="acompanhamento-marcador acompanhamento-marcador--{{ marcador.classe }}">{{ marcador.label }}</span>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+      <div class="acompanhamento-etapa-status-inline">
+        <p><strong>Prazo relativo:</strong> {{ etapa.expira_em_texto }}</p>
+        {% if etapa.prazo_marcador %}
+          <div class="acompanhamento-marcadores acompanhamento-marcadores--detail-inline">
+            <span class="acompanhamento-marcador acompanhamento-marcador--prazo-{{ etapa.prazo_marcador.classe }}">{{ etapa.prazo_marcador.label }}</span>
+          </div>
+        {% endif %}
+      </div>
       <p><strong>Tempo desde a etapa anterior:</strong> {{ etapa.tempo_desde_etapa_anterior_em_dias|default:"-" }}</p>
       <p>
         <strong>URL de homologação:</strong>
         {% if etapa.entrega.sistema.url_homologacao %}
-          <a href="{{ etapa.entrega.sistema.url_homologacao }}" target="_blank" rel="noopener">Abrir</a>
+          <a href="{{ etapa.entrega.sistema.url_homologacao }}" target="_blank" rel="noopener">{{ etapa.entrega.sistema.url_homologacao }}</a>
         {% else %}
           -
         {% endif %}
@@ -33,7 +55,7 @@
       <p>
         <strong>URL de produção:</strong>
         {% if etapa.entrega.sistema.url_producao %}
-          <a href="{{ etapa.entrega.sistema.url_producao }}" target="_blank" rel="noopener">Abrir</a>
+          <a href="{{ etapa.entrega.sistema.url_producao }}" target="_blank" rel="noopener">{{ etapa.entrega.sistema.url_producao }}</a>
         {% else %}
           -
         {% endif %}
@@ -43,6 +65,9 @@
         <form method="post" enctype="multipart/form-data" action="{% url 'acompanhamento_sistemas_etapa_update' etapa.pk %}" class="acompanhamento-form">
           {% csrf_token %}
           {{ etapa_form.non_field_errors }}
+          {% if not ciclo_publicado %}
+            <p class="card-meta">Enquanto o ciclo estiver em rascunho, apenas a data da etapa pode ser alterada. Status, comentários e anexos serão liberados após a publicação.</p>
+          {% endif %}
           <p>
             <label for="{{ etapa_form.data_etapa.id_for_label }}">{{ etapa_form.data_etapa.label }}</label>
             {{ etapa_form.data_etapa }}
@@ -51,24 +76,28 @@
             {% endif %}
             {% for error in etapa_form.data_etapa.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
           </p>
-          <p>
-            {{ etapa_form.status.label_tag }}
-            {{ etapa_form.status }}
-            {% for error in etapa_form.status.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
-          </p>
-          <p>
-            {{ etapa_form.justificativa_status.label_tag }}
-            {{ etapa_form.justificativa_status }}
-            {% for error in etapa_form.justificativa_status.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
-          </p>
-          <p>
-            {{ etapa_form.anexos.label_tag }}
-            {{ etapa_form.anexos }}
-            {% if etapa_form.anexos.help_text %}
-              <span class="helptext">{{ etapa_form.anexos.help_text }}</span>
-            {% endif %}
-            {% for error in etapa_form.anexos.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
-          </p>
+          {% if pode_alterar_status_etapa %}
+            <p>
+              {{ etapa_form.status.label_tag }}
+              {{ etapa_form.status }}
+              {% for error in etapa_form.status.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
+            </p>
+            <p>
+              {{ etapa_form.justificativa_status.label_tag }}
+              {{ etapa_form.justificativa_status }}
+              {% for error in etapa_form.justificativa_status.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
+            </p>
+            <p>
+              {{ etapa_form.anexos.label_tag }}
+              {{ etapa_form.anexos }}
+              {% if etapa_form.anexos.help_text %}
+                <span class="helptext">{{ etapa_form.anexos.help_text }}</span>
+              {% endif %}
+              {% for error in etapa_form.anexos.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
+            </p>
+          {% else %}
+            <input type="hidden" name="{{ etapa_form.status.html_name }}" value="{{ etapa.status }}" />
+          {% endif %}
           <div class="form-actions">
             <button class="btn" type="submit">Salvar atualização</button>
           </div>
@@ -79,7 +108,7 @@
     <section class="detail-card detail-card-tall acompanhamento-card">
       <div class="acompanhamento-timeline-head">
         <h3>Timeline da etapa - {{ etapa.get_tipo_etapa_display }}</h3>
-        {% if pode_editar_etapa %}
+        {% if pode_lancar_nota_etapa %}
           <button class="btn" type="button" id="acompanhamento-open-note-modal">Lançar nota</button>
         {% endif %}
       </div>
@@ -112,7 +141,7 @@
     </section>
   </div>
 
-  {% if pode_editar_etapa %}
+  {% if pode_lancar_nota_etapa %}
     <div class="profile-alert-backdrop{% if not abrir_modal_nota %} auth-required-hidden{% endif %}" id="acompanhamento-note-backdrop" aria-hidden="{% if abrir_modal_nota %}false{% else %}true{% endif %}"></div>
     <div class="profile-alert-modal{% if not abrir_modal_nota %} auth-required-hidden{% endif %} acompanhamento-note-modal" id="acompanhamento-note-modal" role="dialog" aria-modal="true" aria-label="Lançar nota da etapa">
       <h3>Lançar nota da etapa</h3>
@@ -137,6 +166,9 @@
       </form>
     </div>
 
+  {% endif %}
+
+  {% if pode_editar_etapa %}
     <div class="profile-alert-backdrop auth-required-hidden" id="acompanhamento-date-calendar-backdrop" aria-hidden="true"></div>
     <div
       class="profile-alert-modal auth-required-hidden acompanhamento-date-calendar-modal"
@@ -399,8 +431,42 @@
           rebuildIndex();
         };
 
+        const carregarEtapasVisiveis = async (date) => {
+          const referencias = [
+            new Date(date.getFullYear(), date.getMonth() - 1, 1),
+            new Date(date.getFullYear(), date.getMonth(), 1),
+            new Date(date.getFullYear(), date.getMonth() + 1, 1),
+          ];
+          const chavesCarregadas = new Set();
+          const resultados = await Promise.all(
+            referencias.map(async (referencia) => {
+              const chave = `${referencia.getFullYear()}-${referencia.getMonth() + 1}`;
+              if (chavesCarregadas.has(chave)) return [];
+              chavesCarregadas.add(chave);
+              const params = new URLSearchParams({
+                ano: String(referencia.getFullYear()),
+                mes: String(referencia.getMonth() + 1),
+              });
+              const response = await fetch(`${calendarUrl}?${params.toString()}`, {
+                headers: { "X-Requested-With": "XMLHttpRequest" },
+              });
+              if (!response.ok) return [];
+              const payload = await response.json();
+              return Array.isArray(payload.results) ? payload.results : [];
+            })
+          );
+
+          etapas = resultados
+            .flat()
+            .map((item) => ({
+              ...item,
+              date: new Date(`${item.data}T00:00:00`),
+            }));
+          rebuildIndex();
+        };
+
         const syncAndRender = async () => {
-          await carregarEtapasMes(currentDate);
+          await carregarEtapasVisiveis(currentDate);
           renderCalendar();
         };
 

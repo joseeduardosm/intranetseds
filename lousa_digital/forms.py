@@ -78,7 +78,7 @@ class EncaminhamentoForm(forms.ModelForm):
             if setor.group_id
         }
         self.fields["destino"].choices = [
-            (str(setor.group_id), " / ".join(setor.get_path_labels()))
+            (str(setor.group_id), (setor.group.name or "").strip())
             for setor in self.setores_disponiveis
             if setor.group_id
         ]

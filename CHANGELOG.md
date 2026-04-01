@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-04-01
+
+### Acompanhamento de Sistemas
+- liberado acesso contextual de leitura para usuarios internos vinculados como interessados, restringindo a visualizacao aos sistemas em que participam;
+- adicionado dashboard executivo na listagem do modulo, com resumoes operacionais para acompanhamento rapido dos sistemas;
+- incluidos marcadores de prazo `Em dia`, `Atencao` e `Atrasado` ao lado do prazo relativo de etapas e ciclos;
+- criado stepper horizontal no detalhe do ciclo, melhorando a leitura do fluxo atual e das transicoes entre etapas;
+- refinado o comportamento das homologacoes, com comunicacao visual de retomada, historico de reprovacoes/aprovacoes e retorno controlado do fluxo;
+- ajustada a timeline para espelhar eventos relevantes entre etapa anterior e homologacao, removendo ruidos tecnicos;
+- tornado o envio de e-mails assincrono no pos-commit, reduzindo o tempo de resposta em atualizacoes de etapa, notas e publicacao de ciclo.
+
+### Licitacoes
+- reorganizado o `Termo de Referencia 25` com insercao e renumeracao de blocos tecnicos de infraestrutura e continuidade;
+- substituidos os subitens de `3.5.6.1 Sistema de Energia` pelo conteudo tecnico atualizado;
+- inseridos os blocos `Storage`, `Servidor de Armazenamento`, `Switches de Agregacao`, `Switches de Borda`, `FIREWALL`, `Ferramenta de Backup`, `Ferramenta de Replicacao bidirecional do Banco de Dados`, `Politica de Backup, Continuidade de Negocios e Recuperacao de Desastres` e `Especificacoes e Volumetria de Servidores Virtuais`;
+- ajustada a numeracao dos itens subsequentes do termo para acomodar os novos blocos sem duplicidade de secoes.
+
 ## 2026-03-31
 
 ### Acompanhamento de Sistemas

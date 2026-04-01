@@ -1,15 +1,49 @@
 from __future__ import annotations
 
+import calendar
 import os
 
 from django.contrib.auth import get_user_model
 from django.db import models
 from django.urls import reverse
 from django.utils import timezone
-from datetime import datetime, time
+from datetime import date, datetime, time
 
 
 User = get_user_model()
+
+
+def _adicionar_meses(data_base: date, meses: int) -> date:
+    total_meses = (data_base.year * 12 + (data_base.month - 1)) + meses
+    ano = total_meses // 12
+    mes = (total_meses % 12) + 1
+    ultimo_dia = calendar.monthrange(ano, mes)[1]
+    dia = min(data_base.day, ultimo_dia)
+    return date(ano, mes, dia)
+
+
+def _componentes_periodo(inicio: date, fim: date) -> tuple[int, int, int]:
+    if fim <= inicio:
+        return 0, 0, max((fim - inicio).days, 0)
+
+    anos = fim.year - inicio.year
+    cursor = _adicionar_meses(inicio, anos * 12)
+    if cursor > fim:
+        anos -= 1
+        cursor = _adicionar_meses(inicio, anos * 12)
+
+    meses = (fim.year - cursor.year) * 12 + (fim.month - cursor.month)
+    cursor_meses = _adicionar_meses(cursor, meses)
+    if cursor_meses > fim:
+        meses -= 1
+        cursor_meses = _adicionar_meses(cursor, meses)
+
+    dias = max((fim - cursor_meses).days, 0)
+    return anos, meses, dias
+
+
+def _pluralizar(valor: int, singular: str, plural: str) -> str:
+    return f"{valor} {singular if valor == 1 else plural}"
 
 
 class TipoInteressado(models.TextChoices):
@@ -118,18 +152,31 @@ class Sistema(models.Model):
 
     @property
     def lead_time_texto(self) -> str:
-        dias = self.lead_time_dias
-        if dias == 0:
-            return "0 dia"
-        if dias == 1:
-            return "1 dia"
-        return f"{dias} dias"
+        data_inicio = timezone.localtime(self.criado_em).date() if self.criado_em else timezone.localdate()
+        data_fim = self.data_fim_lead_time or timezone.localdate()
+        anos, meses, dias = _componentes_periodo(data_inicio, data_fim)
+
+        if anos > 0:
+            return ", ".join(
+                [
+                    _pluralizar(anos, "ano", "anos"),
+                    f"{_pluralizar(meses, 'mês', 'meses')} e {_pluralizar(dias, 'dia', 'dias')}",
+                ]
+            )
+        if meses > 0:
+            return f"{_pluralizar(meses, 'mês', 'meses')} e {_pluralizar(dias, 'dia', 'dias')}"
+        return _pluralizar(dias, "dia", "dias")
 
 
 class EntregaSistema(models.Model):
+    class Status(models.TextChoices):
+        RASCUNHO = "RASCUNHO", "Rascunho"
+        PUBLICADO = "PUBLICADO", "Publicado"
+
     sistema = models.ForeignKey(Sistema, on_delete=models.CASCADE, related_name="entregas")
     titulo = models.CharField(max_length=180)
     descricao = models.TextField(blank=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.RASCUNHO)
     ordem = models.PositiveIntegerField(default=1)
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
@@ -207,7 +254,12 @@ class EntregaSistema(models.Model):
 
     @property
     def prazo_final_ciclo(self):
-        ultima_data = self.etapas.order_by("-data_etapa", "-ordem", "-id").values_list("data_etapa", flat=True).first()
+        ultima_data = (
+            self.etapas.exclude(data_etapa__isnull=True)
+            .order_by("-data_etapa", "-ordem", "-id")
+            .values_list("data_etapa", flat=True)
+            .first()
+        )
         return ultima_data
 
     @property
@@ -262,6 +314,15 @@ class EntregaSistema(models.Model):
             "classe": self.prazo_classe,
         }
 
+    @property
+    def etapa_atual(self):
+        return self.etapas.exclude(
+            status__in=[
+                EtapaSistema.Status.ENTREGUE,
+                EtapaSistema.Status.APROVADO,
+            ]
+        ).order_by("ordem", "id").first() or self.etapas.order_by("-ordem", "-id").first()
+
 
 class EtapaSistema(models.Model):
     class TipoEtapa(models.TextChoices):
@@ -275,10 +336,12 @@ class EtapaSistema(models.Model):
         PENDENTE = "PENDENTE", "Pendente"
         EM_ANDAMENTO = "EM_ANDAMENTO", "Em andamento"
         ENTREGUE = "ENTREGUE", "Entregue"
+        APROVADO = "APROVADO", "Aprovado"
+        REPROVADO = "REPROVADO", "Reprovado"
 
     entrega = models.ForeignKey(EntregaSistema, on_delete=models.CASCADE, related_name="etapas")
     tipo_etapa = models.CharField(max_length=40, choices=TipoEtapa.choices)
-    data_etapa = models.DateField()
+    data_etapa = models.DateField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDENTE)
     ordem = models.PositiveIntegerField(default=1)
     tempo_desde_etapa_anterior_em_dias = models.IntegerField(null=True, blank=True)
@@ -314,10 +377,14 @@ class EtapaSistema(models.Model):
 
     @property
     def expira_em_dias(self) -> int:
+        if not self.data_etapa:
+            return 0
         return (self.data_etapa - timezone.localdate()).days
 
     @property
     def expira_em_texto(self) -> str:
+        if not self.data_etapa:
+            return "Data nao definida"
         dias = self.expira_em_dias
         if dias == 0:
             return "Expira hoje"
@@ -326,13 +393,126 @@ class EtapaSistema(models.Model):
         return f"Expirou ha {abs(dias)} dia(s)"
 
     @property
+    def prazo_marcador(self) -> dict[str, str] | None:
+        if not self.data_etapa:
+            return None
+        if self.status in {self.Status.ENTREGUE, self.Status.APROVADO}:
+            return None
+        dias = self.expira_em_dias
+        if dias < 0:
+            return {"label": "Atrasado", "classe": "atrasado"}
+        if dias <= 2:
+            return {"label": "Atenção", "classe": "atencao"}
+        return {"label": "Em dia", "classe": "em_dia"}
+
+    @property
     def progresso_percentual(self) -> float:
         mapa = {
             self.Status.PENDENTE: 0.0,
             self.Status.EM_ANDAMENTO: 50.0,
             self.Status.ENTREGUE: 100.0,
+            self.Status.APROVADO: 100.0,
+            self.Status.REPROVADO: 0.0,
         }
         return mapa.get(self.status, 0.0)
+
+    @property
+    def eh_homologacao(self) -> bool:
+        return self.tipo_etapa in {
+            self.TipoEtapa.HOMOLOGACAO_REQUISITOS,
+            self.TipoEtapa.HOMOLOGACAO_DESENVOLVIMENTO,
+        }
+
+    @property
+    def status_exibicao(self) -> str:
+        if self.eh_homologacao:
+            if self.status == self.Status.EM_ANDAMENTO:
+                return self.Status.EM_ANDAMENTO.label
+            if self.status == self.Status.PENDENTE:
+                ultimo_status_relevante = next(
+                    (
+                        historico.status_novo
+                        for historico in self._historicos_lista()
+                        if historico.status_novo in {self.Status.APROVADO, self.Status.REPROVADO}
+                    ),
+                    "",
+                )
+                if ultimo_status_relevante == self.Status.REPROVADO:
+                    return self.Status.REPROVADO.label
+            ultimo_status_relevante = next(
+                (
+                    historico.status_novo
+                    for historico in self._historicos_lista()
+                    if historico.status_novo in {self.Status.APROVADO, self.Status.REPROVADO}
+                ),
+                "",
+            )
+            if self.status in {self.Status.APROVADO, self.Status.ENTREGUE} or ultimo_status_relevante == self.Status.APROVADO:
+                return self.Status.APROVADO.label
+        return self.get_status_display()
+
+    @property
+    def status_visual_classe(self) -> str:
+        mapa = {
+            "Pendente": "pendente",
+            "Em andamento": "em_andamento",
+            "Entregue": "entregue",
+            "Aprovado": "aprovado",
+            "Reprovado": "reprovado",
+        }
+        return mapa.get(self.status_exibicao, (self.status or "").lower())
+
+    def _historicos_lista(self):
+        return list(self.historicos.all())
+
+    def ja_foi_iniciada(self) -> bool:
+        return any(
+            historico.status_novo in {
+                self.Status.EM_ANDAMENTO,
+                self.Status.ENTREGUE,
+                self.Status.APROVADO,
+                self.Status.REPROVADO,
+            }
+            for historico in self._historicos_lista()
+        )
+
+    def ja_foi_concluida(self) -> bool:
+        return any(
+            historico.status_novo in {self.Status.ENTREGUE, self.Status.APROVADO}
+            for historico in self._historicos_lista()
+        )
+
+    def foi_reaberta(self) -> bool:
+        return any(historico.status_novo == self.Status.REPROVADO for historico in self._historicos_lista())
+
+    def total_retomadas_por_reprovacao(self) -> int:
+        proxima = (
+            self.entrega.etapas.filter(ordem__gt=self.ordem)
+            .order_by("ordem", "id")
+            .first()
+        )
+        if proxima is None or not proxima.eh_homologacao:
+            return 0
+        return sum(1 for historico in proxima.historicos.all() if historico.status_novo == self.Status.REPROVADO)
+
+    @property
+    def marcadores_historicos(self) -> list[dict[str, str]]:
+        marcadores = []
+        total_retomadas = self.total_retomadas_por_reprovacao()
+        if total_retomadas:
+            label = "Retomada"
+            if total_retomadas > 1:
+                label = f"Retomada ({total_retomadas})"
+            marcadores.append({"label": label, "classe": "retorno"})
+        vistos = set()
+        resultado = []
+        for marcador in marcadores:
+            chave = (marcador["label"], marcador["classe"])
+            if chave in vistos:
+                continue
+            vistos.add(chave)
+            resultado.append(marcador)
+        return resultado
 
 
 class HistoricoEtapaSistema(models.Model):
@@ -369,6 +549,31 @@ class HistoricoEtapaSistema(models.Model):
         return f"Historico #{self.pk} - {self.etapa}"
 
 
+class HistoricoSistema(models.Model):
+    class TipoEvento(models.TextChoices):
+        NOTA = "NOTA", "Nota"
+
+    sistema = models.ForeignKey(Sistema, on_delete=models.CASCADE, related_name="historicos_sistema")
+    tipo_evento = models.CharField(max_length=20, choices=TipoEvento.choices, default=TipoEvento.NOTA)
+    descricao = models.TextField(blank=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+    criado_por = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="historicos_sistema_criados",
+    )
+
+    class Meta:
+        ordering = ["-criado_em", "-id"]
+        verbose_name = "Historico do sistema"
+        verbose_name_plural = "Historicos do sistema"
+
+    def __str__(self) -> str:
+        return f"Historico sistema #{self.pk} - {self.sistema}"
+
+
 class AnexoHistoricoEtapa(models.Model):
     historico = models.ForeignKey(HistoricoEtapaSistema, on_delete=models.CASCADE, related_name="anexos")
     arquivo = models.FileField(upload_to="acompanhamento_sistemas/anexos/")
@@ -387,6 +592,30 @@ class AnexoHistoricoEtapa(models.Model):
 
     def __str__(self) -> str:
         return self.nome_original or f"Anexo #{self.pk}"
+
+    @property
+    def nome_exibicao(self) -> str:
+        return self.nome_original or os.path.basename(getattr(self.arquivo, "name", "") or "")
+
+
+class AnexoHistoricoSistema(models.Model):
+    historico = models.ForeignKey(HistoricoSistema, on_delete=models.CASCADE, related_name="anexos")
+    arquivo = models.FileField(upload_to="acompanhamento_sistemas/anexos/")
+    nome_original = models.CharField(max_length=255, blank=True, default="")
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["id"]
+        verbose_name = "Anexo do historico do sistema"
+        verbose_name_plural = "Anexos do historico do sistema"
+
+    def save(self, *args, **kwargs):
+        if self.arquivo and not self.nome_original:
+            self.nome_original = getattr(self.arquivo, "name", "") or ""
+        return super().save(*args, **kwargs)
+
+    def __str__(self) -> str:
+        return self.nome_original or f"Anexo sistema #{self.pk}"
 
     @property
     def nome_exibicao(self) -> str:

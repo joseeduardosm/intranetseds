@@ -65,6 +65,11 @@ class EntregaSistemaForm(forms.ModelForm):
 
 
 class EtapaSistemaAtualizacaoForm(forms.ModelForm):
+    data_etapa = forms.DateField(
+        required=False,
+        label="Data da etapa",
+        widget=forms.DateInput(format="%Y-%m-%d", attrs={"class": "form-control", "type": "date"}),
+    )
     justificativa_status = forms.CharField(
         required=False,
         label="Justificativa da alteração de status",
@@ -80,15 +85,30 @@ class EtapaSistemaAtualizacaoForm(forms.ModelForm):
         model = EtapaSistema
         fields = ["data_etapa", "status"]
         widgets = {
-            "data_etapa": forms.DateInput(format="%Y-%m-%d", attrs={"class": "form-control", "type": "date"}),
             "status": forms.Select(attrs={"class": "form-control"}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["data_etapa"].input_formats = ["%Y-%m-%d"]
-        self.fields["data_etapa"].help_text = "A data já vem preenchida com o valor cadastrado. Altere apenas se houver revisão da etapa."
+        self.fields["data_etapa"].help_text = "Preencha a data planejada da etapa. Em rascunho, ela pode ficar em branco até a publicação do ciclo."
         if self.instance and getattr(self.instance, "pk", None):
+            if self.instance.eh_homologacao:
+                status_choices = [
+                    (EtapaSistema.Status.PENDENTE, EtapaSistema.Status.PENDENTE.label),
+                    (EtapaSistema.Status.EM_ANDAMENTO, EtapaSistema.Status.EM_ANDAMENTO.label),
+                    (EtapaSistema.Status.APROVADO, EtapaSistema.Status.APROVADO.label),
+                    (EtapaSistema.Status.REPROVADO, EtapaSistema.Status.REPROVADO.label),
+                ]
+            else:
+                status_choices = [
+                    (EtapaSistema.Status.PENDENTE, EtapaSistema.Status.PENDENTE.label),
+                    (EtapaSistema.Status.EM_ANDAMENTO, EtapaSistema.Status.EM_ANDAMENTO.label),
+                    (EtapaSistema.Status.ENTREGUE, EtapaSistema.Status.ENTREGUE.label),
+                ]
+            if self.instance.status and self.instance.status not in {choice[0] for choice in status_choices}:
+                status_choices.append((self.instance.status, self.instance.get_status_display()))
+            self.fields["status"].choices = status_choices
             self.initial.setdefault("data_etapa", self.instance.data_etapa)
             self.initial.setdefault("status", self.instance.status)
             if self.instance.tipo_etapa == EtapaSistema.TipoEtapa.REQUISITOS:
@@ -103,6 +123,8 @@ class EtapaSistemaAtualizacaoForm(forms.ModelForm):
         if self.instance and getattr(self.instance, "pk", None):
             if status_novo and status_novo != self.instance.status and not justificativa:
                 self.add_error("justificativa_status", "Informe a justificativa ao alterar o status.")
+            if self.instance.entrega.status == EntregaSistema.Status.PUBLICADO and not cleaned_data.get("data_etapa"):
+                self.add_error("data_etapa", "Informe a data da etapa.")
             if (
                 self.instance.tipo_etapa == EtapaSistema.TipoEtapa.REQUISITOS
                 and status_novo == EtapaSistema.Status.ENTREGUE
@@ -114,6 +136,27 @@ class EtapaSistemaAtualizacaoForm(forms.ModelForm):
 
 
 class NotaEtapaSistemaForm(forms.Form):
+    texto_nota = forms.CharField(
+        required=False,
+        label="Anotação livre",
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 4}),
+    )
+    anexos = MultipleFileField(
+        required=False,
+        label="Anexos",
+        widget=MultipleFileInput(attrs={"class": "form-control", "multiple": True}),
+    )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        texto = (cleaned_data.get("texto_nota") or "").strip()
+        anexos = cleaned_data.get("anexos") or []
+        if not texto and not anexos:
+            raise forms.ValidationError("Informe uma anotação ou envie ao menos um anexo.")
+        return cleaned_data
+
+
+class NotaSistemaForm(forms.Form):
     texto_nota = forms.CharField(
         required=False,
         label="Anotação livre",

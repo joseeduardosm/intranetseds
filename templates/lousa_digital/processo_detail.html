@@ -44,17 +44,25 @@
         {{ encaminhamento_form.non_field_errors }}
         <p>
           <label for="{{ encaminhamento_form.destino.id_for_label }}">{{ encaminhamento_form.destino.label }}</label>
-          <select
+          <input
+            type="text"
+            id="lousa-destino-autocomplete"
+            class="form-control"
+            placeholder="Digite para buscar o setor"
+            list="lousa-destino-opcoes"
+            autocomplete="off"
+            {% if processo_arquivo_morto %}disabled{% endif %}
+          />
+          <datalist id="lousa-destino-opcoes">
+            {% for setor in setores_destino_disponiveis %}
+              <option value="{{ setor.group.name }}" data-id="{{ setor.group_id }}"></option>
+            {% endfor %}
+          </datalist>
+          <input
+            type="hidden"
             name="destino"
             id="{{ encaminhamento_form.destino.id_for_label }}"
-            class="form-control"
-            {% if processo_arquivo_morto %}disabled{% endif %}
-          >
-            <option value="">Selecione um setor</option>
-            {% for setor in setores_destino_disponiveis %}
-              <option value="{{ setor.group_id }}">{{ setor.get_path_labels|join:" / " }}</option>
-            {% endfor %}
-          </select>
+          />
         </p>
         <p>
           <label for="{{ encaminhamento_form.prazo_data.id_for_label }}">{{ encaminhamento_form.prazo_data.label }}</label>
@@ -190,6 +198,23 @@
     const devolverBackdrop = document.getElementById("lousa-devolver-backdrop");
     const devolverModal = document.getElementById("lousa-devolver-modal");
     const devolverForm = document.getElementById("lousa-devolver-form");
+    const destinoAutocomplete = document.getElementById("lousa-destino-autocomplete");
+    const destinoHidden = document.getElementById("{{ encaminhamento_form.destino.id_for_label }}");
+    const destinoOptions = Array.from(document.querySelectorAll("#lousa-destino-opcoes option")).map((option) => ({
+      nome: option.value,
+      id: option.dataset.id || "",
+    }));
+
+    if (destinoAutocomplete && destinoHidden) {
+      const syncDestino = () => {
+        const termo = (destinoAutocomplete.value || "").trim().toLowerCase();
+        const match = destinoOptions.find((option) => option.nome.trim().toLowerCase() === termo);
+        destinoHidden.value = match ? match.id : "";
+      };
+
+      destinoAutocomplete.addEventListener("input", syncDestino);
+      destinoAutocomplete.addEventListener("change", syncDestino);
+    }
 
     const closeDevolverModal = () => {
       if (!devolverBackdrop || !devolverModal) return;

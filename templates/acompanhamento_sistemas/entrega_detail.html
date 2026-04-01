@@ -12,6 +12,9 @@
   </section>
 
   <div class="card-actions">
+    {% if pode_publicar_ciclo %}
+      <button class="btn" type="button" id="acompanhamento-open-publish-modal">Publicar ciclo</button>
+    {% endif %}
     {% if perms.acompanhamento_sistemas.change_entregasistema %}
       <a class="btn" href="{% url 'acompanhamento_sistemas_entrega_update' entrega.pk %}">Editar ciclo</a>
     {% endif %}
@@ -21,12 +24,38 @@
     <a class="btn btn-light" href="{% url 'acompanhamento_sistemas_detail' entrega.sistema.pk %}">Voltar ao sistema</a>
   </div>
 
+  <section class="detail-card acompanhamento-card acompanhamento-stepper-card">
+    <h3>Resumo visual do fluxo</h3>
+    <div class="acompanhamento-stepper" role="list" aria-label="Etapas do ciclo">
+      {% for etapa in entrega.etapas.all %}
+        <div class="acompanhamento-stepper-item acompanhamento-stepper-item--{{ etapa.status_visual_classe }}{% if entrega.etapa_atual and entrega.etapa_atual.pk == etapa.pk %} acompanhamento-stepper-item--atual{% endif %}" role="listitem">
+          <span class="acompanhamento-stepper-item__dot"></span>
+          <div class="acompanhamento-stepper-item__body">
+            <strong class="acompanhamento-stepper-item__title">{{ etapa.get_tipo_etapa_display }}</strong>
+            <span class="acompanhamento-stepper-item__status">{{ etapa.status_exibicao }}</span>
+            {% if etapa.marcadores_historicos %}
+              <div class="acompanhamento-marcadores acompanhamento-marcadores--inline">
+                {% for marcador in etapa.marcadores_historicos %}
+                  <span class="acompanhamento-marcador acompanhamento-marcador--{{ marcador.classe }}">{{ marcador.label }}</span>
+                {% endfor %}
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+
   <div class="acompanhamento-detail-grid acompanhamento-detail-grid--entrega">
     <section class="detail-card acompanhamento-card">
       <h3>Resumo do ciclo</h3>
+      <p>
+        <strong>Status:</strong>
+        <span class="acompanhamento-status-badge acompanhamento-status-badge--{{ entrega.status|lower }}">{{ entrega.get_status_display }}</span>
+      </p>
       {% include "acompanhamento_sistemas/_progresso_simples.html" with item=entrega %}
       {% if entrega.descricao %}
-        <p><strong>Descrição:</strong> {{ entrega.descricao|linebreaksbr }}</p>
+        <p class="acompanhamento-texto-quebravel"><strong>Descrição:</strong> {{ entrega.descricao|linebreaksbr }}</p>
       {% endif %}
       <p><strong>Sistema:</strong> <a href="{% url 'acompanhamento_sistemas_detail' entrega.sistema.pk %}">{{ entrega.sistema.nome }}</a></p>
       <p><strong>Cadastrada em:</strong> {{ entrega.criado_em|date:"d/m/Y H:i" }}</p>
@@ -47,15 +76,88 @@
         <tbody>
           {% for etapa in entrega.etapas.all %}
             <tr class="acompanhamento-row acompanhamento-row--{{ etapa.status|lower }}">
-              <td><a href="{% url 'acompanhamento_sistemas_etapa_detail' etapa.pk %}">{{ etapa.get_tipo_etapa_display }}</a></td>
-              <td>{{ etapa.get_status_display }}</td>
-              <td>{{ etapa.data_etapa|date:"d/m/Y" }}</td>
+              <td>
+                <div class="acompanhamento-etapa-linha">
+                  <a href="{% url 'acompanhamento_sistemas_etapa_detail' etapa.pk %}">{{ etapa.get_tipo_etapa_display }}</a>
+                  {% if etapa.marcadores_historicos %}
+                    <div class="acompanhamento-marcadores acompanhamento-marcadores--inline">
+                      {% for marcador in etapa.marcadores_historicos %}
+                        <span class="acompanhamento-marcador acompanhamento-marcador--{{ marcador.classe }}">{{ marcador.label }}</span>
+                      {% endfor %}
+                    </div>
+                  {% endif %}
+                </div>
+              </td>
+              <td>{{ etapa.status_exibicao }}</td>
+              <td>{{ etapa.data_etapa|date:"d/m/Y"|default:"-" }}</td>
               <td>{{ etapa.tempo_desde_etapa_anterior_em_dias|default:"-" }}</td>
-              <td>{{ etapa.expira_em_texto }}</td>
+              <td>
+                <div class="acompanhamento-prazo-inline">
+                  <span>{{ etapa.expira_em_texto }}</span>
+                  {% if etapa.prazo_marcador %}
+                    <span class="acompanhamento-marcador acompanhamento-marcador--prazo-{{ etapa.prazo_marcador.classe }}">{{ etapa.prazo_marcador.label }}</span>
+                  {% endif %}
+                </div>
+              </td>
             </tr>
           {% endfor %}
         </tbody>
       </table>
     </section>
   </div>
+
+  {% if pode_publicar_ciclo %}
+    <div class="profile-alert-backdrop auth-required-hidden" id="acompanhamento-publish-backdrop" aria-hidden="true"></div>
+    <div class="profile-alert-modal auth-required-hidden acompanhamento-publish-modal" id="acompanhamento-publish-modal" role="dialog" aria-modal="true" aria-label="Confirmar publicação do ciclo">
+      <h3>Publicar ciclo</h3>
+      <p class="acompanhamento-note-text">Você tem certeza que deseja publicar esse ciclo?</p>
+      <div class="acompanhamento-publish-list">
+        {% for etapa in entrega.etapas.all %}
+          <div class="acompanhamento-publish-item">
+            <span>{{ etapa.get_tipo_etapa_display }}</span>
+            <strong>{{ etapa.data_etapa|date:"d/m/Y"|default:"-" }}</strong>
+          </div>
+        {% endfor %}
+      </div>
+      <form method="post" action="{% url 'acompanhamento_sistemas_entrega_publish' entrega.pk %}">
+        {% csrf_token %}
+        <div class="profile-alert-actions">
+          <button class="btn" type="submit">Confirmar publicação</button>
+          <button class="btn btn-secondary" type="button" id="acompanhamento-publish-cancel">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+  {% if pode_publicar_ciclo %}
+    <script>
+      (() => {
+        const openBtn = document.getElementById("acompanhamento-open-publish-modal");
+        const closeBtn = document.getElementById("acompanhamento-publish-cancel");
+        const modal = document.getElementById("acompanhamento-publish-modal");
+        const backdrop = document.getElementById("acompanhamento-publish-backdrop");
+        if (!openBtn || !closeBtn || !modal || !backdrop) return;
+
+        const openModal = () => {
+          modal.classList.remove("auth-required-hidden");
+          backdrop.classList.remove("auth-required-hidden");
+          modal.setAttribute("aria-hidden", "false");
+          backdrop.setAttribute("aria-hidden", "false");
+        };
+
+        const closeModal = () => {
+          modal.classList.add("auth-required-hidden");
+          backdrop.classList.add("auth-required-hidden");
+          modal.setAttribute("aria-hidden", "true");
+          backdrop.setAttribute("aria-hidden", "true");
+        };
+
+        openBtn.addEventListener("click", openModal);
+        closeBtn.addEventListener("click", closeModal);
+        backdrop.addEventListener("click", closeModal);
+      })();
+    </script>
+  {% endif %}
 {% endblock %}

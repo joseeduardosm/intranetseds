@@ -17,6 +17,29 @@
     {% endif %}
   </div>
 
+  <section class="acompanhamento-dashboard">
+    <article class="acompanhamento-dashboard-card">
+      <span class="acompanhamento-dashboard-card__label">Sistemas visíveis</span>
+      <strong class="acompanhamento-dashboard-card__value">{{ dashboard.total }}</strong>
+    </article>
+    <article class="acompanhamento-dashboard-card">
+      <span class="acompanhamento-dashboard-card__label">Com atraso</span>
+      <strong class="acompanhamento-dashboard-card__value">{{ dashboard.com_atraso }}</strong>
+    </article>
+    <article class="acompanhamento-dashboard-card">
+      <span class="acompanhamento-dashboard-card__label">Em atenção</span>
+      <strong class="acompanhamento-dashboard-card__value">{{ dashboard.com_atencao }}</strong>
+    </article>
+    <article class="acompanhamento-dashboard-card">
+      <span class="acompanhamento-dashboard-card__label">Com retomada</span>
+      <strong class="acompanhamento-dashboard-card__value">{{ dashboard.com_retomada }}</strong>
+    </article>
+    <article class="acompanhamento-dashboard-card">
+      <span class="acompanhamento-dashboard-card__label">Aguardando homologação</span>
+      <strong class="acompanhamento-dashboard-card__value">{{ dashboard.aguardando_homologacao }}</strong>
+    </article>
+  </section>
+
   <div class="card-grid card-grid-fixed acompanhamento-card-grid">
     {% for sistema in sistemas %}
       <article class="card card-bloco acompanhamento-card">
