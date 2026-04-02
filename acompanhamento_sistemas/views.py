@@ -76,6 +76,13 @@ def _usuario_tem_acesso_como_interessado(user) -> bool:
     )
 
 
+def _usuario_eh_interessado_do_sistema(user, sistema) -> bool:
+    return bool(
+        getattr(user, "is_authenticated", False)
+        and sistema.interessados.filter(usuario=user).exists()
+    )
+
+
 def _usuario_tem_acesso_leitura_acompanhamento(user) -> bool:
     return _usuario_tem_acesso_global_acompanhamento(user) or _usuario_tem_acesso_como_interessado(user)
 
@@ -102,6 +109,58 @@ def _filtrar_etapas_visiveis_para_usuario(queryset, user):
     if not getattr(user, "is_authenticated", False):
         return queryset.none()
     return queryset.filter(entrega__sistema__interessados__usuario=user).distinct()
+
+
+def _usuario_pode_editar_sistema(user, sistema) -> bool:
+    return bool(
+        getattr(user, "is_authenticated", False)
+        and (
+            user.has_perm("acompanhamento_sistemas.change_sistema")
+            or _usuario_eh_interessado_do_sistema(user, sistema)
+        )
+    )
+
+
+def _usuario_pode_editar_entrega(user, entrega) -> bool:
+    return bool(
+        getattr(user, "is_authenticated", False)
+        and (
+            user.has_perm("acompanhamento_sistemas.change_entregasistema")
+            or _usuario_eh_interessado_do_sistema(user, entrega.sistema)
+        )
+    )
+
+
+def _usuario_pode_editar_etapa(user, etapa) -> bool:
+    return bool(
+        getattr(user, "is_authenticated", False)
+        and (
+            user.has_perm("acompanhamento_sistemas.change_etapasistema")
+            or _usuario_eh_interessado_do_sistema(user, etapa.entrega.sistema)
+        )
+    )
+
+
+def _usuario_pode_criar_ciclo(user, sistema) -> bool:
+    return bool(
+        getattr(user, "is_authenticated", False)
+        and (
+            user.has_perm("acompanhamento_sistemas.add_entregasistema")
+            or _usuario_eh_interessado_do_sistema(user, sistema)
+        )
+    )
+
+
+def _usuario_pode_gerir_interessados(user, sistema) -> bool:
+    return _usuario_pode_editar_sistema(user, sistema)
+
+
+def _usuario_pode_excluir_sistema(user, sistema) -> bool:
+    return bool(getattr(user, "is_authenticated", False) and sistema.criado_por_id == user.id)
+
+
+def _usuario_pode_excluir_entrega(user, entrega) -> bool:
+    return bool(getattr(user, "is_authenticated", False) and entrega.criado_por_id == user.id)
 
 
 def _registrar_auditoria_view(objeto, *, usuario, acao, changes=None):
@@ -460,11 +519,19 @@ class SistemaCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView)
         return response
 
 
-class SistemaUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
-    permission_required = ("acompanhamento_sistemas.change_sistema",)
+class SistemaUpdateView(LoginRequiredMixin, UpdateView):
     model = Sistema
     form_class = SistemaForm
     template_name = "acompanhamento_sistemas/form.html"
+
+    def get_queryset(self):
+        return _filtrar_sistemas_visiveis_para_usuario(Sistema.objects.all(), self.request.user)
+
+    def dispatch(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        if not _usuario_pode_editar_sistema(request.user, self.object):
+            raise Http404
+        return super().dispatch(request, *args, **kwargs)
 
     def form_valid(self, form):
         form.instance.atualizado_por = self.request.user
@@ -479,14 +546,22 @@ class SistemaUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["pode_excluir_sistema"] = self.request.user.has_perm("acompanhamento_sistemas.delete_sistema")
+        context["pode_excluir_sistema"] = _usuario_pode_excluir_sistema(self.request.user, self.object)
         return context
 
 
-class SistemaDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
-    permission_required = ("acompanhamento_sistemas.delete_sistema",)
+class SistemaDeleteView(LoginRequiredMixin, DeleteView):
     model = Sistema
     template_name = "acompanhamento_sistemas/confirm_delete.html"
+
+    def get_queryset(self):
+        return _filtrar_sistemas_visiveis_para_usuario(Sistema.objects.all(), self.request.user)
+
+    def dispatch(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        if not _usuario_pode_excluir_sistema(request.user, self.object):
+            raise Http404
+        return super().dispatch(request, *args, **kwargs)
 
     def get_success_url(self):
         messages.success(self.request, "Sistema excluído com sucesso.")
@@ -520,22 +595,23 @@ class SistemaDetailView(AcompanhamentoReadAccessMixin, DetailView):
         context["abrir_modal_interessado"] = kwargs.get("abrir_modal_interessado", False)
         context["abrir_modal_nota_sistema"] = kwargs.get("abrir_modal_nota_sistema", False)
         context["historico_sistema_disponivel"] = _historico_sistema_disponivel()
-        context["pode_editar_sistema"] = self.request.user.has_perm("acompanhamento_sistemas.change_sistema")
-        context["pode_criar_entrega"] = self.request.user.has_perm("acompanhamento_sistemas.add_entregasistema")
-        context["pode_excluir_sistema"] = self.request.user.has_perm("acompanhamento_sistemas.delete_sistema")
+        context["pode_editar_sistema"] = _usuario_pode_editar_sistema(self.request.user, sistema)
+        context["pode_criar_entrega"] = _usuario_pode_criar_ciclo(self.request.user, sistema)
+        context["pode_excluir_sistema"] = _usuario_pode_excluir_sistema(self.request.user, sistema)
         return context
 
 
-class EntregaSistemaCreateView(LoginRequiredMixin, PermissionRequiredMixin, View):
-    permission_required = ("acompanhamento_sistemas.add_entregasistema",)
+class EntregaSistemaCreateView(LoginRequiredMixin, View):
 
     def dispatch(self, request, *args, **kwargs):
-        if not request.user.has_perm("acompanhamento_sistemas.add_entregasistema"):
-            return self.handle_no_permission()
+        sistema = get_object_or_404(_filtrar_sistemas_visiveis_para_usuario(Sistema.objects.all(), request.user), pk=kwargs["pk"])
+        if not _usuario_pode_criar_ciclo(request.user, sistema):
+            raise Http404
+        self.sistema = sistema
         return super().dispatch(request, *args, **kwargs)
 
     def post(self, request, pk):
-        sistema = get_object_or_404(Sistema, pk=pk)
+        sistema = self.sistema
         form = EntregaSistemaForm(request.POST)
         if form.is_valid():
             criar_entrega_com_etapas(
@@ -552,10 +628,6 @@ class EntregaSistemaCreateView(LoginRequiredMixin, PermissionRequiredMixin, View
         view.setup(request, pk=pk)
         view.object = sistema
         return view.render_to_response(view.get_context_data(entrega_form=form, abrir_modal_ciclo=True))
-
-    def handle_no_permission(self):
-        raise Http404
-
 
 class EntregaSistemaDetailView(AcompanhamentoReadAccessMixin, DetailView):
     model = EntregaSistema
@@ -578,19 +650,27 @@ class EntregaSistemaDetailView(AcompanhamentoReadAccessMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["pode_publicar_ciclo"] = (
-            self.request.user.has_perm("acompanhamento_sistemas.change_entregasistema")
+            _usuario_pode_editar_entrega(self.request.user, self.object)
             and self.object.status == EntregaSistema.Status.RASCUNHO
         )
-        context["pode_editar_sistema"] = self.request.user.has_perm("acompanhamento_sistemas.change_sistema")
-        context["pode_excluir_ciclo"] = self.request.user.has_perm("acompanhamento_sistemas.delete_entregasistema")
+        context["pode_editar_sistema"] = _usuario_pode_editar_sistema(self.request.user, self.object.sistema)
+        context["pode_excluir_ciclo"] = _usuario_pode_excluir_entrega(self.request.user, self.object)
         return context
 
 
-class EntregaSistemaUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
-    permission_required = ("acompanhamento_sistemas.change_entregasistema",)
+class EntregaSistemaUpdateView(LoginRequiredMixin, UpdateView):
     model = EntregaSistema
     form_class = EntregaSistemaForm
     template_name = "acompanhamento_sistemas/form.html"
+
+    def get_queryset(self):
+        return _filtrar_entregas_visiveis_para_usuario(EntregaSistema.objects.select_related("sistema"), self.request.user)
+
+    def dispatch(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        if not _usuario_pode_editar_entrega(request.user, self.object):
+            raise Http404
+        return super().dispatch(request, *args, **kwargs)
 
     def form_valid(self, form):
         form.instance.atualizado_por = self.request.user
@@ -612,14 +692,22 @@ class EntregaSistemaUpdateView(LoginRequiredMixin, PermissionRequiredMixin, Upda
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["modo_ciclo"] = True
-        context["pode_excluir_ciclo"] = self.request.user.has_perm("acompanhamento_sistemas.delete_entregasistema")
+        context["pode_excluir_ciclo"] = _usuario_pode_excluir_entrega(self.request.user, self.object)
         return context
 
 
-class EntregaSistemaDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
-    permission_required = ("acompanhamento_sistemas.delete_entregasistema",)
+class EntregaSistemaDeleteView(LoginRequiredMixin, DeleteView):
     model = EntregaSistema
     template_name = "acompanhamento_sistemas/confirm_delete.html"
+
+    def get_queryset(self):
+        return _filtrar_entregas_visiveis_para_usuario(EntregaSistema.objects.select_related("sistema"), self.request.user)
+
+    def dispatch(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        if not _usuario_pode_excluir_entrega(request.user, self.object):
+            raise Http404
+        return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -632,16 +720,17 @@ class EntregaSistemaDeleteView(LoginRequiredMixin, PermissionRequiredMixin, Dele
         return reverse("acompanhamento_sistemas_detail", kwargs={"pk": sistema_pk})
 
 
-class EntregaSistemaPublishView(LoginRequiredMixin, PermissionRequiredMixin, View):
-    permission_required = ("acompanhamento_sistemas.change_entregasistema",)
+class EntregaSistemaPublishView(LoginRequiredMixin, View):
 
     def dispatch(self, request, *args, **kwargs):
-        if not request.user.has_perm("acompanhamento_sistemas.change_entregasistema"):
-            return self.handle_no_permission()
+        entrega = get_object_or_404(_filtrar_entregas_visiveis_para_usuario(EntregaSistema.objects.select_related("sistema"), request.user), pk=kwargs["pk"])
+        if not _usuario_pode_editar_entrega(request.user, entrega):
+            raise Http404
+        self.entrega = entrega
         return super().dispatch(request, *args, **kwargs)
 
     def post(self, request, pk):
-        entrega = get_object_or_404(EntregaSistema.objects.prefetch_related("etapas"), pk=pk)
+        entrega = EntregaSistema.objects.prefetch_related("etapas").get(pk=self.entrega.pk)
         try:
             publicar_entrega(entrega, usuario=request.user, request=request)
         except ValidationError as exc:
@@ -650,10 +739,6 @@ class EntregaSistemaPublishView(LoginRequiredMixin, PermissionRequiredMixin, Vie
         else:
             messages.success(request, "Ciclo publicado com sucesso.")
         return redirect("acompanhamento_sistemas_entrega_detail", pk=entrega.pk)
-
-    def handle_no_permission(self):
-        raise Http404
-
 
 class EtapaSistemaCalendarioView(AcompanhamentoReadAccessMixin, View):
 
@@ -715,7 +800,7 @@ class EtapaSistemaDetailView(AcompanhamentoReadAccessMixin, DetailView):
         etapa = self.object
         sistema = etapa.entrega.sistema
         ciclo_publicado = etapa.entrega.status == EntregaSistema.Status.PUBLICADO
-        pode_editar_etapa = self.request.user.has_perm("acompanhamento_sistemas.change_etapasistema")
+        pode_editar_etapa = _usuario_pode_editar_etapa(self.request.user, etapa)
         historicos_page = _paginar_itens(self.request, _timeline_etapa(etapa))
         context["historicos"] = historicos_page.object_list
         context["historicos_page"] = historicos_page
@@ -729,20 +814,21 @@ class EtapaSistemaDetailView(AcompanhamentoReadAccessMixin, DetailView):
         context["ciclo_publicado"] = ciclo_publicado
         context["pode_alterar_status_etapa"] = pode_editar_etapa and ciclo_publicado
         context["pode_lancar_nota_etapa"] = pode_editar_etapa and ciclo_publicado
-        context["pode_editar_sistema"] = self.request.user.has_perm("acompanhamento_sistemas.change_sistema")
+        context["pode_editar_sistema"] = _usuario_pode_editar_sistema(self.request.user, sistema)
         return context
 
 
-class EtapaSistemaUpdateView(LoginRequiredMixin, PermissionRequiredMixin, View):
-    permission_required = ("acompanhamento_sistemas.change_etapasistema",)
+class EtapaSistemaUpdateView(LoginRequiredMixin, View):
 
     def dispatch(self, request, *args, **kwargs):
-        if not request.user.has_perm("acompanhamento_sistemas.change_etapasistema"):
-            return self.handle_no_permission()
+        etapa = get_object_or_404(_filtrar_etapas_visiveis_para_usuario(EtapaSistema.objects.select_related("entrega__sistema"), request.user), pk=kwargs["pk"])
+        if not _usuario_pode_editar_etapa(request.user, etapa):
+            raise Http404
+        self.etapa = etapa
         return super().dispatch(request, *args, **kwargs)
 
     def post(self, request, pk):
-        etapa = get_object_or_404(EtapaSistema, pk=pk)
+        etapa = self.etapa
         form = EtapaSistemaAtualizacaoForm(request.POST, request.FILES, instance=etapa)
         if form.is_valid():
             etapa_atual = EtapaSistema.objects.get(pk=etapa.pk)
@@ -775,20 +861,17 @@ class EtapaSistemaUpdateView(LoginRequiredMixin, PermissionRequiredMixin, View):
         view.object = etapa
         return view.render_to_response(view.get_context_data(etapa_form=form))
 
-    def handle_no_permission(self):
-        raise Http404
-
-
-class EtapaSistemaNotaView(LoginRequiredMixin, PermissionRequiredMixin, View):
-    permission_required = ("acompanhamento_sistemas.change_etapasistema",)
+class EtapaSistemaNotaView(LoginRequiredMixin, View):
 
     def dispatch(self, request, *args, **kwargs):
-        if not request.user.has_perm("acompanhamento_sistemas.change_etapasistema"):
-            return self.handle_no_permission()
+        etapa = get_object_or_404(_filtrar_etapas_visiveis_para_usuario(EtapaSistema.objects.select_related("entrega__sistema"), request.user), pk=kwargs["pk"])
+        if not _usuario_pode_editar_etapa(request.user, etapa):
+            raise Http404
+        self.etapa = etapa
         return super().dispatch(request, *args, **kwargs)
 
     def post(self, request, pk):
-        etapa = get_object_or_404(EtapaSistema, pk=pk)
+        etapa = self.etapa
         if etapa.entrega.status != EntregaSistema.Status.PUBLICADO:
             messages.error(request, "Comentários e anexos da etapa só podem ser lançados após a publicação do ciclo.")
             return redirect("acompanhamento_sistemas_etapa_detail", pk=etapa.pk)
@@ -820,20 +903,17 @@ class EtapaSistemaNotaView(LoginRequiredMixin, PermissionRequiredMixin, View):
         view.object = etapa
         return view.render_to_response(view.get_context_data(nota_form=form, abrir_modal_nota=True))
 
-    def handle_no_permission(self):
-        raise Http404
-
-
-class InteressadoSistemaCreateView(LoginRequiredMixin, PermissionRequiredMixin, View):
-    permission_required = ("acompanhamento_sistemas.change_sistema",)
+class InteressadoSistemaCreateView(LoginRequiredMixin, View):
 
     def dispatch(self, request, *args, **kwargs):
-        if not request.user.has_perm("acompanhamento_sistemas.change_sistema"):
-            return self.handle_no_permission()
+        sistema = get_object_or_404(_filtrar_sistemas_visiveis_para_usuario(Sistema.objects.all(), request.user), pk=kwargs["pk"])
+        if not _usuario_pode_gerir_interessados(request.user, sistema):
+            raise Http404
+        self.sistema = sistema
         return super().dispatch(request, *args, **kwargs)
 
     def post(self, request, pk):
-        sistema = get_object_or_404(Sistema, pk=pk)
+        sistema = self.sistema
         form = InteressadoSistemaForm(request.POST, sistema=sistema)
         if form.is_valid():
             interessado = form.save(sistema, request.user)
@@ -856,20 +936,17 @@ class InteressadoSistemaCreateView(LoginRequiredMixin, PermissionRequiredMixin, 
         proxima_url = request.POST.get("next") or reverse("acompanhamento_sistemas_detail", kwargs={"pk": sistema.pk})
         return HttpResponseRedirect(proxima_url)
 
-    def handle_no_permission(self):
-        raise Http404
-
-
-class SistemaNotaView(LoginRequiredMixin, PermissionRequiredMixin, View):
-    permission_required = ("acompanhamento_sistemas.change_sistema",)
+class SistemaNotaView(LoginRequiredMixin, View):
 
     def dispatch(self, request, *args, **kwargs):
-        if not request.user.has_perm("acompanhamento_sistemas.change_sistema"):
-            return self.handle_no_permission()
+        sistema = get_object_or_404(_filtrar_sistemas_visiveis_para_usuario(Sistema.objects.all(), request.user), pk=kwargs["pk"])
+        if not _usuario_pode_editar_sistema(request.user, sistema):
+            raise Http404
+        self.sistema = sistema
         return super().dispatch(request, *args, **kwargs)
 
     def post(self, request, pk):
-        sistema = get_object_or_404(Sistema, pk=pk)
+        sistema = self.sistema
         if not _historico_sistema_disponivel():
             messages.error(request, "A anotação do sistema estará disponível após aplicar a migration pendente do módulo.")
             return redirect("acompanhamento_sistemas_detail", pk=sistema.pk)
@@ -891,20 +968,17 @@ class SistemaNotaView(LoginRequiredMixin, PermissionRequiredMixin, View):
         view.object = sistema
         return view.render_to_response(view.get_context_data(nota_sistema_form=form, abrir_modal_nota_sistema=True))
 
-    def handle_no_permission(self):
-        raise Http404
-
-
-class InteressadoSistemaDeleteView(LoginRequiredMixin, PermissionRequiredMixin, View):
-    permission_required = ("acompanhamento_sistemas.change_sistema",)
+class InteressadoSistemaDeleteView(LoginRequiredMixin, View):
 
     def dispatch(self, request, *args, **kwargs):
-        if not request.user.has_perm("acompanhamento_sistemas.change_sistema"):
-            return self.handle_no_permission()
+        sistema = get_object_or_404(_filtrar_sistemas_visiveis_para_usuario(Sistema.objects.all(), request.user), pk=kwargs["pk"])
+        if not _usuario_pode_gerir_interessados(request.user, sistema):
+            raise Http404
+        self.sistema = sistema
         return super().dispatch(request, *args, **kwargs)
 
     def post(self, request, pk, interessado_pk):
-        sistema = get_object_or_404(Sistema, pk=pk)
+        sistema = self.sistema
         interessado = InteressadoSistema.objects.filter(pk=interessado_pk, sistema=sistema).first()
         if interessado is not None:
             _registrar_auditoria_view(interessado, usuario=request.user, acao=AuditLog.Action.DELETE, changes={"tipo_interessado": interessado.tipo_interessado})
@@ -916,6 +990,3 @@ class InteressadoSistemaDeleteView(LoginRequiredMixin, PermissionRequiredMixin, 
         interessado_manual.delete()
         messages.success(request, "Interessado removido.")
         return redirect(request.POST.get("next") or reverse("acompanhamento_sistemas_detail", kwargs={"pk": sistema.pk}))
-
-    def handle_no_permission(self):
-        raise Http404

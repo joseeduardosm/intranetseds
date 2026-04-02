@@ -9,6 +9,23 @@ def user_has_sala_situacao_v2_access(user):
     return bool(user and getattr(user, "is_authenticated", False))
 
 
+def user_has_v2_global_read_access(user):
+    if not user or not getattr(user, "is_authenticated", False):
+        return False
+    if user.is_superuser or user.is_staff:
+        return True
+    perms = (
+        "sala_situacao_v2.view_indicador",
+        "sala_situacao_v2.view_processo",
+        "sala_situacao_v2.view_entrega",
+        "sala_situacao.view_indicadorestrategico",
+        "sala_situacao.view_indicadortatico",
+        "sala_situacao.view_processo",
+        "sala_situacao.view_entrega",
+    )
+    return any(user.has_perm(perm) for perm in perms)
+
+
 def user_is_v2_admin(user):
     if not user or not getattr(user, "is_authenticated", False):
         return False
@@ -130,7 +147,7 @@ def user_can_monitor_entrega(user, entrega):
 
 
 def filter_visible_entregas_for_user(queryset, user):
-    if user_is_v2_admin(user):
+    if user_is_v2_admin(user) or user_has_v2_global_read_access(user):
         return queryset
     if not user or not getattr(user, "is_authenticated", False):
         return queryset.none()
@@ -154,7 +171,7 @@ def filter_visible_entregas_for_user(queryset, user):
 
 
 def filter_visible_processos_for_user(queryset, user):
-    if user_is_v2_admin(user):
+    if user_is_v2_admin(user) or user_has_v2_global_read_access(user):
         return queryset
     if not user or not getattr(user, "is_authenticated", False):
         return queryset.none()

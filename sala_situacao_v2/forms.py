@@ -7,6 +7,8 @@ from django.contrib.auth.models import Group
 from django.db import connection, transaction
 from django.utils import timezone
 
+from usuarios.models import SetorNode
+
 from .models import Entrega, Indicador, IndicadorCicloValor, Processo
 
 _FORMULA_TOKEN_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
@@ -87,9 +89,9 @@ class BaseV2Form(forms.ModelForm):
         if "evolucao_manual" in self.fields:
             self.fields["evolucao_manual"].required = True
         if "grupos_responsaveis" in self.fields:
-            qs = Group.objects.order_by("name")
-            if writable_group_ids is not None:
-                qs = qs.filter(id__in=writable_group_ids)
+            qs = Group.objects.filter(
+                id__in=SetorNode.objects.filter(ativo=True).values_list("group_id", flat=True)
+            ).exclude(name__iexact="admin").order_by("name")
             self.fields["grupos_responsaveis"].queryset = qs
             self.fields["grupos_responsaveis"].required = True
 

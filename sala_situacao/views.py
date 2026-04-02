@@ -1578,8 +1578,10 @@ class BaseFormContextMixin:
                 form[name] for name in ordered_field_names if name in form.fields
             ]
         context["monitoramento_grupos"] = [
-            {"id": grupo.id, "nome": grupo.name}
-            for grupo in Group.objects.order_by("name")
+            {"id": setor.group_id, "nome": setor.group.name}
+            for setor in SetorNode.objects.filter(ativo=True)
+            .select_related("group")
+            .order_by("group__name")
         ]
         if obj and getattr(obj, "pk", None) and self.delete_url_name:
             context["delete_url"] = reverse(self.delete_url_name, kwargs={"pk": obj.pk})

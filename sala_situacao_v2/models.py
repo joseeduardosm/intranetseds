@@ -1,6 +1,7 @@
 import ast
 from datetime import datetime, time, timedelta
 from decimal import Decimal
+import hashlib
 import re
 import secrets
 import unicodedata
@@ -86,9 +87,20 @@ def escolher_cor_marcador():
     return secrets.choice(_MARCADORES_PALETA)
 
 
-def _obter_ou_criar_marcador_por_grupo(grupo):
+def _resolver_nome_marcador_grupo(grupo):
     nome = re.sub(r"\s+", " ", (grupo.name or "").strip())
     nome_normalizado = normalizar_nome_marcador(nome)
+    if len(nome) <= 60 and len(nome_normalizado) <= 60:
+        return nome, nome_normalizado
+
+    sufixo = hashlib.sha1(nome_normalizado.encode("utf-8")).hexdigest()[:6]
+    limite = 60 - len(sufixo) - 1
+    nome_curto = f"{nome[:limite].rstrip()}-{sufixo}"
+    return nome_curto, normalizar_nome_marcador(nome_curto)
+
+
+def _obter_ou_criar_marcador_por_grupo(grupo):
+    nome, nome_normalizado = _resolver_nome_marcador_grupo(grupo)
     marcador = Marcador.objects.filter(nome_normalizado=nome_normalizado).first()
     if marcador:
         if not marcador.ativo:

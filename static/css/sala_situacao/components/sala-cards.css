@@ -1,5 +1,10 @@
 /* Cards e grid do módulo */
 
+.container-wide.sala-home-container {
+  width: 95%;
+  max-width: none;
+}
+
 .card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -329,6 +334,7 @@
 
 .sala-home-card-grid {
   gap: 28px;
+  justify-content: center;
 }
 
 .sala-consolidado-filtros-panel {
@@ -348,7 +354,7 @@
 }
 
 .sala-home-card-grid.card-grid-fixed {
-  grid-template-columns: repeat(auto-fill, minmax(320px, 380px));
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
 }
 
 .sala-home-card {
@@ -513,7 +519,7 @@
   }
 
   .sala-home-card-grid.card-grid-fixed {
-    grid-template-columns: repeat(auto-fill, minmax(320px, 380px));
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   }
 }
 

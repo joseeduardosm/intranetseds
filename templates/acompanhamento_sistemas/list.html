@@ -1,14 +1,14 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block container_class %}container-wide{% endblock %}
+{% block container_class %}container-wide acompanhamento-container{% endblock %}
 {% block extra_css %}
   <link rel="stylesheet" href="{% static 'css/acompanhamento_sistemas/acompanhamento_sistemas.css' %}" />
 {% endblock %}
 
 {% block content %}
   <section class="page-header">
-    <h2>Acompanhamento de Sistemas</h2>
+    <h2>Acompanhamento de Sistemas - Visão Executiva</h2>
   </section>
 
   <div class="card-actions">
@@ -62,14 +62,19 @@
               <strong class="acompanhamento-card-highlight__value">{{ sistema.lead_time_texto }}</strong>
             </div>
 
-            <div class="acompanhamento-chip-list">
-              {% for entrega in sistema.entregas.all %}
+            <div class="acompanhamento-chip-list acompanhamento-chip-list--resumo">
+              {% for entrega in sistema.entregas.all|slice:":4" %}
                 <span class="acompanhamento-chip acompanhamento-chip--entrega">
                   {{ entrega.titulo }} · {{ entrega.progresso_percentual|floatformat:0 }}%
                 </span>
               {% empty %}
                 <span class="card-meta">Sem entregas lançadas.</span>
               {% endfor %}
+              {% if sistema.entregas.count > 4 %}
+                <span class="acompanhamento-chip acompanhamento-chip--mais">
+                  +{{ sistema.entregas.count|add:"-4" }} ciclo{{ sistema.entregas.count|add:"-4"|pluralize }}
+                </span>
+              {% endif %}
             </div>
           </div>
           <div class="card-footer acompanhamento-card-footer">

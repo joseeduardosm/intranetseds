@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-04-02
+
+### Acompanhamento de Sistemas
+- ampliada a autonomia dos interessados internos, que agora podem editar sistemas, ciclos, etapas, notas e a lista de interessados dos sistemas em que participam;
+- restringida a exclusao de sistemas e ciclos ao usuario criador do registro, evitando remocoes amplas apenas por permissao de perfil;
+- refinada a visao executiva com cards mais largos, container expandido, titulos autoajustaveis e resumo de ciclos limitado aos itens mais relevantes;
+- reorganizada a grade de ciclos no detalhe do sistema para distribuir melhor os cards em telas amplas e manter responsividade em resolucoes menores;
+- atualizados os titulos das telas principais para destacar a proposta de `Visao Executiva`.
+
+### Sala de Situacao e Sala de Situacao V2
+- ampliado o acesso global de leitura da `sala_situacao_v2` para usuarios com permissoes de visualizacao do legado ou da v2, sem exigir perfil administrativo;
+- ajustados formularios, filtros e opcoes de monitoramento para listar apenas grupos ligados a setores ativos, excluindo o grupo `admin`;
+- removida a restricao que barrava a atribuicao de grupos responsaveis fora da interseccao do usuario ao criar indicadores na v2, passando a confiar na lista filtrada do formulario;
+- fortalecida a geracao automatica de marcadores por grupo no legado e na v2, com truncamento seguro e sufixo hash para nomes muito longos;
+- ampliada a largura da home da Sala de Situacao e refinada a grade dos cards para melhor aproveitamento horizontal.
+
 ## 2026-04-01
 
 ### Acompanhamento de Sistemas

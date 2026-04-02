@@ -2,7 +2,7 @@
 {% load static %}
 {% load acompanhamento_tags %}
 
-{% block container_class %}container-wide{% endblock %}
+{% block container_class %}container-wide acompanhamento-container{% endblock %}
 {% block extra_css %}
   <link rel="stylesheet" href="{% static 'css/acompanhamento_sistemas/acompanhamento_sistemas.css' %}" />
 {% endblock %}
@@ -128,7 +128,7 @@
 
   <section class="detail-card acompanhamento-card">
     <div class="acompanhamento-section-head">
-      <h3>Ciclos</h3>
+      <h3>Ciclos - Visão Executiva</h3>
       {% if pode_criar_entrega %}
         <button class="btn" type="button" id="acompanhamento-open-ciclo-modal">Novo Ciclo</button>
       {% endif %}
@@ -140,13 +140,13 @@
           <a class="card-link" href="{% url 'acompanhamento_sistemas_entrega_detail' entrega.pk %}">
             <div class="card-body acompanhamento-card-body">
               <div class="acompanhamento-card-top">
-                <h4 class="card-title acompanhamento-card-title">{{ entrega.titulo_com_numeracao }}</h4>
+                <h4 class="card-title acompanhamento-card-title acompanhamento-card-title--autofit" data-autofit-title>{{ entrega.titulo_com_numeracao }}</h4>
                 {% if entrega.descricao %}
                   <p class="card-meta acompanhamento-card-description">{{ entrega.descricao }}</p>
                 {% endif %}
               </div>
               {% include "acompanhamento_sistemas/_progresso_ciclo_duplo.html" with entrega=entrega %}
-              <div class="acompanhamento-chip-list">
+              <div class="acompanhamento-chip-list acompanhamento-chip-list--etapas-fixas">
                 {% for etapa in entrega.etapas.all %}
                   <span class="acompanhamento-chip acompanhamento-chip--{{ etapa.status|lower }}">
                     {{ etapa.get_tipo_etapa_display }}
@@ -239,6 +239,19 @@
   {% if pode_editar_sistema or pode_criar_entrega %}
     <script>
       (function() {
+        const ajustarTitulosCiclos = () => {
+          document.querySelectorAll("[data-autofit-title]").forEach((titulo) => {
+            titulo.style.fontSize = "";
+            let tamanho = 18.4;
+            const tamanhoMinimo = 12.5;
+            titulo.style.fontSize = `${tamanho}px`;
+            while (titulo.scrollWidth > titulo.clientWidth && tamanho > tamanhoMinimo) {
+              tamanho -= 0.5;
+              titulo.style.fontSize = `${tamanho}px`;
+            }
+          });
+        };
+
         const usuarioSelect = document.getElementById("id_usuario");
         const emailInput = document.getElementById("id_email_manual");
         if (usuarioSelect && emailInput) {
@@ -311,6 +324,9 @@
             }
           }
         });
+
+        ajustarTitulosCiclos();
+        window.addEventListener("resize", ajustarTitulosCiclos);
       })();
     </script>
   {% endif %}

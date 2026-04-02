@@ -20,6 +20,12 @@ Sistema web interno da Secretaria de Desenvolvimento Social (SEDS), construído 
 
 ## Destaques recentes
 
+- ampliação da autonomia dos interessados internos em `acompanhamento_sistemas`, permitindo editar sistemas, ciclos, etapas e interessados dos itens em que já participam;
+- exclusão de sistemas e ciclos limitada ao usuário que criou o registro, preservando a governança sem expor remoções amplas por permissão genérica;
+- refinamento da visão executiva de `acompanhamento_sistemas`, com cards mais largos, títulos autoajustáveis, resumo compacto dos ciclos e melhor responsividade;
+- ajuste da `sala_situacao` e da `sala_situacao_v2` para trabalhar apenas com grupos vinculados a setores ativos, incluindo filtros, formulários e monitoramento;
+- ampliação do acesso global de leitura na `sala_situacao_v2` para usuários com permissões de visualização dos módulos legado e v2;
+- proteção na geração automática de marcadores por grupo, evitando colisões e estouro de tamanho quando o nome do setor é muito longo;
 - novo app `acompanhamento_sistemas` com cadastro de sistemas, ciclos e etapas fixas de acompanhamento;
 - timeline consolidada por sistema e timeline específica por etapa, ambas com paginação de 6 eventos por navegação;
 - progresso processual por sistema e por ciclo, seguindo a mesma lógica visual da `sala_situacao_v2`;

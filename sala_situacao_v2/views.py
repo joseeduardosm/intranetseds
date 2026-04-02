@@ -19,6 +19,7 @@ from django.views.generic import CreateView, DeleteView, DetailView, ListView, T
 from auditoria.models import AuditLog
 from sala_situacao.forms import NotaItemForm
 from sala_situacao.models import NotaItem, nota_item_anexo_storage_ready
+from usuarios.models import SetorNode
 
 from .access import (
     filter_visible_processos_for_user,
@@ -198,7 +199,9 @@ def _adicionar_contexto_calendario_formulario(context):
 def _opcoes_grupos_monitoramento_variaveis():
     return [
         {"id": grupo.id, "nome": grupo.name}
-        for grupo in Group.objects.filter(setor_node__isnull=False).exclude(name__iexact="admin").order_by("name")
+        for grupo in Group.objects.filter(
+            id__in=SetorNode.objects.filter(ativo=True).values_list("group_id", flat=True)
+        ).exclude(name__iexact="admin").order_by("name")
     ]
 
 
@@ -479,10 +482,6 @@ class IndicadorCreateView(LoginRequiredMixin, PermissionRequiredMixin, WriteAcce
         return _adicionar_contexto_calendario_formulario(context)
 
     def form_valid(self, form):
-        if not user_is_v2_admin(self.request.user):
-            selected_ids = set(form.cleaned_data["grupos_responsaveis"].values_list("id", flat=True))
-            if not selected_ids.intersection(self.get_writable_group_ids()):
-                return HttpResponseForbidden("Sem permissao para atribuir os grupos informados.")
         if self.request.user.is_authenticated and not form.instance.criado_por_id:
             form.instance.criado_por = self.request.user
         response = super().form_valid(form)
