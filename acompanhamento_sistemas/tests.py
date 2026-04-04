@@ -13,6 +13,7 @@ from django.utils import timezone
 
 from administracao.models import SMTPConfiguration
 from auditoria.models import AuditLog
+from notificacoes.models import NotificacaoUsuario
 
 from .models import (
     HistoricoSistema,
@@ -146,6 +147,83 @@ class AcompanhamentoSistemasTests(TestCase):
         sistema = self._criar_sistema()
 
         self.assertEqual(sistema.entregas.count(), 0)
+
+    @patch("acompanhamento_sistemas.services.EmailMessage.send", return_value=1)
+    def test_publicacao_de_entrega_gera_notificacao_desktop_para_interessado_vinculado(self, mock_send):
+        sistema = self._criar_sistema()
+        InteressadoSistema.objects.create(
+            sistema=sistema,
+            usuario=self.viewer,
+            tipo_interessado="GESTAO",
+            nome_snapshot="Viewer Sistemas",
+            email_snapshot=self.viewer.email,
+            criado_por=self.user,
+        )
+        entrega = self._criar_entrega(sistema, titulo="MVP Desktop")
+        self._definir_datas_ciclo(entrega)
+
+        self._publicar_entrega(entrega)
+
+        notificacao = NotificacaoUsuario.objects.get(user=self.viewer, event_type="publicacao_ciclo")
+        self.assertEqual(notificacao.title, f"Sistema: {sistema.nome}")
+        self.assertIn(f"Ciclo: {entrega.titulo}", notificacao.body_short)
+        self.assertIn("Etapa: Ciclo - cronograma inicial publicado.", notificacao.body_short)
+        self.assertIn(f"/acompanhamento-sistemas/entregas/{entrega.pk}/", notificacao.target_url)
+
+    @patch("acompanhamento_sistemas.services.EmailMessage.send", return_value=1)
+    def test_historico_de_etapa_publicada_gera_notificacao_desktop(self, mock_send):
+        sistema = self._criar_sistema(nome="Sistema Desktop")
+        InteressadoSistema.objects.create(
+            sistema=sistema,
+            usuario=self.viewer,
+            tipo_interessado="GESTAO",
+            nome_snapshot="Viewer Sistemas",
+            email_snapshot=self.viewer.email,
+            criado_por=self.user,
+        )
+        entrega = self._criar_entrega(sistema, titulo="Entrega Desktop")
+        self._definir_datas_ciclo(entrega)
+        self._publicar_entrega(entrega)
+        etapa = entrega.etapas.order_by("ordem").first()
+
+        response = self.client.post(
+            reverse("acompanhamento_sistemas_etapa_update", kwargs={"pk": etapa.pk}),
+            {
+                "data_etapa": etapa.data_etapa.strftime("%Y-%m-%d"),
+                "status": EtapaSistema.Status.EM_ANDAMENTO,
+                "justificativa_status": "Inicio dos trabalhos",
+                "texto_nota": "",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        notificacao = NotificacaoUsuario.objects.filter(user=self.viewer, event_type="etapa_status").latest("id")
+        self.assertEqual(notificacao.title, f"Sistema: {sistema.nome}")
+        self.assertIn(f"Ciclo: {entrega.titulo}", notificacao.body_short)
+        self.assertIn(f"Etapa: {etapa.get_tipo_etapa_display()} - status alterado para Em andamento.", notificacao.body_short)
+        self.assertIn(f"/acompanhamento-sistemas/etapas/{etapa.pk}/", notificacao.target_url)
+
+    def test_nota_em_sistema_gera_notificacao_desktop_mesmo_sem_email(self):
+        sistema = self._criar_sistema(nome="Sistema Nota")
+        InteressadoSistema.objects.create(
+            sistema=sistema,
+            usuario=self.viewer,
+            tipo_interessado="GESTAO",
+            nome_snapshot="Viewer Sistemas",
+            email_snapshot="",
+            criado_por=self.user,
+        )
+
+        response = self.client.post(
+            reverse("acompanhamento_sistemas_nota", kwargs={"pk": sistema.pk}),
+            {"texto_nota": "Nova anotação do sistema"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        notificacao = NotificacaoUsuario.objects.get(user=self.viewer, event_type="sistema_nota")
+        self.assertEqual(notificacao.title, f"{sistema.nome} - Atualização do sistema")
+        self.assertIn("Sistema: Nova anotação do sistema", notificacao.body_short)
+        self.assertIn(f"/acompanhamento-sistemas/{sistema.pk}/", notificacao.target_url)
 
     def test_criacao_manual_de_entrega_gera_cinco_etapas(self):
         sistema = self._criar_sistema()

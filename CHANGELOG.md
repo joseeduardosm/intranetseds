@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-04-04
+
+### Notificacoes Desktop
+- criado o novo app `notificacoes`, com persistencia de notificacoes por usuario, deduplicacao, tokens da API desktop e endpoints para login, listagem, marcacao de exibida e marcacao de lida;
+- integrado `acompanhamento_sistemas` a essa caixa unificada, cobrindo publicacao de ciclo, alteracoes de etapa e notas de sistema sem depender apenas de e-mail;
+- padronizado o conteudo das notificacoes de `acompanhamento_sistemas` para exibir `Sistema`, `Ciclo`, `Etapa` e `autor/data-hora` em formato mais legivel para popup;
+- adicionado comando `simular_notificacao_desktop` para gerar notificacoes de teste diretamente pelo terminal;
+- criado o client Windows nativo em `.NET` em `desktop_client_dotnet`, com login manual, credenciais protegidas localmente, auto-start, polling de 30s, popup proprio no canto inferior direito e scripts MVP de instalacao/desinstalacao.
+
 ## 2026-04-02
 
 ### Acompanhamento de Sistemas

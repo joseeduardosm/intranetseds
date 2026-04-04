@@ -54,6 +54,8 @@ urlpatterns = [
     path('lousa-digital/', include('lousa_digital.urls')),
     # App de acompanhamento de sistemas.
     path('acompanhamento-sistemas/', include('acompanhamento_sistemas.urls')),
+    # API do client desktop.
+    path('api/desktop/', include('notificacoes.urls')),
 ]
 
 if settings.DEBUG:

@@ -20,6 +20,10 @@ Sistema web interno da Secretaria de Desenvolvimento Social (SEDS), construído 
 
 ## Destaques recentes
 
+- nova infraestrutura de notificações desktop no app `notificacoes`, com caixa unificada por usuário, autenticação dedicada para client Windows e endpoints para listar, marcar exibida e marcar lida;
+- integração inicial de `acompanhamento_sistemas` com a caixa unificada, cobrindo publicação de ciclo, mudanças de etapa e notas de sistema;
+- novo client Windows nativo em `.NET` em `desktop_client_dotnet/`, com login manual, credenciais protegidas localmente, inicialização automática, polling e popup próprio no canto inferior direito;
+- comando `python manage.py simular_notificacao_desktop <usuario>` para gerar notificações de teste sem depender do fluxo manual do sistema;
 - ampliação da autonomia dos interessados internos em `acompanhamento_sistemas`, permitindo editar sistemas, ciclos, etapas e interessados dos itens em que já participam;
 - exclusão de sistemas e ciclos limitada ao usuário que criou o registro, preservando a governança sem expor remoções amplas por permissão genérica;
 - refinamento da visão executiva de `acompanhamento_sistemas`, com cards mais largos, títulos autoajustáveis, resumo compacto dos ciclos e melhor responsividade;
@@ -41,6 +45,8 @@ Sistema web interno da Secretaria de Desenvolvimento Social (SEDS), construído 
 ## Estrutura do projeto
 
 - `intranet/`: configurações globais do Django (`settings.py`, `urls.py`)
+- `notificacoes/`: caixa unificada de notificações desktop, tokens da API e endpoints do client
+- `desktop_client_dotnet/`: client Windows nativo em `.NET` com popup próprio e scripts de instalação MVP
 - `templates/`: templates HTML
 - `static/`: arquivos estáticos (CSS, JS, imagens)
 - `media/`: uploads de arquivos
@@ -92,6 +98,38 @@ Executar testes de um app específico (exemplo `usuarios`):
 ```bash
 python manage.py test usuarios
 ```
+
+Executar os testes principais das notificações desktop:
+
+```bash
+python manage.py test notificacoes --settings=intranet.settings_test
+python manage.py test acompanhamento_sistemas.tests.AcompanhamentoSistemasTests.test_publicacao_de_entrega_gera_notificacao_desktop_para_interessado_vinculado --settings=intranet.settings_test
+```
+
+## Notificações desktop
+
+O backend expõe uma API dedicada para o client Windows:
+
+- `POST /api/desktop/auth/login/`
+- `POST /api/desktop/auth/logout/`
+- `GET /api/desktop/notificacoes/`
+- `POST /api/desktop/notificacoes/<id>/marcar-exibida/`
+- `POST /api/desktop/notificacoes/<id>/marcar-lida/`
+
+No `acompanhamento_sistemas`, o formato atual das notificações ficou:
+
+- título: `Sistema: Nome do sistema`
+- 1ª linha: `Ciclo: Nome do ciclo`
+- 2ª linha: `Etapa: ...`
+- 3ª linha: `Nome da pessoa, dd/mm/aaaa hh:mm`
+
+Para simular uma notificação sem acionar o fluxo funcional:
+
+```bash
+python manage.py simular_notificacao_desktop jesmartins
+```
+
+O client Windows fica em `desktop_client_dotnet/README.md`.
 
 ## Versionamento (Git)
 

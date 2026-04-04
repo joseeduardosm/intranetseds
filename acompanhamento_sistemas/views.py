@@ -872,9 +872,6 @@ class EtapaSistemaNotaView(LoginRequiredMixin, View):
 
     def post(self, request, pk):
         etapa = self.etapa
-        if etapa.entrega.status != EntregaSistema.Status.PUBLICADO:
-            messages.error(request, "Comentários e anexos da etapa só podem ser lançados após a publicação do ciclo.")
-            return redirect("acompanhamento_sistemas_etapa_detail", pk=etapa.pk)
         form = NotaEtapaSistemaForm(request.POST, request.FILES)
         if form.is_valid():
             try:

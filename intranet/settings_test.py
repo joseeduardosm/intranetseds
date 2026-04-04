@@ -9,3 +9,4 @@ DATABASES = {
 }
 
 MIDDLEWARE = [item for item in MIDDLEWARE if item != "whitenoise.middleware.WhiteNoiseMiddleware"]  # noqa: F405
+EMAIL_DELIVERY_SYNC = True

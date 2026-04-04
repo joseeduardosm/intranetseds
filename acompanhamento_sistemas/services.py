@@ -4,6 +4,8 @@ from datetime import date
 import logging
 import threading
 
+from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.core.mail import EmailMessage
@@ -13,6 +15,7 @@ from django.utils import timezone
 
 from administracao.models import SMTPConfiguration
 from auditoria.models import AuditLog
+from notificacoes.services import SOURCE_ACOMPANHAMENTO_SISTEMAS, emitir_notificacao
 
 from .models import (
     AnexoHistoricoSistema,
@@ -26,6 +29,7 @@ from .models import (
 from .utils import nome_usuario_exibicao
 
 logger = logging.getLogger(__name__)
+User = get_user_model()
 
 
 ETAPAS_INICIAIS = [
@@ -104,11 +108,136 @@ def _enfileirar_email_background(*, config, subject: str, body: str, destinatari
         finally:
             close_old_connections()
 
+    if getattr(settings, "EMAIL_DELIVERY_SYNC", False):
+        _worker()
+        return
+
     transaction.on_commit(lambda: threading.Thread(target=_worker, daemon=True).start())
 
 
 def _destinatarios_sistema(sistema: Sistema) -> list[str]:
     return sistema.interessados_emails
+
+
+def _usuarios_notificacao_sistema(sistema: Sistema):
+    return User.objects.filter(interesses_em_sistemas__sistema=sistema).distinct()
+
+
+def _titulo_notificacao_entrega(entrega: EntregaSistema) -> str:
+    return f"Sistema: {entrega.sistema.nome}"
+
+
+def _responsavel_e_data_hora(usuario, criado_em) -> str:
+    responsavel = nome_usuario_exibicao(usuario) or "Sistema"
+    data_hora = timezone.localtime(criado_em).strftime("%d/%m/%Y %H:%M")
+    return f"{responsavel}, {data_hora}"
+
+
+def _descricao_notificacao_historico_etapa(historico: HistoricoEtapaSistema) -> str:
+    etapa = historico.etapa
+    etapa_label = etapa.get_tipo_etapa_display()
+
+    if (
+        historico.tipo_evento == HistoricoEtapaSistema.TipoEvento.STATUS
+        and historico.status_novo
+    ):
+        status_novo = EtapaSistema.Status(historico.status_novo).label
+        return f"Etapa: {etapa_label} - status alterado para {status_novo}."
+
+    if (
+        historico.tipo_evento == HistoricoEtapaSistema.TipoEvento.DATA
+        and historico.data_nova
+    ):
+        return f"Etapa: {etapa_label} - data alterada para {historico.data_nova.strftime('%d/%m/%Y')}."
+
+    if historico.tipo_evento == HistoricoEtapaSistema.TipoEvento.NOTA:
+        conteudo = (historico.descricao or "-").strip() or "-"
+        return f"Etapa: {etapa_label} - nota adicionada. {conteudo[:260]}"
+
+    if historico.tipo_evento == HistoricoEtapaSistema.TipoEvento.ANEXO:
+        conteudo = (historico.descricao or "-").strip() or "-"
+        return f"Etapa: {etapa_label} - anexo adicionado. {conteudo[:260]}"
+
+    if historico.tipo_evento == HistoricoEtapaSistema.TipoEvento.CRIACAO:
+        return f"Etapa: {etapa_label} - etapa criada."
+
+    conteudo = (_conteudo_email_historico(historico) or "-").strip()
+    return f"Etapa: {etapa_label} - {conteudo[:260]}"
+
+
+def _descricao_notificacao_historico_sistema(historico: HistoricoSistema) -> str:
+    conteudo = (_conteudo_email_historico_sistema(historico) or "-").strip()
+    return f"Sistema: atualização registrada. {conteudo[:260]}"
+
+
+def _emitir_notificacao_publicacao_desktop(entrega: EntregaSistema):
+    emitir_notificacao(
+        users=_usuarios_notificacao_sistema(entrega.sistema),
+        source_app=SOURCE_ACOMPANHAMENTO_SISTEMAS,
+        event_type="publicacao_ciclo",
+        title=_titulo_notificacao_entrega(entrega),
+        body_short=(
+            f"Ciclo: {entrega.titulo}\n"
+            "Etapa: Ciclo - cronograma inicial publicado.\n"
+            f"{_responsavel_e_data_hora(entrega.atualizado_por or entrega.criado_por, entrega.atualizado_em or entrega.criado_em)}"
+        ),
+        target_url=entrega.get_absolute_url(),
+        dedupe_key=f"acomp-publicacao-entrega-{entrega.pk}-{entrega.status}",
+        payload_json={
+            "sistema_id": entrega.sistema_id,
+            "entrega_id": entrega.pk,
+            "entrega_titulo": entrega.titulo_com_numeracao,
+        },
+    )
+
+
+def _emitir_notificacao_historico_desktop(historico: HistoricoEtapaSistema):
+    etapa = historico.etapa
+    entrega = etapa.entrega
+    if entrega.status != EntregaSistema.Status.PUBLICADO:
+        return
+    emitir_notificacao(
+        users=_usuarios_notificacao_sistema(entrega.sistema),
+        source_app=SOURCE_ACOMPANHAMENTO_SISTEMAS,
+        event_type=f"etapa_{historico.tipo_evento.lower()}",
+        title=_titulo_notificacao_entrega(entrega),
+        body_short=(
+            f"Ciclo: {entrega.titulo}\n"
+            f"{_descricao_notificacao_historico_etapa(historico)}\n"
+            f"{_responsavel_e_data_hora(historico.criado_por, historico.criado_em)}"
+        ),
+        target_url=etapa.get_absolute_url(),
+        dedupe_key=f"acomp-historico-etapa-{historico.pk}",
+        payload_json={
+            "sistema_id": entrega.sistema_id,
+            "entrega_id": entrega.pk,
+            "etapa_id": etapa.pk,
+            "historico_id": historico.pk,
+            "tipo_evento": historico.tipo_evento,
+        },
+    )
+
+
+def _emitir_notificacao_historico_sistema_desktop(historico: HistoricoSistema):
+    sistema = historico.sistema
+    emitir_notificacao(
+        users=_usuarios_notificacao_sistema(sistema),
+        source_app=SOURCE_ACOMPANHAMENTO_SISTEMAS,
+        event_type="sistema_nota",
+        title=f"Sistema: {sistema.nome}",
+        body_short=(
+            "Ciclo: Sistema\n"
+            f"{_descricao_notificacao_historico_sistema(historico)}\n"
+            f"{_responsavel_e_data_hora(historico.criado_por, historico.criado_em)}"
+        ),
+        target_url=sistema.get_absolute_url(),
+        dedupe_key=f"acomp-historico-sistema-{historico.pk}",
+        payload_json={
+            "sistema_id": sistema.pk,
+            "historico_sistema_id": historico.pk,
+            "tipo_evento": historico.tipo_evento,
+        },
+    )
 
 
 def _conteudo_email_historico(historico: HistoricoEtapaSistema) -> str:
@@ -290,6 +419,8 @@ def _status_exige_etapa_anterior_concluida(etapa: EtapaSistema, status: str) -> 
 
 
 def enviar_notificacao_historico(historico: HistoricoEtapaSistema, *, request=None):
+    _emitir_notificacao_historico_desktop(historico)
+
     if historico.etapa.entrega.status != EntregaSistema.Status.PUBLICADO:
         return
 
@@ -328,6 +459,8 @@ def enviar_notificacao_historico(historico: HistoricoEtapaSistema, *, request=No
 
 
 def enviar_notificacao_historico_sistema(historico: HistoricoSistema, *, request=None):
+    _emitir_notificacao_historico_sistema_desktop(historico)
+
     destinatarios = _destinatarios_sistema(historico.sistema)
     if not destinatarios:
         return
@@ -355,6 +488,8 @@ def enviar_notificacao_historico_sistema(historico: HistoricoSistema, *, request
 
 
 def enviar_notificacao_publicacao(entrega: EntregaSistema, *, usuario=None, request=None):
+    _emitir_notificacao_publicacao_desktop(entrega)
+
     destinatarios = _destinatarios_sistema(entrega.sistema)
     if not destinatarios:
         return
@@ -483,8 +618,6 @@ def atualizar_etapa_com_historico(
     if etapa.entrega.status != EntregaSistema.Status.PUBLICADO:
         if status_alterado:
             raise ValidationError("O status da etapa só pode ser alterado após a publicação do ciclo.")
-        if possui_nota:
-            raise ValidationError("Comentários e anexos da etapa só podem ser lançados após a publicação do ciclo.")
     if (
         status_alterado
         and _status_exige_etapa_anterior_concluida(etapa, novo_status)

@@ -86,6 +86,7 @@ INSTALLED_APPS = [
     'sala_situacao_v2.apps.SalaSituacaoV2Config',
     'lousa_digital.apps.LousaDigitalConfig',
     'acompanhamento_sistemas.apps.AcompanhamentoSistemasConfig',
+    'notificacoes.apps.NotificacoesConfig',
 ]
 
 # Pipeline de middlewares (ordem importa).
@@ -218,3 +219,6 @@ AUTHENTICATION_BACKENDS = [
     "administracao.ldap_backend.LDAPBackend",
     "usuarios.auth_backends.SetorPermissionBackend",
 ]
+
+DESKTOP_NOTIFICATION_DEDUPE_WINDOW_SECONDS = 300
+DESKTOP_CLIENT_BASE_URL = os.getenv("DESKTOP_CLIENT_BASE_URL", "https://sgi.seds.sp.gov.br")
