@@ -1,114 +1,150 @@
 # Intranet SEDS
 
-Sistema web interno da Secretaria de Desenvolvimento Social (SEDS), construído com Django, com módulos para gestão administrativa, indicadores, contratos, ramais, notícias, reserva de salas e outros fluxos institucionais.
+Sistema web interno da Secretaria de Desenvolvimento Social (SEDS), desenvolvido em Django, voltado à operação administrativa e ao apoio de áreas como contratos, licitações, ramais, indicadores, folha de ponto, notícias, reserva de salas e acompanhamento de sistemas.
 
-## Tecnologias
+## Visão Geral
 
-- Python 3
-- Django
-- HTML + CSS + JavaScript
-- SQLite (ambiente local)
+O projeto reúne, em uma única intranet:
 
-## Módulos principais
+- autenticação e navegação institucional;
+- gestão de usuários, perfis, setores e permissões;
+- módulos administrativos e operacionais com CRUDs, dashboards, relatórios e fluxos internos;
+- recursos de auditoria, rastreabilidade e documentação;
+- integrações com notificações desktop e client Windows dedicado.
 
-- `usuarios`: gestão de usuários, setores e permissões
-- `sala_situacao`: indicadores, processos e entregas
-- `acompanhamento_sistemas`: governança do ciclo de vida de sistemas com ciclos, etapas, timeline e interessados
-- `administracao`: configurações administrativas do sistema
-- `ramais`: diretório de pessoas e estrutura organizacional
-- `contratos`, `licitacoes`, `diario_bordo`, `noticias`, `reserva_salas`, `monitoramento`, `folha_ponto`, `empresas`, `prepostos`, `auditoria`, `lousa_digital`
+## Stack Principal
 
-## Destaques recentes
+- `Python 3`
+- `Django`
+- `MySQL/MariaDB` no ambiente principal
+- `SQLite` em cenários locais simplificados
+- `HTML`, `CSS` e `JavaScript`
+- `python-docx` para fluxos documentais em `licitacoes`
+- client Windows em `.NET` no diretório `desktop_client_dotnet/`
 
-- nova infraestrutura de notificações desktop no app `notificacoes`, com caixa unificada por usuário, autenticação dedicada para client Windows e endpoints para listar, marcar exibida e marcar lida;
-- integração inicial de `acompanhamento_sistemas` com a caixa unificada, cobrindo publicação de ciclo, mudanças de etapa e notas de sistema;
-- novo client Windows nativo em `.NET` em `desktop_client_dotnet/`, com login manual, credenciais protegidas localmente, inicialização automática, polling e popup próprio no canto inferior direito;
-- comando `python manage.py simular_notificacao_desktop <usuario>` para gerar notificações de teste sem depender do fluxo manual do sistema;
-- ampliação da autonomia dos interessados internos em `acompanhamento_sistemas`, permitindo editar sistemas, ciclos, etapas e interessados dos itens em que já participam;
-- exclusão de sistemas e ciclos limitada ao usuário que criou o registro, preservando a governança sem expor remoções amplas por permissão genérica;
-- refinamento da visão executiva de `acompanhamento_sistemas`, com cards mais largos, títulos autoajustáveis, resumo compacto dos ciclos e melhor responsividade;
-- ajuste da `sala_situacao` e da `sala_situacao_v2` para trabalhar apenas com grupos vinculados a setores ativos, incluindo filtros, formulários e monitoramento;
-- ampliação do acesso global de leitura na `sala_situacao_v2` para usuários com permissões de visualização dos módulos legado e v2;
-- proteção na geração automática de marcadores por grupo, evitando colisões e estouro de tamanho quando o nome do setor é muito longo;
-- novo app `acompanhamento_sistemas` com cadastro de sistemas, ciclos e etapas fixas de acompanhamento;
-- timeline consolidada por sistema e timeline específica por etapa, ambas com paginação de 6 eventos por navegação;
-- progresso processual por sistema e por ciclo, seguindo a mesma lógica visual da `sala_situacao_v2`;
-- indicador de `tempo de atendimento` (lead time) do sistema na listagem, calculado da criação até hoje ou até a última etapa concluída;
-- gestão de interessados no nível do sistema, com reaproveitamento de usuários já cadastrados e notificações por e-mail;
-- acesso contextual por interessado interno, dashboard executivo, marcadores de prazo e stepper horizontal do ciclo no `acompanhamento_sistemas`;
-- modal de calendário na etapa com visão mensal de todas as etapas de todos os sistemas;
-- transição automática entre etapas, com obrigatoriedade de anexo ao concluir `Requisitos`;
-- integração do módulo à matriz de perfis do app `usuarios`, permitindo concessão de acesso por Leitura, Edição e Administração;
-- integração do novo módulo com a área de atalhos administrativos.
-- reorganização do `Termo de Referência 25` em `licitacoes`, com inserção de novos blocos técnicos de infraestrutura a partir de arquivos em `docs/`.
+## Módulos do Projeto
 
-## Estrutura do projeto
+- `administracao`: configurações gerais, SMTP, identidade visual, atalhos e apoio administrativo
+- `acompanhamento_sistemas`: governança do ciclo de vida de sistemas, etapas, ciclos, timeline e interessados
+- `auditoria`: trilha de alterações e histórico de ações
+- `contratos`: gestão contratual com status, vencimentos e filtros operacionais
+- `diario_bordo`: blocos de trabalho, incrementos e histórico de execução
+- `empresas`: cadastro e consulta de empresas
+- `folha_ponto`: RH, feriados, férias e configurações correlatas
+- `licitacoes`: termos de referência, ETP TIC e estruturação documental
+- `lousa_digital`: gestão visual de processos e dashboard por caixas
+- `monitoramento`: dashboards e conexões para análise de dados
+- `noticias`: publicação e gestão de notícias internas
+- `notificacoes`: caixa unificada de notificações desktop, tokens e endpoints do client
+- `prepostos`: gestão de prepostos
+- `ramais`: diretório institucional, organograma e perfis de contato
+- `rastreamento_navegacao`: métricas de acesso e navegação
+- `reserva_salas`: agenda, reservas, dashboard e gestão de salas
+- `sala_situacao` e `sala_situacao_v2`: indicadores, processos, entregas e monitoramento
+- `usuarios`: usuários, grupos, perfis e auditoria de permissões
 
-- `intranet/`: configurações globais do Django (`settings.py`, `urls.py`)
-- `notificacoes/`: caixa unificada de notificações desktop, tokens da API e endpoints do client
-- `desktop_client_dotnet/`: client Windows nativo em `.NET` com popup próprio e scripts de instalação MVP
+## Estrutura do Repositório
+
+- `administracao/`, `usuarios/`, `licitacoes/`, `reserva_salas/` etc.: apps Django por domínio
+- `intranet/`: configuração global do projeto (`settings.py`, `urls.py`, views compartilhadas)
 - `templates/`: templates HTML
-- `static/`: arquivos estáticos (CSS, JS, imagens)
-- `media/`: uploads de arquivos
-- `manage.py`: utilitário principal Django
+- `static/`: CSS, JS e assets estáticos
+- `media/`: uploads
+- `docs/`: materiais auxiliares, textos-base e changelogs de apoio
+- `desktop_client_dotnet/`: client Windows para notificações desktop
+- `manage.py`: ponto de entrada de administração Django
 
-## Como executar localmente
+## Funcionalidades de Destaque
 
-### 1) Criar e ativar ambiente virtual
+- home em duas colunas com cards administrativos e atalhos livres
+- matriz de perfis e permissões por módulo
+- dashboards executivos e operacionais em múltiplos apps
+- importação, edição e exportação de Termos de Referência e ETP TIC
+- notificações desktop persistidas por usuário, com marcação de exibida e lida
+- acompanhamento de sistemas com timeline, ciclos, etapas e interessados internos
+- reserva de salas com agenda, calendário e listagem tabular
+- módulos de indicadores em operação simultânea: legado e v2
+
+## Configuração Local
+
+### 1. Criar ambiente virtual
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-### 2) Instalar dependências
+### 2. Instalar dependências
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3) Configurar variáveis de ambiente
+### 3. Configurar variáveis de ambiente
 
-Crie/ajuste o arquivo `.env` na raiz conforme o ambiente.
+Crie ou ajuste o arquivo `.env` na raiz do projeto.
 
-### 4) Executar migrações
+Exemplo de variáveis utilizadas no ambiente principal:
+
+```env
+DB_ENGINE=mysql
+MYSQL_NAME=intranet
+MYSQL_USER=intranet
+MYSQL_PASSWORD=******
+MYSQL_HOST=127.0.0.1
+MYSQL_PORT=3306
+TZ=America/Sao_Paulo
+```
+
+## Banco de Dados
+
+O projeto pode operar com bases diferentes conforme o ambiente:
+
+- ambiente principal: `MySQL/MariaDB`
+- ambiente local simplificado: `SQLite`, quando configurado
+
+Após configurar o banco:
 
 ```bash
 python manage.py migrate
 ```
 
-### 5) Subir servidor
+## Execução Local
 
 ```bash
 python manage.py runserver
 ```
 
-Acesse: `http://127.0.0.1:8000`
+Acesso padrão local:
+
+- `http://127.0.0.1:8000`
 
 ## Testes
 
-Executar todos os testes:
+Executar toda a suíte:
 
 ```bash
 python manage.py test
 ```
 
-Executar testes de um app específico (exemplo `usuarios`):
+Executar um app específico:
 
 ```bash
 python manage.py test usuarios
+python manage.py test licitacoes
+python manage.py test notificacoes
 ```
 
-Executar os testes principais das notificações desktop:
+Exemplos úteis:
 
 ```bash
 python manage.py test notificacoes --settings=intranet.settings_test
 python manage.py test acompanhamento_sistemas.tests.AcompanhamentoSistemasTests.test_publicacao_de_entrega_gera_notificacao_desktop_para_interessado_vinculado --settings=intranet.settings_test
 ```
 
-## Notificações desktop
+## Notificações Desktop
 
-O backend expõe uma API dedicada para o client Windows:
+O backend expõe uma API para o client Windows:
 
 - `POST /api/desktop/auth/login/`
 - `POST /api/desktop/auth/logout/`
@@ -116,47 +152,61 @@ O backend expõe uma API dedicada para o client Windows:
 - `POST /api/desktop/notificacoes/<id>/marcar-exibida/`
 - `POST /api/desktop/notificacoes/<id>/marcar-lida/`
 
-No `acompanhamento_sistemas`, o formato atual das notificações ficou:
+Fluxo funcional atual:
 
-- título: `Sistema: Nome do sistema`
-- 1ª linha: `Ciclo: Nome do ciclo`
-- 2ª linha: `Etapa: ...`
-- 3ª linha: `Nome da pessoa, dd/mm/aaaa hh:mm`
+- persistência por usuário em `notificacoes.NotificacaoUsuario`
+- deduplicação por janela de tempo
+- autenticação por token para o client desktop
+- integração inicial com `acompanhamento_sistemas`
 
-Para simular uma notificação sem acionar o fluxo funcional:
+Para gerar uma notificação de teste:
 
 ```bash
-python manage.py simular_notificacao_desktop jesmartins
+python manage.py simular_notificacao_desktop <usuario>
 ```
 
-O client Windows fica em `desktop_client_dotnet/README.md`.
+Documentação do client:
 
-## Versionamento (Git)
+- [desktop_client_dotnet/README.md](/home/jesmartins/intranet/desktop_client_dotnet/README.md)
+
+## Documentação Interna
+
+O diretório `docs/` concentra:
+
+- textos auxiliares para montagem e revisão de TRs
+- anexos técnicos e conteúdo-base de licitações
+- comparativos e changelogs específicos de termos
+- artefatos de apoio para evolução funcional do sistema
+
+## Git e Fluxo de Trabalho
 
 Fluxo básico recomendado:
 
 ```bash
 git checkout -b feature/minha-alteracao
-# ...edita arquivos...
-git add .
+git add <arquivos>
 git commit -m "feat: descreve a alteração"
 git push -u origin feature/minha-alteracao
 ```
 
-Para sincronizar a branch principal:
+Sincronização da branch principal:
 
 ```bash
 git checkout main
 git pull
 ```
 
-## Repositório remoto
-
-Este projeto está versionado em:
+Repositório remoto configurado:
 
 - `origin`: `https://github.com/joseeduardosm/intranetseds.git`
 
-## Observações
+## Boas Práticas
 
-- Não versionar segredos (`.env`) nem bancos locais (`*.sqlite3`).
-- O `.gitignore` já está configurado para arquivos temporários e artefatos de ambiente local.
+- não versionar segredos do `.env`
+- não versionar bancos locais e artefatos temporários
+- revisar alterações em `templates/` e `static/` em conjunto para evitar regressões visuais
+- em alterações de domínio, atualizar documentação e changelog quando fizer sentido
+
+## Changelog
+
+O histórico consolidado do projeto está em [CHANGELOG.md](/home/jesmartins/intranet/CHANGELOG.md).
