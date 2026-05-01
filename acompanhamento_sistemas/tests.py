@@ -28,7 +28,7 @@ from .models import (
     ProcessoRequisito,
     Sistema,
 )
-from .services import _corpo_email_historico, _corpo_email_publicacao
+from .services import _corpo_email_historico, _corpo_email_historico_sistema
 from .utils import nome_usuario_exibicao
 
 
@@ -150,7 +150,7 @@ class AcompanhamentoSistemasTests(TestCase):
         entrega.refresh_from_db()
         return datas
 
-    def _preparar_ciclo_para_publicacao(self, entrega):
+    def _preparar_ciclo_para_fluxo(self, entrega):
         self._definir_datas_ciclo(entrega)
         etapa_requisitos = entrega.etapas.order_by("ordem").first()
         etapa_requisitos.data_etapa = None
@@ -169,13 +169,9 @@ class AcompanhamentoSistemasTests(TestCase):
         entrega.refresh_from_db()
         return entrega
 
-    def _publicar_entrega(self, entrega):
-        response = self.client.post(
-            reverse("acompanhamento_sistemas_entrega_publish", kwargs={"pk": entrega.pk})
-        )
-        self.assertEqual(response.status_code, 302)
+    def _recarregar_entrega(self, entrega):
         entrega.refresh_from_db()
-        return response
+        return None
 
     def test_criacao_de_sistema_nao_gera_entrega_automatica(self):
         sistema = self._criar_sistema()
@@ -195,14 +191,13 @@ class AcompanhamentoSistemasTests(TestCase):
         )
         entrega = self._criar_entrega(sistema, titulo="MVP Desktop")
 
-        notificacao = NotificacaoUsuario.objects.get(user=self.viewer, event_type="publicacao_ciclo")
+        notificacao = NotificacaoUsuario.objects.get(user=self.viewer, event_type="sistema_nota")
         self.assertEqual(notificacao.title, f"Sistema: {sistema.nome}")
-        self.assertIn(f"Ciclo: {entrega.titulo}", notificacao.body_short)
-        self.assertIn("Etapa: Ciclo - cronograma inicial criado.", notificacao.body_short)
-        self.assertIn(f"/acompanhamento-sistemas/entregas/{entrega.pk}/", notificacao.target_url)
+        self.assertIn(f"Novo ciclo '{entrega.titulo}' criado", notificacao.body_short)
+        self.assertIn(f"/acompanhamento-sistemas/{sistema.pk}/", notificacao.target_url)
 
     @patch("acompanhamento_sistemas.services.EmailMessage.send", return_value=1)
-    def test_historico_de_etapa_em_rascunho_gera_notificacao_desktop(self, mock_send):
+    def test_historico_de_etapa_gera_notificacao_desktop(self, mock_send):
         sistema = self._criar_sistema(nome="Sistema Desktop")
         InteressadoSistema.objects.create(
             sistema=sistema,
@@ -261,7 +256,7 @@ class AcompanhamentoSistemasTests(TestCase):
 
         self.assertEqual(sistema.entregas.count(), 1)
         self.assertEqual(entrega.titulo, "MVP")
-        self.assertEqual(entrega.status, EntregaSistema.Status.RASCUNHO)
+        self.assertEqual(entrega.status, EntregaSistema.Status.PUBLICADO)
         self.assertEqual(entrega.etapas.count(), 5)
         self.assertEqual(
             list(entrega.etapas.order_by("ordem").values_list("status", flat=True)),
@@ -715,22 +710,16 @@ class AcompanhamentoSistemasTests(TestCase):
         self.assertEqual(etapa.status, EtapaSistema.Status.PENDENTE)
         self.assertContains(response, "Ao concluir Requisitos, anexe obrigatoriamente o documento de requisitos.")
 
-    def test_etapas_finais_exigem_todas_as_tres_datas_para_qualquer_atualizacao(self):
+    def test_etapa_final_exige_etapa_anterior_concluida_para_avancar(self):
         sistema = self._criar_sistema()
         entrega = self._criar_entrega(sistema)
-        self._preparar_ciclo_para_publicacao(entrega)
-        self._publicar_entrega(entrega)
+        self._preparar_ciclo_para_fluxo(entrega)
+        self._recarregar_entrega(entrega)
         etapas = list(entrega.etapas.order_by("ordem"))
         etapa_desenvolvimento = etapas[2]
-        etapa_homologacao_dev = etapas[3]
-        etapa_producao = etapas[4]
 
         etapa_desenvolvimento.data_etapa = timezone.localdate() + timedelta(days=7)
         etapa_desenvolvimento.save(update_fields=["data_etapa", "atualizado_em"])
-        etapa_homologacao_dev.data_etapa = None
-        etapa_homologacao_dev.save(update_fields=["data_etapa", "atualizado_em"])
-        etapa_producao.data_etapa = None
-        etapa_producao.save(update_fields=["data_etapa", "atualizado_em"])
 
         response = self.client.post(
             reverse("acompanhamento_sistemas_etapa_update", kwargs={"pk": etapa_desenvolvimento.pk}),
@@ -745,17 +734,14 @@ class AcompanhamentoSistemasTests(TestCase):
         self.assertEqual(response.status_code, 200)
         etapa_desenvolvimento.refresh_from_db()
         self.assertEqual(etapa_desenvolvimento.status, EtapaSistema.Status.PENDENTE)
-        self.assertContains(
-            response,
-            "Defina a data de Desenvolvimento, Homologação do Desenvolvimento e Produção antes de atualizar essas etapas.",
-        )
+        self.assertContains(response, "A etapa anterior precisa estar como Entregue antes de alterar o status desta etapa.")
 
     @patch("acompanhamento_sistemas.services.EmailMessage.send", return_value=1)
     def test_alteracao_de_status_grava_historico_auditoria_e_notifica(self, mock_send):
         sistema = self._criar_sistema()
         entrega = self._criar_entrega(sistema)
-        self._preparar_ciclo_para_publicacao(entrega)
-        self._publicar_entrega(entrega)
+        self._preparar_ciclo_para_fluxo(entrega)
+        self._recarregar_entrega(entrega)
         etapa = sistema.entregas.get().etapas.order_by("ordem").first()
         InteressadoSistemaManual.objects.create(
             sistema=sistema,
@@ -819,29 +805,19 @@ class AcompanhamentoSistemasTests(TestCase):
         self.assertIn("Justificativa: XXXXXXXXXXXXXXXXXX", corpo)
         self.assertIn("Responsável: Administrador", corpo)
 
-    def test_corpo_do_email_de_publicacao_lista_etapas_e_datas(self):
+    def test_corpo_do_email_de_criacao_de_ciclo_descreve_atualizacao(self):
         sistema = self._criar_sistema(nome="Monitora")
         entrega = self._criar_entrega(sistema, titulo="Prestação de Contas")
-        self._definir_datas_ciclo(
-            entrega,
-            [
-                date(2026, 4, 1),
-                date(2026, 4, 5),
-                date(2026, 4, 10),
-                date(2026, 4, 15),
-                date(2026, 4, 20),
-            ],
-        )
+        historico = HistoricoSistema.objects.filter(sistema=sistema).latest("id")
 
-        corpo = _corpo_email_publicacao(
-            entrega,
+        corpo = _corpo_email_historico_sistema(
+            historico,
             responsavel="Administrador",
-            link="http://sgi.seds.sp.gov.br/acompanhamento-sistemas/entregas/11/",
+            link="http://sgi.seds.sp.gov.br/acompanhamento-sistemas/11/",
         )
 
-        self.assertIn("Tipo de atualização: Criação do cronograma inicial", corpo)
-        self.assertIn("- Requisitos: 01/04/2026", corpo)
-        self.assertIn("- Producao: 20/04/2026", corpo)
+        self.assertIn("Tipo de atualização: Nota do sistema", corpo)
+        self.assertIn(f"Conteúdo: Novo ciclo '{entrega.titulo}' criado com as etapas obrigatórias.", corpo)
         self.assertIn("Responsável: Administrador", corpo)
 
     @patch("acompanhamento_sistemas.services.EmailMessage.send", return_value=1)
@@ -857,11 +833,11 @@ class AcompanhamentoSistemasTests(TestCase):
 
         entrega = self._criar_entrega(sistema, titulo="Sprint 01")
         entrega.refresh_from_db()
-        self.assertEqual(entrega.status, EntregaSistema.Status.RASCUNHO)
+        self.assertEqual(entrega.status, EntregaSistema.Status.PUBLICADO)
         self.assertEqual(mock_send.call_count, 1)
 
     @patch("acompanhamento_sistemas.services.EmailMessage.send", return_value=1)
-    def test_rascunho_envia_email_em_alteracao_individual(self, mock_send):
+    def test_alteracao_individual_envia_email(self, mock_send):
         sistema = self._criar_sistema()
         entrega = self._criar_entrega(sistema)
         etapa = entrega.etapas.order_by("ordem").first()
@@ -878,7 +854,7 @@ class AcompanhamentoSistemasTests(TestCase):
             {
                 "data_etapa": "",
                 "status": EtapaSistema.Status.EM_ANDAMENTO,
-                "justificativa_status": "Inicio em rascunho",
+                "justificativa_status": "Inicio do ciclo",
                 "texto_nota": "",
             },
         )
@@ -887,53 +863,42 @@ class AcompanhamentoSistemasTests(TestCase):
         self.assertEqual(mock_send.call_count, 1)
 
     @patch("acompanhamento_sistemas.services.EmailMessage.send", return_value=1)
-    def test_publicacao_exige_datas_das_etapas_seguintes(self, mock_send):
+    def test_etapa_final_exige_data_sem_publicar_ciclo(self, mock_send):
         sistema = self._criar_sistema()
         entrega = self._criar_entrega(sistema)
         self._definir_datas_ciclo(entrega)
         etapas = list(entrega.etapas.order_by("ordem"))
-        etapas[0].data_etapa = None
-        etapas[0].save(update_fields=["data_etapa", "atualizado_em"])
-        etapas[1].data_etapa = None
-        etapas[1].save(update_fields=["data_etapa", "atualizado_em"])
         etapas[2].data_etapa = None
         etapas[2].save(update_fields=["data_etapa", "atualizado_em"])
-        self.client.post(
-            reverse("acompanhamento_sistemas_etapa_update", kwargs={"pk": etapas[0].pk}),
+
+        response = self.client.post(
+            reverse("acompanhamento_sistemas_etapa_update", kwargs={"pk": etapas[2].pk}),
             {
                 "data_etapa": "",
-                "status": EtapaSistema.Status.ENTREGUE,
-                "justificativa_status": "Documento finalizado",
-                "anexos": [SimpleUploadedFile("requisitos.pdf", b"pdf-requisitos")],
+                "status": EtapaSistema.Status.EM_ANDAMENTO,
+                "justificativa_status": "Inicio do desenvolvimento",
             },
         )
 
-        response = self.client.post(
-            reverse("acompanhamento_sistemas_entrega_publish", kwargs={"pk": entrega.pk}),
-            follow=True,
-        )
-
-        entrega.refresh_from_db()
-        self.assertEqual(entrega.status, EntregaSistema.Status.RASCUNHO)
+        etapas[2].refresh_from_db()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(etapas[2].status, EtapaSistema.Status.PENDENTE)
         self.assertEqual(mock_send.call_count, 0)
-        self.assertContains(
-            response,
-            "Defina a data das etapas seguintes antes de publicar o ciclo: Desenvolvimento.",
-        )
+        self.assertContains(response, "Informe a data da etapa.")
 
-    def test_tela_do_ciclo_exibe_modal_de_publicacao(self):
+    def test_tela_do_ciclo_nao_exibe_publicar_ciclo(self):
         sistema = self._criar_sistema()
         entrega = self._criar_entrega(sistema)
-        self._preparar_ciclo_para_publicacao(entrega)
+        self._preparar_ciclo_para_fluxo(entrega)
 
         response = self.client.get(reverse("acompanhamento_sistemas_entrega_detail", kwargs={"pk": entrega.pk}))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Você tem certeza que deseja publicar esse ciclo?")
-        self.assertContains(response, "Confirmar publicação")
-        self.assertContains(response, "Publicar ciclo")
+        self.assertNotContains(response, "Você tem certeza que deseja publicar esse ciclo?")
+        self.assertNotContains(response, "Confirmar publicação")
+        self.assertNotContains(response, "Publicar ciclo")
 
-    def test_requisitos_entregue_em_rascunho_avanca_homologacao_para_em_andamento(self):
+    def test_requisitos_entregue_avanca_homologacao_para_em_andamento(self):
         sistema = self._criar_sistema()
         entrega = self._criar_entrega(sistema)
         self._definir_datas_ciclo(entrega)
@@ -968,8 +933,8 @@ class AcompanhamentoSistemasTests(TestCase):
     def test_homologacao_de_requisitos_exibe_anexo_herdado_da_etapa_requisitos(self):
         sistema = self._criar_sistema()
         entrega = self._criar_entrega(sistema)
-        self._preparar_ciclo_para_publicacao(entrega)
-        self._publicar_entrega(entrega)
+        self._preparar_ciclo_para_fluxo(entrega)
+        self._recarregar_entrega(entrega)
         etapa_requisitos, etapa_homologacao = list(entrega.etapas.order_by("ordem")[:2])
 
         self.client.post(
@@ -992,8 +957,8 @@ class AcompanhamentoSistemasTests(TestCase):
     def test_nao_permite_alterar_status_da_proxima_etapa_sem_concluir_a_anterior(self):
         sistema = self._criar_sistema()
         entrega = self._criar_entrega(sistema)
-        self._preparar_ciclo_para_publicacao(entrega)
-        self._publicar_entrega(entrega)
+        self._preparar_ciclo_para_fluxo(entrega)
+        self._recarregar_entrega(entrega)
         primeira_etapa, segunda_etapa, terceira_etapa = list(entrega.etapas.order_by("ordem")[:3])
 
         response = self.client.post(
@@ -1017,8 +982,8 @@ class AcompanhamentoSistemasTests(TestCase):
     def test_homologacao_exibe_status_aprovado_e_reprovado_no_formulario(self):
         sistema = self._criar_sistema()
         entrega = self._criar_entrega(sistema)
-        self._preparar_ciclo_para_publicacao(entrega)
-        self._publicar_entrega(entrega)
+        self._preparar_ciclo_para_fluxo(entrega)
+        self._recarregar_entrega(entrega)
         etapa_requisitos, etapa_homologacao = list(entrega.etapas.order_by("ordem")[:2])
         self.client.post(
             reverse("acompanhamento_sistemas_etapa_update", kwargs={"pk": etapa_requisitos.pk}),
@@ -1039,8 +1004,8 @@ class AcompanhamentoSistemasTests(TestCase):
     def test_homologacao_aprovada_avanca_para_proxima_etapa(self):
         sistema = self._criar_sistema()
         entrega = self._criar_entrega(sistema)
-        self._preparar_ciclo_para_publicacao(entrega)
-        self._publicar_entrega(entrega)
+        self._preparar_ciclo_para_fluxo(entrega)
+        self._recarregar_entrega(entrega)
         etapa_requisitos, etapa_homologacao, etapa_desenvolvimento = list(entrega.etapas.order_by("ordem")[:3])
 
         response = self.client.post(
@@ -1064,8 +1029,8 @@ class AcompanhamentoSistemasTests(TestCase):
     def test_homologacao_reprovada_retorna_fluxo_e_exibe_marcadores_visuais(self):
         sistema = self._criar_sistema()
         entrega = self._criar_entrega(sistema, titulo="Ciclo Visual")
-        self._preparar_ciclo_para_publicacao(entrega)
-        self._publicar_entrega(entrega)
+        self._preparar_ciclo_para_fluxo(entrega)
+        self._recarregar_entrega(entrega)
         etapa_requisitos, etapa_homologacao = list(entrega.etapas.order_by("ordem")[:2])
 
         response_reprovacao = self.client.post(
@@ -1099,8 +1064,8 @@ class AcompanhamentoSistemasTests(TestCase):
     def test_etapa_retomada_entregue_novamente_reabre_homologacao_em_andamento(self):
         sistema = self._criar_sistema()
         entrega = self._criar_entrega(sistema, titulo="Ciclo Retorno")
-        self._preparar_ciclo_para_publicacao(entrega)
-        self._publicar_entrega(entrega)
+        self._preparar_ciclo_para_fluxo(entrega)
+        self._recarregar_entrega(entrega)
         etapa_requisitos, etapa_homologacao = list(entrega.etapas.order_by("ordem")[:2])
         self.client.post(
             reverse("acompanhamento_sistemas_etapa_update", kwargs={"pk": etapa_homologacao.pk}),
@@ -1132,8 +1097,8 @@ class AcompanhamentoSistemasTests(TestCase):
     def test_marcador_retomada_exibe_contador_quando_houver_nova_reprovacao(self):
         sistema = self._criar_sistema()
         entrega = self._criar_entrega(sistema, titulo="Ciclo Retorno 2")
-        self._preparar_ciclo_para_publicacao(entrega)
-        self._publicar_entrega(entrega)
+        self._preparar_ciclo_para_fluxo(entrega)
+        self._recarregar_entrega(entrega)
         etapa_requisitos, etapa_homologacao = list(entrega.etapas.order_by("ordem")[:2])
 
         for indice in range(2):
@@ -1165,8 +1130,8 @@ class AcompanhamentoSistemasTests(TestCase):
     def test_anotacao_livre_aceita_multiplos_anexos(self, mock_send):
         sistema = self._criar_sistema()
         entrega = self._criar_entrega(sistema)
-        self._preparar_ciclo_para_publicacao(entrega)
-        self._publicar_entrega(entrega)
+        self._preparar_ciclo_para_fluxo(entrega)
+        self._recarregar_entrega(entrega)
         etapa = sistema.entregas.get().etapas.order_by("ordem").first()
         InteressadoSistemaManual.objects.create(
             sistema=sistema,
@@ -1312,8 +1277,8 @@ class AcompanhamentoSistemasTests(TestCase):
     def test_remover_interessado_impede_novo_envio(self, mock_send):
         sistema = self._criar_sistema()
         entrega = self._criar_entrega(sistema)
-        self._preparar_ciclo_para_publicacao(entrega)
-        self._publicar_entrega(entrega)
+        self._preparar_ciclo_para_fluxo(entrega)
+        self._recarregar_entrega(entrega)
         etapa = sistema.entregas.get().etapas.order_by("ordem").first()
         manual = InteressadoSistemaManual.objects.create(
             sistema=sistema,
@@ -1390,10 +1355,10 @@ class AcompanhamentoSistemasTests(TestCase):
         sistema_b = self._criar_sistema(nome="Sistema Beta")
         entrega_a = self._criar_entrega(sistema_a, titulo="Entrega Alfa")
         entrega_b = self._criar_entrega(sistema_b, titulo="Entrega Beta")
-        self._preparar_ciclo_para_publicacao(entrega_a)
-        self._preparar_ciclo_para_publicacao(entrega_b)
-        self._publicar_entrega(entrega_a)
-        self._publicar_entrega(entrega_b)
+        self._preparar_ciclo_para_fluxo(entrega_a)
+        self._preparar_ciclo_para_fluxo(entrega_b)
+        self._recarregar_entrega(entrega_a)
+        self._recarregar_entrega(entrega_b)
         etapa_a = sistema_a.entregas.get().etapas.order_by("ordem").first()
         etapa_b = sistema_b.entregas.get().etapas.order_by("ordem").first()
 
@@ -1455,18 +1420,16 @@ class AcompanhamentoSistemasTests(TestCase):
         sistema = self._criar_sistema()
         entrega = self._criar_entrega(sistema)
         self._definir_datas_ciclo(entrega)
-        etapa = sistema.entregas.get().etapas.order_by("ordem").first()
+        etapa = sistema.entregas.get().etapas.order_by("ordem")[2]
 
         response = self.client.get(reverse("acompanhamento_sistemas_etapa_detail", kwargs={"pk": etapa.pk}))
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "acompanhamento-detail-grid")
         self.assertContains(response, "Timeline da etapa -")
-        self.assertNotContains(response, "Lançar nota")
-        self.assertNotContains(response, "Anotação da etapa")
+        self.assertContains(response, "Lançar nota")
+        self.assertContains(response, "Lançar nota da etapa")
         self.assertContains(response, f'value="{etapa.data_etapa.isoformat()}"', html=False)
-        self.assertContains(response, "Esta etapa não utiliza data.")
-        self.assertContains(response, "a etapa de Requisitos já pode avançar com justificativa e anexo")
         self.assertNotContains(response, "Calendário")
         self.assertContains(response, "Selecionar data da etapa")
 
@@ -1542,8 +1505,8 @@ class AcompanhamentoSistemasTests(TestCase):
     def test_timeline_da_etapa_e_paginada_em_seis_eventos(self):
         sistema = self._criar_sistema()
         entrega = self._criar_entrega(sistema, titulo="Sprint 01")
-        self._preparar_ciclo_para_publicacao(entrega)
-        self._publicar_entrega(entrega)
+        self._preparar_ciclo_para_fluxo(entrega)
+        self._recarregar_entrega(entrega)
         etapa = entrega.etapas.order_by("ordem").first()
         for indice in range(7):
             self.client.post(

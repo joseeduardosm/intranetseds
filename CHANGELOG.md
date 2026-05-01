@@ -2,6 +2,17 @@
 
 Este arquivo consolida as principais mudanças funcionais e estruturais do projeto `Intranet SEDS`.
 
+## 2026-05-01
+
+### Acompanhamento de Sistemas
+
+- removido o fluxo separado de `Publicar ciclo`, incluindo botão, modal, rota, view e notificações específicas de publicação;
+- ciclos novos passam a nascer ativos para acompanhamento, sem depender de uma ação posterior de publicação;
+- liberadas atualizações de etapa, notas e anexos sem bloqueio por publicação do ciclo, mantendo validações de justificativa, data quando aplicável e anexo obrigatório em `Requisitos`;
+- criação e edição de ciclo agora registram histórico do sistema e notificam os interessados pelo fluxo padrão de atualizações;
+- edição do cadastro do sistema passou a registrar histórico e notificar interessados quando houver alteração;
+- removidos elementos visuais sem função da tela de histórico global, como abas falsas e filtros rápidos apenas decorativos.
+
 ## 2026-04-08
 
 ### Documentação

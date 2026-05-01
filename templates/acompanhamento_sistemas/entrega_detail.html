@@ -13,9 +13,6 @@
 
   <div class="card-actions acompanhamento-card-actions--tight">
     <a class="btn btn-light" href="{% url 'acompanhamento_sistemas_entrega_historico' entrega.pk %}">Histórico</a>
-    {% if pode_exibir_publicar_ciclo %}
-      <a class="btn" href="#" id="acompanhamento-open-publish-modal">Publicar ciclo</a>
-    {% endif %}
     {% if perms.acompanhamento_sistemas.change_entregasistema %}
       <a class="btn" href="{% url 'acompanhamento_sistemas_entrega_update' entrega.pk %}">Editar ciclo</a>
     {% endif %}
@@ -50,10 +47,6 @@
   <div class="acompanhamento-detail-grid acompanhamento-detail-grid--entrega">
     <section class="detail-card acompanhamento-card">
       <h3>Resumo do ciclo</h3>
-      <p>
-        <strong>Status:</strong>
-        <span class="acompanhamento-status-badge acompanhamento-status-badge--{{ entrega.status|lower }}">{{ entrega.get_status_display }}</span>
-      </p>
       {% include "acompanhamento_sistemas/_progresso_simples.html" with item=entrega %}
       {% if entrega.descricao %}
         <p class="acompanhamento-texto-quebravel"><strong>Descrição:</strong> {{ entrega.descricao|linebreaksbr }}</p>
@@ -107,76 +100,4 @@
     </section>
   </div>
 
-  {% if pode_publicar_ciclo %}
-    <div class="profile-alert-backdrop auth-required-hidden" id="acompanhamento-publish-backdrop" aria-hidden="true"></div>
-    <div class="profile-alert-modal auth-required-hidden acompanhamento-publish-modal" id="acompanhamento-publish-modal" role="dialog" aria-modal="true" aria-label="Confirmar publicação do ciclo">
-      <h3>Publicar ciclo</h3>
-      <p class="acompanhamento-note-text">Você tem certeza que deseja publicar esse ciclo?</p>
-      <div class="acompanhamento-publish-list">
-        {% for etapa in entrega.etapas.all %}
-          <div class="acompanhamento-publish-item">
-            <span>{{ etapa.get_tipo_etapa_display }}</span>
-            <strong>{{ etapa.data_etapa|date:"d/m/Y"|default:"-" }}</strong>
-          </div>
-        {% endfor %}
-      </div>
-      <form method="post" action="{% url 'acompanhamento_sistemas_entrega_publish' entrega.pk %}">
-        {% csrf_token %}
-        <div class="profile-alert-actions">
-          <button class="btn" type="submit">Confirmar publicação</button>
-          <button class="btn btn-secondary" type="button" id="acompanhamento-publish-cancel">Cancelar</button>
-        </div>
-      </form>
-    </div>
-  {% endif %}
-{% endblock %}
-
-{% block extra_js %}
-  {% if pode_exibir_publicar_ciclo %}
-    {{ publicacao_pendencias|json_script:"acompanhamento-publicacao-pendencias" }}
-    <script>
-      (() => {
-        const openBtn = document.getElementById("acompanhamento-open-publish-modal");
-        const pendingRulesEl = document.getElementById("acompanhamento-publicacao-pendencias");
-        const pendingRules = pendingRulesEl ? JSON.parse(pendingRulesEl.textContent || "[]") : [];
-        if (!openBtn) return;
-
-        if (pendingRules.length) {
-          openBtn.addEventListener("click", (event) => {
-            event.preventDefault();
-            if (window.__sgiOpenMsgBox) {
-              window.__sgiOpenMsgBox(pendingRules, "Regras para publicar ciclo");
-            }
-          });
-          return;
-        }
-
-        const closeBtn = document.getElementById("acompanhamento-publish-cancel");
-        const modal = document.getElementById("acompanhamento-publish-modal");
-        const backdrop = document.getElementById("acompanhamento-publish-backdrop");
-        if (!closeBtn || !modal || !backdrop) return;
-
-        const openModal = () => {
-          modal.classList.remove("auth-required-hidden");
-          backdrop.classList.remove("auth-required-hidden");
-          modal.setAttribute("aria-hidden", "false");
-          backdrop.setAttribute("aria-hidden", "false");
-        };
-
-        const closeModal = () => {
-          modal.classList.add("auth-required-hidden");
-          backdrop.classList.add("auth-required-hidden");
-          modal.setAttribute("aria-hidden", "true");
-          backdrop.setAttribute("aria-hidden", "true");
-        };
-
-        openBtn.addEventListener("click", (event) => {
-          event.preventDefault();
-          openModal();
-        });
-        closeBtn.addEventListener("click", closeModal);
-        backdrop.addEventListener("click", closeModal);
-      })();
-    </script>
-  {% endif %}
 {% endblock %}

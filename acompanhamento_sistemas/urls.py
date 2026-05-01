@@ -23,7 +23,6 @@ urlpatterns = [
     path("entregas/<int:pk>/", views.EntregaSistemaDetailView.as_view(), name="acompanhamento_sistemas_entrega_detail"),
     path("entregas/<int:pk>/historico/", views.EntregaSistemaHistoricoView.as_view(), name="acompanhamento_sistemas_entrega_historico"),
     path("entregas/<int:pk>/editar/", views.EntregaSistemaUpdateView.as_view(), name="acompanhamento_sistemas_entrega_update"),
-    path("entregas/<int:pk>/publicar/", views.EntregaSistemaPublishView.as_view(), name="acompanhamento_sistemas_entrega_publish"),
     path("entregas/<int:pk>/excluir/", views.EntregaSistemaDeleteView.as_view(), name="acompanhamento_sistemas_entrega_delete"),
     path("etapas/calendario/", views.EtapaSistemaCalendarioView.as_view(), name="acompanhamento_sistemas_etapa_calendario"),
     path("etapas/<int:pk>/", views.EtapaSistemaDetailView.as_view(), name="acompanhamento_sistemas_etapa_detail"),

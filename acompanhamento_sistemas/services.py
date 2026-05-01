@@ -54,12 +54,6 @@ ETAPAS_SEM_DATA = {
     EtapaSistema.TipoEtapa.HOMOLOGACAO_REQUISITOS,
 }
 
-ETAPAS_FINAIS_COM_DATA_OBRIGATORIA = (
-    EtapaSistema.TipoEtapa.DESENVOLVIMENTO,
-    EtapaSistema.TipoEtapa.HOMOLOGACAO_DESENVOLVIMENTO,
-    EtapaSistema.TipoEtapa.PRODUCAO,
-)
-
 ETAPAS_PROCESSO_REQUISITO_INICIAIS = [
     (1, EtapaProcessoRequisito.TipoEtapa.AS_IS),
     (2, EtapaProcessoRequisito.TipoEtapa.DIAGNOSTICO),
@@ -211,27 +205,6 @@ def _descricao_notificacao_historico_sistema(historico: HistoricoSistema) -> str
     return f"Sistema: atualização registrada. {conteudo[:260]}"
 
 
-def _emitir_notificacao_publicacao_desktop(entrega: EntregaSistema):
-    emitir_notificacao(
-        users=_usuarios_notificacao_sistema(entrega.sistema),
-        source_app=SOURCE_ACOMPANHAMENTO_SISTEMAS,
-        event_type="publicacao_ciclo",
-        title=_titulo_notificacao_entrega(entrega),
-        body_short=(
-            f"Ciclo: {entrega.titulo}\n"
-            "Etapa: Ciclo - cronograma inicial criado.\n"
-            f"{_responsavel_e_data_hora(entrega.atualizado_por or entrega.criado_por, entrega.atualizado_em or entrega.criado_em)}"
-        ),
-        target_url=entrega.get_absolute_url(),
-        dedupe_key=f"acomp-publicacao-entrega-{entrega.pk}-{entrega.status}",
-        payload_json={
-            "sistema_id": entrega.sistema_id,
-            "entrega_id": entrega.pk,
-            "entrega_titulo": entrega.titulo_com_numeracao,
-        },
-    )
-
-
 def _emitir_notificacao_historico_desktop(historico: HistoricoEtapaSistema):
     etapa = historico.etapa
     entrega = etapa.entrega
@@ -339,31 +312,6 @@ def _corpo_email_historico_sistema(historico: HistoricoSistema, *, responsavel: 
     return "\n".join(linhas)
 
 
-def _corpo_email_publicacao(entrega: EntregaSistema, *, responsavel: str, link: str) -> str:
-    linhas = [
-        f"Sistema: {entrega.sistema.nome}",
-        f"Ciclo: {entrega.titulo_com_numeracao}",
-        "Tipo de atualização: Criação do cronograma inicial",
-        "",
-        "Etapas do ciclo:",
-    ]
-    for etapa in entrega.etapas.order_by("ordem", "id"):
-        data_formatada = etapa.data_etapa.strftime("%d/%m/%Y") if etapa.data_etapa else "-"
-        linhas.append(f"- {etapa.get_tipo_etapa_display()}: {data_formatada}")
-    linhas.extend(
-        [
-            "",
-            f"Responsável: {responsavel}",
-            f"Data/hora: {timezone.localtime().strftime('%d/%m/%Y %H:%M')}",
-            "",
-            "Este é um e-mail automático. Não responda.",
-            "Para mais informações, acesse:",
-            link,
-        ]
-    )
-    return "\n".join(linhas)
-
-
 def recalcular_tempos_etapas(entrega: EntregaSistema):
     etapas = list(entrega.etapas.order_by("ordem", "id"))
     anterior = None
@@ -378,13 +326,13 @@ def recalcular_tempos_etapas(entrega: EntregaSistema):
 
 
 @transaction.atomic
-def criar_entrega_com_etapas(sistema: Sistema, *, usuario=None, titulo="", descricao="") -> EntregaSistema:
+def criar_entrega_com_etapas(sistema: Sistema, *, usuario=None, titulo="", descricao="", request=None) -> EntregaSistema:
     proxima_ordem = (sistema.entregas.order_by("-ordem").values_list("ordem", flat=True).first() or 0) + 1
     entrega = EntregaSistema.objects.create(
         sistema=sistema,
         titulo=titulo,
         descricao=descricao,
-        status=EntregaSistema.Status.RASCUNHO,
+        status=EntregaSistema.Status.PUBLICADO,
         ordem=proxima_ordem,
         criado_por=_usuario_ativo(usuario),
         atualizado_por=_usuario_ativo(usuario),
@@ -416,7 +364,12 @@ def criar_entrega_com_etapas(sistema: Sistema, *, usuario=None, titulo="", descr
             changes={"status": etapa.status, "data_etapa": ""},
         )
     recalcular_tempos_etapas(entrega)
-    enviar_notificacao_publicacao(entrega, usuario=usuario)
+    historico_sistema = _registrar_historico_sistema(
+        sistema,
+        descricao=f"Novo ciclo '{entrega.titulo}' criado com as etapas obrigatórias.",
+        usuario=usuario,
+    )
+    enviar_notificacao_historico_sistema(historico_sistema, request=request)
     return entrega
 
 
@@ -458,48 +411,8 @@ def _status_exige_etapa_anterior_concluida(etapa: EtapaSistema, status: str) -> 
     }
 
 
-def etapa_pode_alterar_status_em_rascunho(etapa: EtapaSistema) -> bool:
-    return etapa.tipo_etapa in ETAPAS_SEM_DATA
-
-
 def _etapa_exige_data(tipo_etapa: str) -> bool:
     return tipo_etapa not in ETAPAS_SEM_DATA
-
-
-def regras_pendentes_publicacao_entrega(entrega: EntregaSistema) -> list[str]:
-    etapas = {etapa.tipo_etapa: etapa for etapa in entrega.etapas.all()}
-    requisitos = etapas.get(EtapaSistema.TipoEtapa.REQUISITOS)
-    homologacao_requisitos = etapas.get(EtapaSistema.TipoEtapa.HOMOLOGACAO_REQUISITOS)
-    pendencias = []
-    if requisitos is None or homologacao_requisitos is None:
-        return ["O ciclo não possui as etapas obrigatórias para publicação."]
-    if requisitos.status != EtapaSistema.Status.ENTREGUE:
-        pendencias.append("Entregue a etapa de Requisitos antes de publicar o ciclo.")
-    if homologacao_requisitos.status != EtapaSistema.Status.EM_ANDAMENTO:
-        pendencias.append("A etapa de Homologação de Requisitos deve estar em andamento para publicar o ciclo.")
-
-    etapas_sem_data = []
-    for tipo_etapa in ETAPAS_FINAIS_COM_DATA_OBRIGATORIA:
-        etapa = etapas.get(tipo_etapa)
-        if etapa is None or not etapa.data_etapa:
-            etapas_sem_data.append(etapa.get_tipo_etapa_display() if etapa is not None else tipo_etapa)
-    if etapas_sem_data:
-        pendencias.append(
-            "Defina a data das etapas seguintes antes de publicar o ciclo: "
-            + ", ".join(etapas_sem_data)
-            + "."
-        )
-    return pendencias
-
-
-def entrega_pode_ser_publicada(entrega: EntregaSistema) -> bool:
-    return not regras_pendentes_publicacao_entrega(entrega)
-
-
-def validar_publicacao_entrega(entrega: EntregaSistema) -> None:
-    pendencias = regras_pendentes_publicacao_entrega(entrega)
-    if pendencias:
-        raise ValidationError(pendencias)
 
 
 def enviar_notificacao_historico(historico: HistoricoEtapaSistema, *, request=None):
@@ -568,42 +481,7 @@ def enviar_notificacao_historico_sistema(historico: HistoricoSistema, *, request
     )
 
 
-def enviar_notificacao_publicacao(entrega: EntregaSistema, *, usuario=None, request=None):
-    _emitir_notificacao_publicacao_desktop(entrega)
-
-    destinatarios = _destinatarios_sistema(entrega.sistema)
-    if not destinatarios:
-        return
-
-    config = _configuracao_smtp()
-    if config is None:
-        return
-
-    if request is not None:
-        link = request.build_absolute_uri(entrega.get_absolute_url())
-    else:
-        link = entrega.get_absolute_url()
-    responsavel = nome_usuario_exibicao(usuario) if usuario else ""
-    assunto = (
-        f"Sistemas SEDS - {entrega.sistema.nome} - Cronograma inicial do ciclo "
-        f"{entrega.titulo_com_numeracao} - {timezone.localdate().strftime('%d/%m/%Y')}"
-    )
-    corpo = _corpo_email_publicacao(entrega, responsavel=responsavel or "Sistema", link=link)
-    _enfileirar_email_background(
-        config=config,
-        subject=assunto,
-        body=corpo,
-        destinatarios=destinatarios,
-    )
-
-
 def _avancar_proxima_etapa_automaticamente(etapa: EtapaSistema, *, usuario=None, request=None):
-    if etapa.entrega.status != EntregaSistema.Status.PUBLICADO and not (
-        etapa.entrega.status == EntregaSistema.Status.RASCUNHO
-        and etapa.tipo_etapa in ETAPAS_SEM_DATA
-    ):
-        return None
-
     if not _status_eh_conclusao(etapa, etapa.status):
         return None
 
@@ -644,31 +522,6 @@ def _avancar_proxima_etapa_automaticamente(etapa: EtapaSistema, *, usuario=None,
     enviar_notificacao_historico(historico, request=request)
     return historico
 
-
-@transaction.atomic
-def publicar_entrega(entrega: EntregaSistema, *, usuario=None, request=None) -> EntregaSistema:
-    entrega = (
-        EntregaSistema.objects.select_related("sistema")
-        .prefetch_related("etapas")
-        .get(pk=entrega.pk)
-    )
-    if entrega.status == EntregaSistema.Status.PUBLICADO:
-        raise ValidationError("Este ciclo já foi publicado.")
-
-    validar_publicacao_entrega(entrega)
-
-    entrega.status = EntregaSistema.Status.PUBLICADO
-    entrega.atualizado_por = _usuario_ativo(usuario)
-    entrega.save(update_fields=["status", "atualizado_por", "atualizado_em"])
-    _registrar_auditoria(
-        entrega,
-        usuario=usuario,
-        acao=AuditLog.Action.UPDATE,
-        changes={"status": [EntregaSistema.Status.RASCUNHO, EntregaSistema.Status.PUBLICADO]},
-    )
-    return entrega
-
-
 @transaction.atomic
 def atualizar_etapa_com_historico(
     etapa: EtapaSistema,
@@ -698,9 +551,6 @@ def atualizar_etapa_com_historico(
     )
     status_anterior_etapa_anterior = etapa_anterior.status if etapa_anterior is not None else ""
 
-    if etapa.entrega.status != EntregaSistema.Status.PUBLICADO:
-        if status_alterado and not etapa_pode_alterar_status_em_rascunho(etapa):
-            raise ValidationError("O status da etapa só pode ser alterado após a publicação do ciclo.")
     if (
         status_alterado
         and _status_exige_etapa_anterior_concluida(etapa, novo_status)
@@ -713,11 +563,7 @@ def atualizar_etapa_com_historico(
         raise ValidationError("Toda alteração de status exige justificativa.")
     if not status_alterado and not data_alterada and not possui_nota:
         raise ValidationError("Nenhuma alteração foi informada.")
-    if (
-        etapa.entrega.status == EntregaSistema.Status.PUBLICADO
-        and _etapa_exige_data(etapa.tipo_etapa)
-        and not nova_data
-    ):
+    if _etapa_exige_data(etapa.tipo_etapa) and not nova_data:
         raise ValidationError("Informe a data da etapa.")
 
     if etapa.eh_homologacao and status_alterado and novo_status == EtapaSistema.Status.REPROVADO:
@@ -836,8 +682,6 @@ def atualizar_etapa_com_historico(
 
 
 def adicionar_nota_etapa(etapa: EtapaSistema, *, texto: str, anexos, usuario=None, request=None) -> HistoricoEtapaSistema:
-    if etapa.entrega.status != EntregaSistema.Status.PUBLICADO:
-        raise ValidationError("Comentários e anexos da etapa só podem ser lançados após a publicação do ciclo.")
     return atualizar_etapa_com_historico(
         etapa,
         nova_data=etapa.data_etapa,
@@ -1051,7 +895,7 @@ def _registrar_historico_processo(processo: ProcessoRequisito, *, tipo_evento: s
     return historico
 
 
-def _registrar_historico_sistema_por_processo(sistema: Sistema, *, descricao: str, usuario=None):
+def _registrar_historico_sistema(sistema: Sistema, *, descricao: str, usuario=None):
     historico = HistoricoSistema.objects.create(
         sistema=sistema,
         tipo_evento=HistoricoSistema.TipoEvento.NOTA,
@@ -1065,6 +909,115 @@ def _registrar_historico_sistema_por_processo(sistema: Sistema, *, descricao: st
         changes={"tipo_evento": historico.tipo_evento},
     )
     return historico
+
+
+def _registrar_historico_sistema_por_processo(sistema: Sistema, *, descricao: str, usuario=None):
+    return _registrar_historico_sistema(sistema, descricao=descricao, usuario=usuario)
+
+
+@transaction.atomic
+def atualizar_entrega_com_historico(
+    entrega: EntregaSistema,
+    *,
+    titulo: str,
+    descricao: str,
+    usuario=None,
+    request=None,
+) -> EntregaSistema:
+    titulo_anterior = entrega.titulo
+    descricao_anterior = entrega.descricao
+    titulo = (titulo or "").strip()
+    descricao = descricao or ""
+
+    entrega.titulo = titulo
+    entrega.descricao = descricao
+    entrega.atualizado_por = _usuario_ativo(usuario)
+    entrega.save(update_fields=["titulo", "descricao", "atualizado_por", "atualizado_em"])
+    _registrar_auditoria(
+        entrega,
+        usuario=usuario,
+        acao=AuditLog.Action.UPDATE,
+        changes={
+            "titulo": [titulo_anterior, titulo],
+            "descricao": [descricao_anterior, descricao],
+        },
+    )
+
+    alteracoes = []
+    if titulo_anterior != titulo:
+        alteracoes.append(f"título alterado de '{titulo_anterior}' para '{titulo}'")
+    if descricao_anterior != descricao:
+        alteracoes.append("descrição alterada")
+    if alteracoes:
+        historico_sistema = _registrar_historico_sistema(
+            entrega.sistema,
+            descricao=f"Ciclo '{entrega.titulo_com_numeracao}' atualizado: " + "; ".join(alteracoes) + ".",
+            usuario=usuario,
+        )
+        enviar_notificacao_historico_sistema(historico_sistema, request=request)
+    return entrega
+
+
+@transaction.atomic
+def atualizar_sistema_com_historico(
+    sistema: Sistema,
+    *,
+    nome: str,
+    descricao: str,
+    url_homologacao: str,
+    url_producao: str,
+    usuario=None,
+    request=None,
+) -> Sistema:
+    nome_anterior = sistema.nome
+    descricao_anterior = sistema.descricao
+    homologacao_anterior = sistema.url_homologacao
+    producao_anterior = sistema.url_producao
+
+    sistema.nome = (nome or "").strip()
+    sistema.descricao = descricao or ""
+    sistema.url_homologacao = url_homologacao or ""
+    sistema.url_producao = url_producao or ""
+    sistema.atualizado_por = _usuario_ativo(usuario)
+    sistema.save(
+        update_fields=[
+            "nome",
+            "descricao",
+            "url_homologacao",
+            "url_producao",
+            "atualizado_por",
+            "atualizado_em",
+        ]
+    )
+    _registrar_auditoria(
+        sistema,
+        usuario=usuario,
+        acao=AuditLog.Action.UPDATE,
+        changes={
+            "nome": [nome_anterior, sistema.nome],
+            "descricao": [descricao_anterior, sistema.descricao],
+            "url_homologacao": [homologacao_anterior, sistema.url_homologacao],
+            "url_producao": [producao_anterior, sistema.url_producao],
+        },
+    )
+
+    alteracoes = []
+    if nome_anterior != sistema.nome:
+        alteracoes.append(f"nome alterado de '{nome_anterior}' para '{sistema.nome}'")
+    if descricao_anterior != sistema.descricao:
+        alteracoes.append("descrição alterada")
+    if homologacao_anterior != sistema.url_homologacao:
+        alteracoes.append("ambiente de homologação alterado")
+    if producao_anterior != sistema.url_producao:
+        alteracoes.append("ambiente de produção alterado")
+    if alteracoes:
+        historico = _registrar_historico_sistema(
+            sistema,
+            descricao="Cadastro do sistema atualizado: " + "; ".join(alteracoes) + ".",
+            usuario=usuario,
+        )
+        enviar_notificacao_historico_sistema(historico, request=request)
+    return sistema
 
 
 @transaction.atomic

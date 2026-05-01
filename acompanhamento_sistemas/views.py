@@ -51,9 +51,10 @@ from .services import (
     adicionar_nota_etapa,
     adicionar_nota_sistema,
     atualizar_etapa_com_historico,
+    atualizar_entrega_com_historico,
+    atualizar_sistema_com_historico,
     atualizar_etapa_processo_requisito,
     atualizar_processo_requisito,
-    etapa_pode_alterar_status_em_rascunho,
     criar_entrega_com_etapas,
     criar_processo_requisito,
     excluir_entrega_sistema,
@@ -61,8 +62,6 @@ from .services import (
     excluir_processo_requisito,
     gerar_ciclo_a_partir_processo,
     gerar_novo_sistema_a_partir_processos,
-    publicar_entrega,
-    regras_pendentes_publicacao_entrega,
     sistema_pode_gerar_novo_sistema,
 )
 
@@ -641,15 +640,17 @@ class SistemaUpdateView(LoginRequiredMixin, UpdateView):
         return super().dispatch(request, *args, **kwargs)
 
     def form_valid(self, form):
-        form.instance.atualizado_por = self.request.user
-        _registrar_auditoria_view(
+        self.object = atualizar_sistema_com_historico(
             self.object,
             usuario=self.request.user,
-            acao=AuditLog.Action.UPDATE,
-            changes={"nome": form.cleaned_data.get("nome"), "descricao": form.cleaned_data.get("descricao")},
+            nome=form.cleaned_data.get("nome"),
+            descricao=form.cleaned_data.get("descricao"),
+            url_homologacao=form.cleaned_data.get("url_homologacao"),
+            url_producao=form.cleaned_data.get("url_producao"),
+            request=self.request,
         )
         messages.success(self.request, "Sistema atualizado com sucesso.")
-        return super().form_valid(form)
+        return HttpResponseRedirect(self.get_success_url())
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1008,6 +1009,7 @@ class EntregaSistemaCreateView(LoginRequiredMixin, View):
                 usuario=request.user,
                 titulo=form.cleaned_data["titulo"],
                 descricao=form.cleaned_data["descricao"],
+                request=request,
             )
             messages.success(request, "Novo ciclo criado com as 5 etapas obrigatórias.")
             return redirect("acompanhamento_sistemas_detail", pk=sistema.pk)
@@ -1038,17 +1040,6 @@ class EntregaSistemaDetailView(AcompanhamentoReadAccessMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        pode_exibir_publicar_ciclo = (
-            _usuario_pode_editar_entrega(self.request.user, self.object)
-            and self.object.status == EntregaSistema.Status.RASCUNHO
-        )
-        publicacao_pendencias = regras_pendentes_publicacao_entrega(self.object) if pode_exibir_publicar_ciclo else []
-        context["pode_exibir_publicar_ciclo"] = pode_exibir_publicar_ciclo
-        context["publicacao_pendencias"] = publicacao_pendencias
-        context["pode_publicar_ciclo"] = (
-            pode_exibir_publicar_ciclo
-            and not publicacao_pendencias
-        )
         context["pode_editar_sistema"] = _usuario_pode_editar_sistema(self.request.user, self.object.sistema)
         context["pode_excluir_ciclo"] = _usuario_pode_excluir_entrega(self.request.user, self.object)
         return context
@@ -1098,21 +1089,15 @@ class EntregaSistemaUpdateView(LoginRequiredMixin, UpdateView):
         return super().dispatch(request, *args, **kwargs)
 
     def form_valid(self, form):
-        form.instance.atualizado_por = self.request.user
-        entrega_original = EntregaSistema.objects.get(pk=self.object.pk)
-        titulo_anterior = entrega_original.titulo
-        descricao_anterior = entrega_original.descricao
-        _registrar_auditoria_view(
+        self.object = atualizar_entrega_com_historico(
             self.object,
             usuario=self.request.user,
-            acao=AuditLog.Action.UPDATE,
-            changes={
-                "titulo": [titulo_anterior, form.cleaned_data.get("titulo")],
-                "descricao": [descricao_anterior, form.cleaned_data.get("descricao")],
-            },
+            titulo=form.cleaned_data.get("titulo"),
+            descricao=form.cleaned_data.get("descricao"),
+            request=self.request,
         )
         messages.success(self.request, "Ciclo atualizado com sucesso.")
-        return super().form_valid(form)
+        return HttpResponseRedirect(self.get_success_url())
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1149,26 +1134,6 @@ class EntregaSistemaDeleteView(LoginRequiredMixin, DeleteView):
         excluir_entrega_sistema(self.object, usuario=self.request.user)
         return HttpResponseRedirect(success_url)
 
-
-class EntregaSistemaPublishView(LoginRequiredMixin, View):
-
-    def dispatch(self, request, *args, **kwargs):
-        entrega = get_object_or_404(_filtrar_entregas_visiveis_para_usuario(EntregaSistema.objects.select_related("sistema"), request.user), pk=kwargs["pk"])
-        if not _usuario_pode_editar_entrega(request.user, entrega):
-            raise Http404
-        self.entrega = entrega
-        return super().dispatch(request, *args, **kwargs)
-
-    def post(self, request, pk):
-        entrega = EntregaSistema.objects.prefetch_related("etapas").get(pk=self.entrega.pk)
-        try:
-            publicar_entrega(entrega, usuario=request.user, request=request)
-        except ValidationError as exc:
-            for mensagem in exc.messages:
-                messages.error(request, mensagem)
-        else:
-            messages.success(request, "Ciclo publicado com sucesso.")
-        return redirect("acompanhamento_sistemas_entrega_detail", pk=entrega.pk)
 
 class EtapaSistemaCalendarioView(AcompanhamentoReadAccessMixin, View):
 
@@ -1229,7 +1194,6 @@ class EtapaSistemaDetailView(AcompanhamentoReadAccessMixin, DetailView):
         context = super().get_context_data(**kwargs)
         etapa = self.object
         sistema = etapa.entrega.sistema
-        ciclo_publicado = etapa.entrega.status == EntregaSistema.Status.PUBLICADO
         pode_editar_etapa = _usuario_pode_editar_etapa(self.request.user, etapa)
         historicos_page = _paginar_itens(self.request, _timeline_etapa(etapa))
         context["historicos"] = historicos_page.object_list
@@ -1241,11 +1205,8 @@ class EtapaSistemaDetailView(AcompanhamentoReadAccessMixin, DetailView):
         context["abrir_modal_nota"] = kwargs.get("abrir_modal_nota", False)
         context["interessado_form"] = kwargs.get("interessado_form") or InteressadoSistemaForm(sistema=sistema)
         context["pode_editar_etapa"] = pode_editar_etapa
-        context["ciclo_publicado"] = ciclo_publicado
-        context["pode_alterar_status_etapa"] = pode_editar_etapa and (
-            ciclo_publicado or etapa_pode_alterar_status_em_rascunho(etapa)
-        )
-        context["pode_lancar_nota_etapa"] = pode_editar_etapa and ciclo_publicado
+        context["pode_alterar_status_etapa"] = pode_editar_etapa
+        context["pode_lancar_nota_etapa"] = pode_editar_etapa
         context["pode_editar_sistema"] = _usuario_pode_editar_sistema(self.request.user, sistema)
         return context
 

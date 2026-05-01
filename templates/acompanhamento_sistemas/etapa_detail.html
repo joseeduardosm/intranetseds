@@ -27,10 +27,6 @@
     <section class="detail-card acompanhamento-card">
       <h3>Edição da etapa</h3>
       <p><strong>Ciclo:</strong> {{ etapa.entrega.titulo_com_numeracao }}</p>
-      <p>
-        <strong>Status do ciclo:</strong>
-        <span class="acompanhamento-status-badge acompanhamento-status-badge--{{ etapa.entrega.status|lower }}">{{ etapa.entrega.get_status_display }}</span>
-      </p>
       <div class="acompanhamento-etapa-status-inline">
         <p><strong>Status da etapa:</strong> {{ etapa.status_exibicao }}</p>
         {% if etapa.marcadores_historicos %}
@@ -54,9 +50,6 @@
         <form method="post" enctype="multipart/form-data" action="{% url 'acompanhamento_sistemas_etapa_update' etapa.pk %}" class="acompanhamento-form">
           {% csrf_token %}
           {{ etapa_form.non_field_errors }}
-          {% if not ciclo_publicado %}
-            <p class="card-meta">Enquanto o ciclo estiver em rascunho, a etapa de Requisitos já pode avançar com justificativa e anexo. As demais etapas liberam status, comentários e anexos após a publicação.</p>
-          {% endif %}
           {% if etapa_form.data_etapa %}
             <p>
               <label for="{{ etapa_form.data_etapa.id_for_label }}">{{ etapa_form.data_etapa.label }}</label>

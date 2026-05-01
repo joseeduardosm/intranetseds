@@ -176,7 +176,7 @@ class EntregaSistema(models.Model):
     sistema = models.ForeignKey(Sistema, on_delete=models.CASCADE, related_name="entregas")
     titulo = models.CharField(max_length=180)
     descricao = models.TextField(blank=True)
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.RASCUNHO)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PUBLICADO)
     ordem = models.PositiveIntegerField(default=1)
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)

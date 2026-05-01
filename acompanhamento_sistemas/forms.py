@@ -196,7 +196,7 @@ class EtapaSistemaAtualizacaoForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["data_etapa"].input_formats = ["%Y-%m-%d"]
-        self.fields["data_etapa"].help_text = "Preencha a data planejada da etapa. Em rascunho, ela pode ficar em branco até a publicação do ciclo."
+        self.fields["data_etapa"].help_text = "Preencha a data planejada da etapa."
         if self.instance and getattr(self.instance, "pk", None):
             if self.instance.eh_homologacao:
                 status_choices = [
@@ -232,11 +232,7 @@ class EtapaSistemaAtualizacaoForm(forms.ModelForm):
         if self.instance and getattr(self.instance, "pk", None):
             if status_novo and status_novo != self.instance.status and not justificativa:
                 self.add_error("justificativa_status", "Informe a justificativa ao alterar o status.")
-            if (
-                self.instance.entrega.status == EntregaSistema.Status.PUBLICADO
-                and self.instance.tipo_etapa not in ETAPAS_SEM_DATA
-                and not cleaned_data.get("data_etapa")
-            ):
+            if self.instance.tipo_etapa not in ETAPAS_SEM_DATA and not cleaned_data.get("data_etapa"):
                 self.add_error("data_etapa", "Informe a data da etapa.")
             if (
                 self.instance.tipo_etapa == EtapaSistema.TipoEtapa.REQUISITOS

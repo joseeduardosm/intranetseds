@@ -20,30 +20,6 @@
       max-width: 780px;
     }
 
-    .acompanhamento-container .acompanhamento-historico-tabs {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin-bottom: 20px;
-    }
-
-    .acompanhamento-container .acompanhamento-historico-tab {
-      padding: 12px 16px;
-      border-radius: 999px;
-      border: 1px solid #e6ddcf;
-      background: rgba(255, 255, 255, 0.76);
-      color: #22314d;
-      font-weight: 700;
-      text-decoration: none;
-    }
-
-    .acompanhamento-container .acompanhamento-historico-tab.is-active {
-      background: linear-gradient(135deg, #d95f02, #ee7d20);
-      border-color: transparent;
-      color: #fff;
-      box-shadow: 0 12px 24px rgba(217, 95, 2, 0.22);
-    }
-
     .acompanhamento-container .acompanhamento-historico-layout {
       display: grid;
       grid-template-columns: minmax(260px, 22%) minmax(0, 78%);
@@ -72,23 +48,6 @@
       margin: 0;
       color: #6b7280;
       line-height: 1.5;
-      font-size: 0.92rem;
-    }
-
-    .acompanhamento-container .acompanhamento-historico-filters {
-      display: grid;
-      gap: 10px;
-    }
-
-    .acompanhamento-container .acompanhamento-historico-pill {
-      min-height: 42px;
-      display: flex;
-      align-items: center;
-      padding: 0 14px;
-      border: 1px solid #e6ddcf;
-      border-radius: 12px;
-      background: #fff;
-      color: #6b7280;
       font-size: 0.92rem;
     }
 
@@ -236,26 +195,8 @@
     <a class="btn btn-light" href="{% url 'acompanhamento_sistemas_detail' sistema.pk %}">Voltar ao sistema</a>
   </div>
 
-  <nav class="acompanhamento-historico-tabs" aria-label="Navegação do sistema">
-    <a class="acompanhamento-historico-tab" href="{% url 'acompanhamento_sistemas_detail' sistema.pk %}">Visão geral</a>
-    <span class="acompanhamento-historico-tab">Ciclos</span>
-    <span class="acompanhamento-historico-tab">Processos</span>
-    <span class="acompanhamento-historico-tab is-active">Timeline global</span>
-    <span class="acompanhamento-historico-tab">Interessados</span>
-  </nav>
-
   <section class="acompanhamento-historico-layout">
     <aside class="detail-card acompanhamento-card acompanhamento-historico-sidebar">
-      <div>
-        <h3>Filtros rápidos</h3>
-        <div class="acompanhamento-historico-filters">
-          <div class="acompanhamento-historico-pill">Período: últimos 15 dias</div>
-          <div class="acompanhamento-historico-pill">Origem: tudo</div>
-          <div class="acompanhamento-historico-pill">Responsável: qualquer</div>
-          <div class="acompanhamento-historico-pill">Tipo de evento: status e notas</div>
-        </div>
-      </div>
-
       <div>
         <h3>Resumo da leitura</h3>
         <div class="acompanhamento-historico-box">
