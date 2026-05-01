@@ -17,6 +17,7 @@ from administracao.models import AtalhoAdministracao, AtalhoServico, SMTPConfigu
 from administracao.views import Feedback
 from administracao.views import SMTPConfigView
 from administracao.views import SystemBackupDownloadView
+from notificacoes.models import NotificacaoUsuario
 
 
 class SMTPConfigViewTests(TestCase):
@@ -254,3 +255,100 @@ class AtalhoAdministracaoListViewTests(TestCase):
         self.assertContains(response, "Sala de Situacao")
         self.assertContains(response, "Acompanhamento de Sistemas")
         self.assertContains(response, "Editar")
+
+
+class NotificacaoHistoricoListViewTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_superuser(
+            username="notificacoes-admin",
+            email="notificacoes@exemplo.gov.br",
+            password="123456",
+            first_name="Admin",
+        )
+        self.destinatario = get_user_model().objects.create_user(
+            username="usuario-destino",
+            email="destino@exemplo.gov.br",
+            password="123456",
+            first_name="Usuario",
+        )
+
+    def test_card_de_notificacoes_aparece_em_configuracoes(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("administracao_configuracoes"))
+
+        self.assertContains(response, "Acompanhar notificacoes")
+        self.assertContains(response, reverse("administracao_notificacao_historico"))
+
+    def test_lista_historico_exibe_statuses(self):
+        self.client.force_login(self.user)
+        pendente = NotificacaoUsuario.objects.create(
+            user=self.destinatario,
+            source_app="acompanhamento_sistemas",
+            event_type="nota_criada",
+            title="Pendente",
+            body_short="Ainda nao exibida",
+            target_url="/destino/1/",
+        )
+        exibida = NotificacaoUsuario.objects.create(
+            user=self.destinatario,
+            source_app="acompanhamento_sistemas",
+            event_type="nota_criada",
+            title="Exibida",
+            body_short="Ja apareceu no desktop",
+            target_url="/destino/2/",
+        )
+        lida = NotificacaoUsuario.objects.create(
+            user=self.destinatario,
+            source_app="acompanhamento_sistemas",
+            event_type="nota_criada",
+            title="Lida",
+            body_short="Usuario abriu a notificacao",
+            target_url="/destino/3/",
+        )
+        from django.utils import timezone
+        exibida.displayed_at = timezone.now()
+        exibida.save(update_fields=["displayed_at"])
+        lida.displayed_at = timezone.now()
+        lida.read_at = timezone.now()
+        lida.save(update_fields=["displayed_at", "read_at"])
+
+        response = self.client.get(reverse("administracao_notificacao_historico"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, pendente.title)
+        self.assertContains(response, exibida.title)
+        self.assertContains(response, lida.title)
+        self.assertContains(response, "Pendente")
+        self.assertContains(response, "Exibida")
+        self.assertContains(response, "Lida")
+
+    def test_lista_historico_filtra_por_status(self):
+        self.client.force_login(self.user)
+        NotificacaoUsuario.objects.create(
+            user=self.destinatario,
+            source_app="acompanhamento_sistemas",
+            event_type="nota_criada",
+            title="Pendente",
+            body_short="Ainda nao exibida",
+            target_url="/destino/1/",
+        )
+        exibida = NotificacaoUsuario.objects.create(
+            user=self.destinatario,
+            source_app="acompanhamento_sistemas",
+            event_type="nota_criada",
+            title="Exibida",
+            body_short="Ja apareceu no desktop",
+            target_url="/destino/2/",
+        )
+        from django.utils import timezone
+        exibida.displayed_at = timezone.now()
+        exibida.save(update_fields=["displayed_at"])
+
+        response = self.client.get(
+            reverse("administracao_notificacao_historico"),
+            {"status": "exibida"},
+        )
+
+        self.assertContains(response, "Exibida")
+        self.assertNotContains(response, "Pendente")

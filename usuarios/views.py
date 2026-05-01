@@ -74,22 +74,34 @@ def _build_perfil_matrix_context(form, inherited_profiles: set[str] | None = Non
     """Monta matriz app x nível, marcando e bloqueando perfis herdados."""
     inherited_profiles = set(inherited_profiles or set())
     checkbox_map = {}
+    selected_profiles = set()
     if form is not None:
         checkbox_map = {item.data["value"]: item for item in form["perfis"]}
+        if getattr(form, "is_bound", False):
+            selected_profiles = set(form.data.getlist("perfis"))
+        else:
+            initial_profiles = form.initial.get("perfis")
+            if initial_profiles is None:
+                initial_profiles = form.fields["perfis"].initial
+            selected_profiles = set(initial_profiles or [])
     matrix = []
     for row in build_profile_matrix():
         cells = []
+        row_selected = False
         for level in row["levels"]:
             profile_name = level["group"]
             checkbox = checkbox_map.get(profile_name)
+            if profile_name in selected_profiles or profile_name in inherited_profiles:
+                row_selected = True
             cells.append(
                 {
                     "checkbox": checkbox,
                     "profile_name": profile_name,
+                    "level_label": level["label"],
                     "is_inherited": profile_name in inherited_profiles,
                 }
             )
-        matrix.append({"label": row["label"], "cells": cells})
+        matrix.append({"label": row["label"], "cells": cells, "is_selected": row_selected})
     return matrix
 
 
@@ -316,17 +328,8 @@ class UsuarioCreateView(StaffOnlyMixin, CreateView):
         """
         context = super().get_context_data(**kwargs)
         form = context.get("form")
-        checkbox_map = {}
-        if form is not None:
-            checkbox_map = {item.data["value"]: item for item in form["perfis"]}
-        matrix = []
-        for row in build_profile_matrix():
-            cells = []
-            for level in row["levels"]:
-                checkbox = checkbox_map.get(level["group"])
-                cells.append(checkbox.tag if checkbox else "")
-            matrix.append({"label": row["label"], "cells": cells})
-        context["perfil_matrix"] = matrix
+        context["perfil_matrix"] = _build_perfil_matrix_context(form)
+        context["perfil_app_options"] = [row["label"] for row in build_profile_matrix()]
         return context
 
 
@@ -379,17 +382,8 @@ class UsuarioUpdateView(StaffOnlyMixin, UpdateView):
         """
         context = super().get_context_data(**kwargs)
         form = context.get("form")
-        checkbox_map = {}
-        if form is not None:
-            checkbox_map = {item.data["value"]: item for item in form["perfis"]}
-        matrix = []
-        for row in build_profile_matrix():
-            cells = []
-            for level in row["levels"]:
-                checkbox = checkbox_map.get(level["group"])
-                cells.append(checkbox.tag if checkbox else "")
-            matrix.append({"label": row["label"], "cells": cells})
-        context["perfil_matrix"] = matrix
+        context["perfil_matrix"] = _build_perfil_matrix_context(form)
+        context["perfil_app_options"] = [row["label"] for row in build_profile_matrix()]
         return context
 
 
@@ -499,6 +493,7 @@ class GrupoCreateView(StaffOnlyMixin, CreateView):
         context = super().get_context_data(**kwargs)
         form = context.get("form")
         context["perfil_matrix"] = _build_perfil_matrix_context(form)
+        context["perfil_app_options"] = [row["label"] for row in build_profile_matrix()]
         return context
 
 
@@ -537,6 +532,7 @@ class GrupoUpdateView(StaffOnlyMixin, UpdateView):
         form = context.get("form")
         inherited_profiles = set(getattr(form, "inherited_profile_names", set()) or set())
         context["perfil_matrix"] = _build_perfil_matrix_context(form, inherited_profiles=inherited_profiles)
+        context["perfil_app_options"] = [row["label"] for row in build_profile_matrix()]
         return context
 
 

@@ -8,7 +8,7 @@ from sala_situacao.access import user_has_sala_situacao_access, user_is_monitori
 
 
 PROFILE_REVALIDATION_DAYS = 30
-RAMAL_PROFILE_EXEMPT_USERNAMES = {"admin"}
+RAMAL_PROFILE_EXEMPT_USERNAMES = {"admin", "kaio"}
 
 
 def _user_is_ramal_profile_exempt(user) -> bool:

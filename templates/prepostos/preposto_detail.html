@@ -26,8 +26,12 @@
     </p>
     <p><strong>Empresa:</strong> {{ preposto.empresa }}</p>
     <div class="detail-actions">
-      <a class="btn" href="{% url 'prepostos_update' preposto.pk %}">Editar</a>
-      <a class="btn btn-secondary" href="{% url 'prepostos_delete' preposto.pk %}">Excluir</a>
+      {% if perms.prepostos.change_preposto %}
+        <a class="btn" href="{% url 'prepostos_update' preposto.pk %}">Editar</a>
+      {% endif %}
+      {% if perms.prepostos.delete_preposto %}
+        <a class="btn btn-secondary" href="{% url 'prepostos_delete' preposto.pk %}">Excluir</a>
+      {% endif %}
       <a class="btn btn-light" href="{% url 'prepostos_list' %}">Voltar</a>
     </div>
   </div>

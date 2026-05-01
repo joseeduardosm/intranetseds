@@ -13,28 +13,42 @@
     <h2>Reservas</h2>
   </section>
 
-  <div class="card-actions">
-    {% if user.is_authenticated %}
-      <a class="btn" href="{% url 'reservas_create' %}">Nova reserva</a>
-    {% else %}
-      <button class="btn" type="button" data-login-popup="true" data-next="{% url 'reservas_create' %}">Nova reserva</button>
-    {% endif %}
-    <a class="btn btn-light" href="{% url 'reservas_dashboard' %}">Dashboard</a>
-    <a class="btn btn-light" href="{% url 'salas_list' %}">Voltar ao calendario</a>
+  <div class="card-actions reserva-actions-bar">
+    <div class="reserva-actions-left">
+      {% if user.is_authenticated %}
+        <a class="btn" href="{% url 'reservas_create' %}">Nova reserva</a>
+      {% else %}
+        <button class="btn" type="button" data-login-popup="true" data-next="{% url 'reservas_create' %}">Nova reserva</button>
+      {% endif %}
+      <a class="btn btn-light" href="{% url 'reservas_dashboard' %}">Dashboard</a>
+      <a class="btn btn-light" href="{% url 'salas_list' %}">Voltar ao calendario</a>
+    </div>
+    <form class="reserva-search-form" method="get">
+      <div class="table-search">
+        <span class="table-search-icon">&#128269;</span>
+        <input
+          type="search"
+          name="q"
+          placeholder="Pesquisar evento, sala, data ou responsavel"
+          value="{{ search_query }}"
+        />
+      </div>
+      <button class="btn btn-light" type="submit">Pesquisar</button>
+    </form>
   </div>
 
   {% if reservas %}
     <div class="table-wrapper">
-      <table class="table">
+      <table class="table table-sortable" id="reservas-table">
         <thead>
           <tr>
-            <th>Evento</th>
-            <th>Sala</th>
-            <th>Data</th>
-            <th>Inicio</th>
-            <th>Fim</th>
-            <th>Responsavel</th>
-            <th>Pessoas</th>
+            <th class="sortable">Evento</th>
+            <th class="sortable">Sala</th>
+            <th class="sortable">Data</th>
+            <th class="sortable">Inicio</th>
+            <th class="sortable">Fim</th>
+            <th class="sortable">Responsavel</th>
+            <th class="sortable">Pessoas</th>
           </tr>
         </thead>
         <tbody>
@@ -52,6 +66,68 @@
         </tbody>
       </table>
     </div>
+    <script>
+      const reservasTable = document.getElementById("reservas-table");
+
+      if (reservasTable) {
+        const getCellValue = (row, index) =>
+          (row.children[index]?.textContent || "").trim().toLowerCase();
+
+        const parseDateBr = (value) => {
+          const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+          if (!match) return null;
+          const [, dd, mm, yyyy] = match;
+          const date = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
+          return Number.isNaN(date.getTime()) ? null : date.getTime();
+        };
+
+        const parseTime = (value) => {
+          const match = value.match(/^(\d{2}):(\d{2})$/);
+          if (!match) return null;
+          const [, hh, mm] = match;
+          return Number(hh) * 60 + Number(mm);
+        };
+
+        const parseNumber = (value) => {
+          if (!value) return null;
+          const cleaned = value.replace(/[^\d.-]/g, "");
+          const number = Number(cleaned);
+          return Number.isNaN(number) ? null : number;
+        };
+
+        const getComparableValue = (text, index) => {
+          if (index === 2) return parseDateBr(text) ?? text;
+          if (index === 3 || index === 4) return parseTime(text) ?? text;
+          if (index === 6) return parseNumber(text) ?? text;
+          return text;
+        };
+
+        const sortTable = (index, direction) => {
+          const rows = Array.from(reservasTable.tBodies[0].rows);
+          rows.sort((a, b) => {
+            const aValue = getComparableValue(getCellValue(a, index), index);
+            const bValue = getComparableValue(getCellValue(b, index), index);
+
+            if (aValue < bValue) return direction === "asc" ? -1 : 1;
+            if (aValue > bValue) return direction === "asc" ? 1 : -1;
+            return 0;
+          });
+          rows.forEach((row) => reservasTable.tBodies[0].appendChild(row));
+        };
+
+        reservasTable.querySelectorAll("th.sortable").forEach((th, index) => {
+          th.addEventListener("click", () => {
+            const current = th.getAttribute("data-direction") || "desc";
+            const next = current === "asc" ? "desc" : "asc";
+            reservasTable
+              .querySelectorAll("th.sortable")
+              .forEach((header) => header.removeAttribute("data-direction"));
+            th.setAttribute("data-direction", next);
+            sortTable(index, next);
+          });
+        });
+      }
+    </script>
   {% else %}
     <p>Nenhuma reserva cadastrada.</p>
   {% endif %}

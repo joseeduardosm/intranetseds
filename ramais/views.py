@@ -9,7 +9,7 @@ Integrações arquiteturais:
 - Form `PessoaRamalForm` para controle de campos e permissões.
 - Templates em `templates/ramais/` para renderização da interface.
 """
-from django.contrib.auth.mixins import PermissionRequiredMixin, UserPassesTestMixin
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin, UserPassesTestMixin
 from django.db.models import Q
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
@@ -22,7 +22,14 @@ from .forms import PessoaRamalForm
 RAMAIS_EXCLUDED_USERNAMES = {"admin"}
 
 
-class PessoaRamalListView(ListView):
+def _user_has_only_view_permissions(user) -> bool:
+    if not getattr(user, "is_authenticated", False):
+        return False
+    permissions = user.get_all_permissions()
+    return bool(permissions) and all(".view_" in permission for permission in permissions)
+
+
+class PessoaRamalListView(LoginRequiredMixin, ListView):
     """
     Controla o endpoint de listagem de ramais com busca textual.
 
@@ -72,7 +79,7 @@ class PessoaRamalListView(ListView):
         return queryset
 
 
-class PessoaRamalDetailView(DetailView):
+class PessoaRamalDetailView(LoginRequiredMixin, DetailView):
     """
     Controla o endpoint de detalhe de um ramal específico.
 
@@ -97,7 +104,7 @@ class PessoaRamalDetailView(DetailView):
         )
 
 
-class PessoaRamalCreateView(PermissionRequiredMixin, CreateView):
+class PessoaRamalCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     """
     Controla o fluxo HTTP de criação de perfil de ramal.
 
@@ -122,7 +129,7 @@ class PessoaRamalCreateView(PermissionRequiredMixin, CreateView):
         return kwargs
 
 
-class PessoaRamalUpdateView(UserPassesTestMixin, UpdateView):
+class PessoaRamalUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     """
     Controla o fluxo HTTP de edição de ramal.
 
@@ -146,9 +153,13 @@ class PessoaRamalUpdateView(UserPassesTestMixin, UpdateView):
         user = self.request.user
         if not user.is_authenticated:
             return False
+        if self.get_object().usuario_id == user.id:
+            return True
+        if _user_has_only_view_permissions(user):
+            return False
         if user.is_staff or user.has_perm("ramais.change_pessoaramal"):
             return True
-        return self.get_object().usuario_id == user.id
+        return False
 
     def get_form_kwargs(self):
         """
@@ -162,7 +173,7 @@ class PessoaRamalUpdateView(UserPassesTestMixin, UpdateView):
         return kwargs
 
 
-class PessoaRamalDeleteView(PermissionRequiredMixin, DeleteView):
+class PessoaRamalDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
     """
     Controla o fluxo HTTP de exclusão de ramal.
 
@@ -175,7 +186,7 @@ class PessoaRamalDeleteView(PermissionRequiredMixin, DeleteView):
     permission_required = "ramais.delete_pessoaramal"
 
 
-class OrganogramaView(ListView):
+class OrganogramaView(LoginRequiredMixin, ListView):
     """
     Controla o endpoint de visualização do organograma institucional.
 

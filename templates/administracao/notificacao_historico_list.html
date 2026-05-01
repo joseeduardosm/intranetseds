@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Acompanhar notificacoes</h2>
+  </section>
+
+  <form method="get">
+    <div class="card-actions">
+      <div class="table-search">
+        <span class="table-search-icon">&#128269;</span>
+        <input type="search" name="q" value="{{ search_query }}" placeholder="Pesquisar usuario, titulo, origem ou evento..." />
+      </div>
+      <select name="status" class="form-control">
+        <option value="todos" {% if status_filter == "todos" %}selected{% endif %}>Todos os status</option>
+        <option value="pendente" {% if status_filter == "pendente" %}selected{% endif %}>Pendente</option>
+        <option value="exibida" {% if status_filter == "exibida" %}selected{% endif %}>Exibida</option>
+        <option value="lida" {% if status_filter == "lida" %}selected{% endif %}>Lida</option>
+      </select>
+      <button class="btn" type="submit">Filtrar</button>
+      <a class="btn btn-light" href="{% url 'administracao_notificacao_historico' %}">Limpar</a>
+      <a class="btn btn-secondary" href="{% url 'administracao_configuracoes' %}">Voltar</a>
+    </div>
+  </form>
+
+  {% if notificacoes %}
+    <div class="table-wrapper">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Usuario</th>
+            <th>Titulo</th>
+            <th>Origem</th>
+            <th>Evento</th>
+            <th>Criada em</th>
+            <th>Exibida em</th>
+            <th>Lida em</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for notificacao in notificacoes %}
+            <tr>
+              <td>{{ notificacao.id }}</td>
+              <td>
+                {{ notificacao.user.get_full_name|default:notificacao.user.username }}
+                <br />
+                <small>{{ notificacao.user.username }}</small>
+              </td>
+              <td>
+                <strong>{{ notificacao.title }}</strong>
+                <br />
+                <small>{{ notificacao.body_short }}</small>
+              </td>
+              <td>{{ notificacao.source_app }}</td>
+              <td>{{ notificacao.event_type }}</td>
+              <td>{{ notificacao.created_at|date:"d/m/Y H:i" }}</td>
+              <td>{% if notificacao.displayed_at %}{{ notificacao.displayed_at|date:"d/m/Y H:i" }}{% else %}-{% endif %}</td>
+              <td>{% if notificacao.read_at %}{{ notificacao.read_at|date:"d/m/Y H:i" }}{% else %}-{% endif %}</td>
+              <td>{{ notificacao.status_label }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if is_paginated %}
+      <nav class="pagination">
+        {% if page_obj.has_previous %}
+          <a class="btn btn-light" href="?{% if search_query %}q={{ search_query|urlencode }}&{% endif %}{% if status_filter %}status={{ status_filter|urlencode }}&{% endif %}page={{ page_obj.previous_page_number }}">Anterior</a>
+        {% endif %}
+        <span class="pagination-meta">Pagina {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+          <a class="btn btn-light" href="?{% if search_query %}q={{ search_query|urlencode }}&{% endif %}{% if status_filter %}status={{ status_filter|urlencode }}&{% endif %}page={{ page_obj.next_page_number }}">Proxima</a>
+        {% endif %}
+      </nav>
+    {% endif %}
+  {% else %}
+    <p>Nenhuma notificacao encontrada para os filtros informados.</p>
+  {% endif %}
+{% endblock %}

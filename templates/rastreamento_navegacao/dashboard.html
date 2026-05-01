@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/rastreamento_navegacao/rastreamento_navegacao.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header analytics-header">
+    <div>
+      <h2>Rastreamento de navegacao</h2>
+      <p class="analytics-subtitle">Visitas agregadas por pagina no periodo selecionado.</p>
+    </div>
+    <a class="btn btn-secondary" href="{% url 'administracao_configuracoes' %}">Voltar</a>
+  </section>
+
+  <form class="analytics-filter-card" method="get">
+    <div class="analytics-filter-grid">
+      <div class="form-field">
+        <label for="data_inicio">Data inicio</label>
+        <input id="data_inicio" type="date" name="data_inicio" value="{{ data_inicio }}" required />
+      </div>
+      <div class="form-field">
+        <label for="data_fim">Data fim</label>
+        <input id="data_fim" type="date" name="data_fim" value="{{ data_fim }}" required />
+      </div>
+      <div class="form-field analytics-filter-actions">
+        <button class="btn" type="submit">Filtrar</button>
+      </div>
+    </div>
+  </form>
+
+  <section class="analytics-panel analytics-panel--wide">
+    <div class="analytics-panel-header">
+      <h3>Visitas por dia</h3>
+      <p>Total de {{ total_dias }} dia{{ total_dias|pluralize }} no recorte.</p>
+    </div>
+    <div id="analytics-line-chart" class="analytics-chart"></div>
+  </section>
+
+  <section class="analytics-panel">
+    <div class="analytics-panel-header">
+      <h3>Paginas mais acessadas</h3>
+      <p>Clique no titulo para abrir o detalhe da pagina.</p>
+    </div>
+    <div class="table-wrapper">
+      <table class="table">
+        <thead>
+          <tr>
+            <th class="sortable" data-direction="{% if sort == 'titulo' %}{{ dir }}{% endif %}">
+              <a href="?{{ sort_links.titulo }}">Titulo</a>
+            </th>
+            <th class="sortable" data-direction="{% if sort == 'caminho' %}{{ dir }}{% endif %}">
+              <a href="?{{ sort_links.caminho }}">Caminho</a>
+            </th>
+            <th class="sortable" data-direction="{% if sort == 'visitas' %}{{ dir }}{% endif %}">
+              <a href="?{{ sort_links.visitas }}">Qtdd de visitas</a>
+            </th>
+            <th class="sortable" data-direction="{% if sort == 'media' %}{{ dir }}{% endif %}">
+              <a href="?{{ sort_links.media }}">Media de visitas por dia</a>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in page_summaries %}
+            <tr>
+              <td>
+                <a href="{% url 'rastreamento_navegacao_detail' item.detail_token %}?data_inicio={{ data_inicio }}&data_fim={{ data_fim }}">
+                  {{ item.title }}
+                </a>
+              </td>
+              <td><code>{{ item.path }}</code></td>
+              <td>{{ item.visit_count }}</td>
+              <td>{{ item.average_per_day }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="4">Nenhuma visita encontrada para o periodo selecionado.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <script>
+    const chartLabels = {{ graph_labels_json|safe }};
+    const chartValues = {{ graph_values_json|safe }};
+    Plotly.newPlot(
+      "analytics-line-chart",
+      [
+        {
+          x: chartLabels,
+          y: chartValues,
+          type: "scatter",
+          mode: "lines+markers",
+          line: { color: "#f59e0b", width: 3, shape: "spline" },
+          marker: { color: "#1d4ed8", size: 8 },
+          fill: "tozeroy",
+          fillcolor: "rgba(245, 158, 11, 0.14)",
+          name: "Visitas",
+        },
+      ],
+      {
+        margin: { l: 48, r: 24, t: 12, b: 48 },
+        paper_bgcolor: "#ffffff",
+        plot_bgcolor: "#f8fafc",
+        xaxis: { title: "Dia" },
+        yaxis: { title: "Visitas", rangemode: "tozero" },
+      },
+      { responsive: true, displayModeBar: false }
+    );
+  </script>
+{% endblock %}

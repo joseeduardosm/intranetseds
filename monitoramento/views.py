@@ -10,7 +10,7 @@ from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model
-from django.contrib.auth.mixins import UserPassesTestMixin
+from django.contrib.auth.mixins import PermissionRequiredMixin, UserPassesTestMixin
 from django.db import OperationalError, ProgrammingError
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect
@@ -118,10 +118,11 @@ class MonitoramentoHomeView(MonitoramentoAccessMixin, ListView):
         return context
 
 
-class ProjetoMonitoramentoCreateView(MonitoramentoAccessMixin, CreateView):
+class ProjetoMonitoramentoCreateView(PermissionRequiredMixin, CreateView):
     model = ProjetoMonitoramento
     form_class = ProjetoMonitoramentoForm
     template_name = "monitoramento/projeto_form.html"
+    permission_required = "monitoramento.add_projetomonitoramento"
 
     def form_valid(self, form):
         form.instance.criado_por = self.request.user
@@ -146,8 +147,9 @@ class ProjetoMonitoramentoDetailView(MonitoramentoAccessMixin, DetailView):
         return context
 
 
-class ConexaoMonitoramentoUpdateView(MonitoramentoAccessMixin, View):
+class ConexaoMonitoramentoUpdateView(PermissionRequiredMixin, View):
     template_name = "monitoramento/conexao_form.html"
+    permission_required = "monitoramento.change_conexaobancomonitoramento"
 
     def get(self, request, pk):
         projeto = get_object_or_404(ProjetoMonitoramento, pk=pk)
@@ -241,7 +243,8 @@ class DashboardProjetoListView(MonitoramentoAccessMixin, ListView):
         return context
 
 
-class DashboardMonitoramentoCreateView(MonitoramentoAccessMixin, TemplateView):
+class DashboardMonitoramentoCreateView(PermissionRequiredMixin, TemplateView):
+    permission_required = "monitoramento.add_dashboardmonitoramento"
     template_name = "monitoramento/dashboard_form.html"
 
     def get_context_data(self, **kwargs):
@@ -351,7 +354,8 @@ class DashboardMonitoramentoCreateView(MonitoramentoAccessMixin, TemplateView):
         )
 
 
-class DashboardMonitoramentoUpdateView(MonitoramentoAccessMixin, TemplateView):
+class DashboardMonitoramentoUpdateView(PermissionRequiredMixin, TemplateView):
+    permission_required = "monitoramento.change_dashboardmonitoramento"
     template_name = "monitoramento/dashboard_form.html"
 
     def get_context_data(self, **kwargs):
@@ -574,7 +578,8 @@ class DashboardMonitoramentoDetailView(MonitoramentoAccessMixin, DetailView):
         return context
 
 
-class DashboardMonitoramentoDeleteView(MonitoramentoAccessMixin, View):
+class DashboardMonitoramentoDeleteView(PermissionRequiredMixin, View):
+    permission_required = "monitoramento.delete_dashboardmonitoramento"
     def post(self, request, pk):
         dashboard = get_object_or_404(
             DashboardMonitoramento.objects.select_related("projeto"),

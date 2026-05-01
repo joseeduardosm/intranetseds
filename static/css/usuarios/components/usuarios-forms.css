@@ -78,6 +78,84 @@
   flex-wrap: wrap;
 }
 
+.perfil-section {
+  border: 1px solid #e6e1d9;
+  border-radius: 16px;
+  padding: 16px;
+  background: #fffdf9;
+}
+
+.perfil-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.perfil-section-header label {
+  margin: 0;
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.perfil-quick-add {
+  border: 1px solid #e5e1d9;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  background: #fbfaf7;
+}
+
+.perfil-quick-add-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) minmax(240px, 1.6fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.perfil-quick-add-field label {
+  font-weight: 600;
+}
+
+.perfil-quick-add-checks-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.perfil-quick-add-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.perfil-quick-add-action .btn {
+  white-space: nowrap;
+}
+
+.perfil-table .table th,
+.perfil-table .table td {
+  vertical-align: middle;
+}
+
+.perfil-table .table td:first-child {
+  font-weight: 600;
+  color: #2c2f36;
+}
+
+.perfil-row-hidden {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .perfil-quick-add-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 900px) {
   .form-grid--ramais {
     grid-template-columns: 1fr;

@@ -23,7 +23,9 @@
 
   <div class="card-actions">
     <a class="btn btn-light" href="{% url 'lousa_digital_list' %}?aba={{ active_aba }}">Voltar à Lousa</a>
-    <a class="btn btn-light" href="{% url 'lousa_digital_create' %}?aba={{ active_aba }}">{{ active_aba }}: novo processo</a>
+    {% if perms.lousa_digital.add_processo %}
+      <a class="btn btn-light" href="{% url 'lousa_digital_create' %}?aba={{ active_aba }}">{{ active_aba }}: novo processo</a>
+    {% endif %}
   </div>
 
   <section class="lousa-dashboard">

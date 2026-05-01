@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from types import SimpleNamespace
 
 from django.contrib import messages
@@ -11,7 +12,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import connection
 from django.db.models import OuterRef, Prefetch, Q, Subquery
 from django.db.models.functions import Coalesce, Greatest
-from django.http import Http404, HttpResponseRedirect, JsonResponse
+from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.views import View
@@ -22,23 +23,48 @@ from usuarios.utils import usuarios_visiveis
 
 from .forms import (
     EntregaSistemaForm,
+    EtapaProcessoRequisitoAtualizacaoForm,
     EtapaSistemaAtualizacaoForm,
+    GerarNovoSistemaAPartirProcessosForm,
+    GerarProcessoTransformacaoForm,
     InteressadoSistemaForm,
     NotaSistemaForm,
     NotaEtapaSistemaForm,
+    ProcessoRequisitoForm,
     SistemaFiltroForm,
     SistemaForm,
 )
 from .models import (
     HistoricoSistema,
+    ProcessoRequisito,
     EntregaSistema,
+    EtapaProcessoRequisito,
     EtapaSistema,
+    HistoricoProcessoRequisito,
     HistoricoEtapaSistema,
+    HistoricoEtapaProcessoRequisito,
     InteressadoSistema,
     InteressadoSistemaManual,
     Sistema,
 )
-from .services import adicionar_nota_etapa, adicionar_nota_sistema, atualizar_etapa_com_historico, criar_entrega_com_etapas, publicar_entrega
+from .services import (
+    adicionar_nota_etapa,
+    adicionar_nota_sistema,
+    atualizar_etapa_com_historico,
+    atualizar_etapa_processo_requisito,
+    atualizar_processo_requisito,
+    entrega_pode_ser_publicada,
+    etapa_pode_alterar_status_em_rascunho,
+    criar_entrega_com_etapas,
+    criar_processo_requisito,
+    excluir_entrega_sistema,
+    excluir_sistema,
+    excluir_processo_requisito,
+    gerar_ciclo_a_partir_processo,
+    gerar_novo_sistema_a_partir_processos,
+    publicar_entrega,
+    sistema_pode_gerar_novo_sistema,
+)
 
 
 User = get_user_model()
@@ -151,6 +177,10 @@ def _usuario_pode_criar_ciclo(user, sistema) -> bool:
     )
 
 
+def _usuario_pode_gerir_processos(user, sistema) -> bool:
+    return _usuario_pode_editar_sistema(user, sistema)
+
+
 def _usuario_pode_gerir_interessados(user, sistema) -> bool:
     return _usuario_pode_editar_sistema(user, sistema)
 
@@ -161,6 +191,10 @@ def _usuario_pode_excluir_sistema(user, sistema) -> bool:
 
 def _usuario_pode_excluir_entrega(user, entrega) -> bool:
     return bool(getattr(user, "is_authenticated", False) and entrega.criado_por_id == user.id)
+
+
+def _usuario_pode_excluir_processo(user, processo) -> bool:
+    return bool(getattr(user, "is_authenticated", False) and processo.criado_por_id == user.id)
 
 
 def _registrar_auditoria_view(objeto, *, usuario, acao, changes=None):
@@ -267,6 +301,29 @@ def _timeline_sistema(sistema):
         historico.timeline_titulo = f"Ciclo {historico.etapa.entrega.titulo}: {historico.etapa.get_tipo_etapa_display()}"
         itens.append(historico)
 
+    historicos_processo = (
+        HistoricoProcessoRequisito.objects.filter(processo__sistema=sistema)
+        .select_related("processo", "criado_por")
+        .prefetch_related("anexos")
+    )
+    for historico in historicos_processo:
+        historico.eh_criacao_entrega = False
+        historico.timeline_titulo = f"Processo {historico.processo.titulo}"
+        itens.append(historico)
+
+    historicos_etapa_processo = (
+        HistoricoEtapaProcessoRequisito.objects.filter(etapa__processo__sistema=sistema)
+        .exclude(tipo_evento=HistoricoEtapaProcessoRequisito.TipoEvento.CRIACAO)
+        .select_related("etapa", "etapa__processo", "criado_por")
+        .prefetch_related("anexos")
+    )
+    for historico in historicos_etapa_processo:
+        historico.eh_criacao_entrega = False
+        historico.timeline_titulo = (
+            f"Processo {historico.etapa.processo.titulo}: {historico.etapa.get_tipo_etapa_display()}"
+        )
+        itens.append(historico)
+
     return sorted(itens, key=lambda item: (item.criado_em, getattr(item, "id", 0)), reverse=True)
 
 
@@ -290,6 +347,32 @@ def _descricao_evento_edicao_ciclo(*, titulo_anterior="", titulo_novo="", descri
     if descricao_nova:
         partes.append(f"Descrição atualizada: {descricao_nova}")
     return " ".join(partes)
+
+
+def _timeline_processo(processo):
+    itens = []
+    for historico in processo.historicos.select_related("criado_por").prefetch_related("anexos").order_by("-criado_em", "-id"):
+        historico.timeline_titulo = f"Processo {processo.titulo}"
+        itens.append(historico)
+    for historico in (
+        HistoricoEtapaProcessoRequisito.objects.filter(etapa__processo=processo)
+        .exclude(tipo_evento=HistoricoEtapaProcessoRequisito.TipoEvento.CRIACAO)
+        .select_related("etapa", "criado_por")
+        .prefetch_related("anexos")
+        .order_by("-criado_em", "-id")
+    ):
+        historico.timeline_titulo = f"{processo.titulo}: {historico.etapa.get_tipo_etapa_display()}"
+        itens.append(historico)
+    return sorted(itens, key=lambda item: (item.criado_em, getattr(item, "id", 0)), reverse=True)
+
+
+def _timeline_etapa_processo(etapa):
+    historicos = list(
+        etapa.historicos.select_related("criado_por").prefetch_related("anexos").order_by("-criado_em", "-id")
+    )
+    for historico in historicos:
+        historico.timeline_titulo = f"{etapa.processo.titulo}: {etapa.get_tipo_etapa_display()}"
+    return historicos
 
 
 def _timeline_etapa(etapa):
@@ -395,6 +478,30 @@ class AcompanhamentoReadAccessMixin(LoginRequiredMixin):
         if not _usuario_tem_acesso_leitura_acompanhamento(request.user):
             raise Http404
         return super().dispatch(request, *args, **kwargs)
+
+
+class MockProcessosView(AcompanhamentoReadAccessMixin, View):
+    arquivos = {
+        "index": "acompanhamento_sistemas_processos_mock_index.html",
+        "mock-01": "acompanhamento_sistemas_processos_mock_01.html",
+        "mock-02": "acompanhamento_sistemas_processos_mock_02.html",
+        "mock-03": "acompanhamento_sistemas_processos_mock_03.html",
+        "acompanhamento_sistemas_processos_mock_index.html": "acompanhamento_sistemas_processos_mock_index.html",
+        "acompanhamento_sistemas_processos_mock_01.html": "acompanhamento_sistemas_processos_mock_01.html",
+        "acompanhamento_sistemas_processos_mock_02.html": "acompanhamento_sistemas_processos_mock_02.html",
+        "acompanhamento_sistemas_processos_mock_03.html": "acompanhamento_sistemas_processos_mock_03.html",
+    }
+
+    def get(self, request, slug="index", *args, **kwargs):
+        nome_arquivo = self.arquivos.get(slug)
+        if not nome_arquivo:
+            raise Http404
+
+        caminho = Path(__file__).resolve().parent.parent / "docs" / nome_arquivo
+        if not caminho.exists():
+            raise Http404
+
+        return HttpResponse(caminho.read_text(encoding="utf-8"))
 
 
 class SistemaListView(AcompanhamentoReadAccessMixin, ListView):
@@ -567,6 +674,11 @@ class SistemaDeleteView(LoginRequiredMixin, DeleteView):
         messages.success(self.request, "Sistema excluído com sucesso.")
         return reverse("acompanhamento_sistemas_list")
 
+    def form_valid(self, form):
+        success_url = self.get_success_url()
+        excluir_sistema(self.object, usuario=self.request.user)
+        return HttpResponseRedirect(success_url)
+
 
 class SistemaDetailView(AcompanhamentoReadAccessMixin, DetailView):
     model = Sistema
@@ -578,6 +690,10 @@ class SistemaDetailView(AcompanhamentoReadAccessMixin, DetailView):
             "interessados__usuario",
             "interessados_manuais",
             Prefetch("entregas", queryset=EntregaSistema.objects.prefetch_related("etapas").order_by("ordem", "id")),
+            Prefetch(
+                "processos_requisito",
+                queryset=ProcessoRequisito.objects.prefetch_related("etapas").order_by("ordem", "id"),
+            ),
         )
         return _filtrar_sistemas_visiveis_para_usuario(queryset, self.request.user)
 
@@ -585,6 +701,11 @@ class SistemaDetailView(AcompanhamentoReadAccessMixin, DetailView):
         context = super().get_context_data(**kwargs)
         sistema = self.object
         context["entrega_form"] = kwargs.get("entrega_form") or EntregaSistemaForm()
+        context["processo_form"] = kwargs.get("processo_form") or ProcessoRequisitoForm()
+        context["processo_edicao"] = kwargs.get("processo_edicao")
+        context["transformacao_form"] = kwargs.get("transformacao_form") or GerarProcessoTransformacaoForm()
+        context["novo_sistema_form"] = kwargs.get("novo_sistema_form") or GerarNovoSistemaAPartirProcessosForm()
+        context["processo_transformacao"] = kwargs.get("processo_transformacao")
         context["interessado_form"] = kwargs.get("interessado_form") or InteressadoSistemaForm(sistema=sistema)
         context["nota_sistema_form"] = kwargs.get("nota_sistema_form") or NotaSistemaForm()
         historicos_page = _paginar_itens(self.request, _timeline_sistema(sistema))
@@ -592,13 +713,281 @@ class SistemaDetailView(AcompanhamentoReadAccessMixin, DetailView):
         context["historicos_page"] = historicos_page
         context["timeline_query_param"] = "pagina_timeline"
         context["abrir_modal_ciclo"] = kwargs.get("abrir_modal_ciclo", False)
+        context["abrir_modal_processo"] = kwargs.get("abrir_modal_processo", False)
+        context["abrir_modal_transformacao"] = kwargs.get("abrir_modal_transformacao", False)
         context["abrir_modal_interessado"] = kwargs.get("abrir_modal_interessado", False)
         context["abrir_modal_nota_sistema"] = kwargs.get("abrir_modal_nota_sistema", False)
         context["historico_sistema_disponivel"] = _historico_sistema_disponivel()
         context["pode_editar_sistema"] = _usuario_pode_editar_sistema(self.request.user, sistema)
         context["pode_criar_entrega"] = _usuario_pode_criar_ciclo(self.request.user, sistema)
+        context["pode_gerir_processos"] = _usuario_pode_gerir_processos(self.request.user, sistema)
+        context["todos_processos_finalizados"] = sistema_pode_gerar_novo_sistema(sistema)
         context["pode_excluir_sistema"] = _usuario_pode_excluir_sistema(self.request.user, sistema)
         return context
+
+
+class SistemaHistoricoView(AcompanhamentoReadAccessMixin, DetailView):
+    model = Sistema
+    template_name = "acompanhamento_sistemas/entrega_historico.html"
+    context_object_name = "sistema"
+
+    def get_queryset(self):
+        queryset = Sistema.objects.prefetch_related(
+            "interessados__usuario",
+            "interessados_manuais",
+            Prefetch("entregas", queryset=EntregaSistema.objects.order_by("ordem", "id")),
+            Prefetch("processos_requisito", queryset=ProcessoRequisito.objects.order_by("ordem", "id")),
+        )
+        return _filtrar_sistemas_visiveis_para_usuario(queryset, self.request.user)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        historicos_page = _paginar_itens(self.request, _timeline_sistema(self.object))
+        context["historicos"] = historicos_page.object_list
+        context["historicos_page"] = historicos_page
+        context["timeline_query_param"] = "pagina_timeline"
+        context["entrega"] = None
+        return context
+
+
+class ProcessoRequisitoCreateView(LoginRequiredMixin, View):
+
+    def dispatch(self, request, *args, **kwargs):
+        sistema = get_object_or_404(_filtrar_sistemas_visiveis_para_usuario(Sistema.objects.all(), request.user), pk=kwargs["pk"])
+        if not _usuario_pode_gerir_processos(request.user, sistema):
+            raise Http404
+        self.sistema = sistema
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, request, pk):
+        form = ProcessoRequisitoForm(request.POST)
+        if form.is_valid():
+            criar_processo_requisito(
+                self.sistema,
+                usuario=request.user,
+                titulo=form.cleaned_data["titulo"],
+                descricao=form.cleaned_data["descricao"],
+            )
+            messages.success(request, "Processo de requisitos criado com sucesso.")
+            return redirect("acompanhamento_sistemas_detail", pk=self.sistema.pk)
+        messages.error(request, "Não foi possível criar o processo de requisitos.")
+        _enfileirar_erros_formulario(request, form)
+        view = SistemaDetailView()
+        view.setup(request, pk=pk)
+        view.object = self.sistema
+        return view.render_to_response(view.get_context_data(processo_form=form, abrir_modal_processo=True))
+
+
+class ProcessoRequisitoUpdateView(LoginRequiredMixin, View):
+
+    def dispatch(self, request, *args, **kwargs):
+        processo = get_object_or_404(
+            ProcessoRequisito.objects.select_related("sistema").prefetch_related("etapas"),
+            pk=kwargs["pk"],
+        )
+        sistema = get_object_or_404(_filtrar_sistemas_visiveis_para_usuario(Sistema.objects.all(), request.user), pk=processo.sistema_id)
+        if not _usuario_pode_gerir_processos(request.user, sistema):
+            raise Http404
+        self.processo = processo
+        self.sistema = sistema
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, request, pk):
+        form = ProcessoRequisitoForm(request.POST)
+        if form.is_valid():
+            atualizar_processo_requisito(
+                self.processo,
+                usuario=request.user,
+                titulo=form.cleaned_data["titulo"],
+                descricao=form.cleaned_data["descricao"],
+            )
+            messages.success(request, "Processo de requisitos atualizado com sucesso.")
+            return redirect("acompanhamento_sistemas_detail", pk=self.sistema.pk)
+        messages.error(request, "Não foi possível atualizar o processo de requisitos.")
+        _enfileirar_erros_formulario(request, form)
+        view = SistemaDetailView()
+        view.setup(request, pk=self.sistema.pk)
+        view.object = self.sistema
+        return view.render_to_response(
+            view.get_context_data(
+                processo_form=form,
+                processo_edicao=self.processo,
+                abrir_modal_processo=True,
+            )
+        )
+
+
+class ProcessoRequisitoDeleteView(LoginRequiredMixin, View):
+
+    def dispatch(self, request, *args, **kwargs):
+        processo = get_object_or_404(ProcessoRequisito.objects.select_related("sistema"), pk=kwargs["pk"])
+        sistema = get_object_or_404(_filtrar_sistemas_visiveis_para_usuario(Sistema.objects.all(), request.user), pk=processo.sistema_id)
+        if not _usuario_pode_excluir_processo(request.user, processo):
+            raise Http404
+        self.processo = processo
+        self.sistema = sistema
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, request, pk):
+        excluir_processo_requisito(self.processo, usuario=request.user)
+        messages.success(request, "Processo de requisitos excluído com sucesso.")
+        return redirect("acompanhamento_sistemas_detail", pk=self.sistema.pk)
+
+
+class ProcessoRequisitoDetailView(AcompanhamentoReadAccessMixin, DetailView):
+    model = ProcessoRequisito
+    template_name = "acompanhamento_sistemas/processo_detail.html"
+    context_object_name = "processo"
+
+    def get_queryset(self):
+        queryset = ProcessoRequisito.objects.select_related("sistema").prefetch_related(
+            "etapas",
+            "historicos__criado_por",
+            "historicos__anexos",
+            "etapas__historicos__criado_por",
+            "etapas__historicos__anexos",
+        )
+        return queryset.filter(sistema__in=_filtrar_sistemas_visiveis_para_usuario(Sistema.objects.all(), self.request.user))
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        historicos_page = _paginar_itens(self.request, _timeline_processo(self.object))
+        context["historicos"] = historicos_page.object_list
+        context["historicos_page"] = historicos_page
+        context["timeline_query_param"] = "pagina_timeline"
+        context["pode_gerir_processos"] = _usuario_pode_gerir_processos(self.request.user, self.object.sistema)
+        return context
+
+
+class ProcessoRequisitoEtapaDetailView(AcompanhamentoReadAccessMixin, DetailView):
+    model = EtapaProcessoRequisito
+    template_name = "acompanhamento_sistemas/processo_etapa_detail.html"
+    context_object_name = "etapa"
+
+    def get_queryset(self):
+        queryset = EtapaProcessoRequisito.objects.select_related(
+            "processo",
+            "processo__sistema",
+            "criado_por",
+            "atualizado_por",
+        ).prefetch_related(
+            "historicos__criado_por",
+            "historicos__anexos",
+            "processo__historicos__criado_por",
+            "processo__historicos__anexos",
+        )
+        return queryset.filter(
+            processo__sistema__in=_filtrar_sistemas_visiveis_para_usuario(Sistema.objects.all(), self.request.user)
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        historicos_page = _paginar_itens(self.request, _timeline_etapa_processo(self.object))
+        context["historicos"] = historicos_page.object_list
+        context["historicos_page"] = historicos_page
+        context["timeline_query_param"] = "pagina_timeline"
+        context["etapa_form"] = kwargs.get("etapa_form") or EtapaProcessoRequisitoAtualizacaoForm(instance=self.object)
+        context["abrir_modal_status"] = kwargs.get("abrir_modal_status", False)
+        context["pode_gerir_processos"] = _usuario_pode_gerir_processos(self.request.user, self.object.processo.sistema)
+        return context
+
+
+class ProcessoRequisitoEtapaUpdateView(LoginRequiredMixin, View):
+
+    def dispatch(self, request, *args, **kwargs):
+        etapa = get_object_or_404(
+            EtapaProcessoRequisito.objects.select_related("processo__sistema"),
+            pk=kwargs["pk"],
+        )
+        if not _usuario_pode_gerir_processos(request.user, etapa.processo.sistema):
+            raise Http404
+        self.etapa = etapa
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, request, pk):
+        form = EtapaProcessoRequisitoAtualizacaoForm(request.POST, request.FILES, instance=self.etapa)
+        if form.is_valid():
+            try:
+                etapa_atual = EtapaProcessoRequisito.objects.get(pk=self.etapa.pk)
+                atualizar_etapa_processo_requisito(
+                    etapa_atual,
+                    novo_status=form.cleaned_data["status"],
+                    justificativa=form.cleaned_data["justificativa_status"],
+                    anexos=form.cleaned_data.get("anexos"),
+                    usuario=request.user,
+                    request=request,
+                )
+            except ValidationError as exc:
+                messages.error(request, "Não foi possível atualizar a etapa do processo.")
+                for mensagem in exc.messages:
+                    form.add_error(None, mensagem)
+            else:
+                messages.success(request, "Etapa do processo atualizada com sucesso.")
+                return redirect("acompanhamento_sistemas_processo_etapa_detail", pk=etapa_atual.pk)
+        else:
+            messages.error(request, "Não foi possível atualizar a etapa do processo.")
+            _enfileirar_erros_formulario(request, form)
+        view = ProcessoRequisitoEtapaDetailView()
+        view.setup(request, pk=pk)
+        view.object = self.etapa
+        return view.render_to_response(view.get_context_data(etapa_form=form, abrir_modal_status=True))
+
+
+class ProcessoRequisitoTransformarView(LoginRequiredMixin, View):
+
+    def dispatch(self, request, *args, **kwargs):
+        processo = get_object_or_404(ProcessoRequisito.objects.select_related("sistema").prefetch_related("etapas"), pk=kwargs["pk"])
+        sistema = get_object_or_404(_filtrar_sistemas_visiveis_para_usuario(Sistema.objects.all(), request.user), pk=processo.sistema_id)
+        if not _usuario_pode_gerir_processos(request.user, sistema):
+            raise Http404
+        self.processo = processo
+        self.sistema = sistema
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, request, pk):
+        acao = request.POST.get("acao", "").strip()
+        if acao == "ciclo":
+            try:
+                gerar_ciclo_a_partir_processo(self.processo, usuario=request.user, request=request)
+            except ValidationError as exc:
+                messages.error(request, exc.messages[0])
+            else:
+                messages.success(request, "Ciclo gerado a partir do processo de requisitos.")
+            return redirect("acompanhamento_sistemas_detail", pk=self.sistema.pk)
+
+        if acao == "sistema":
+            form = GerarNovoSistemaAPartirProcessosForm(request.POST)
+            if form.is_valid():
+                try:
+                    novo_sistema = gerar_novo_sistema_a_partir_processos(
+                        self.sistema,
+                        usuario=request.user,
+                        nome=form.cleaned_data["nome"],
+                        descricao=form.cleaned_data["descricao"],
+                        url_homologacao=form.cleaned_data.get("url_homologacao") or "",
+                        url_producao=form.cleaned_data.get("url_producao") or "",
+                        request=request,
+                    )
+                except ValidationError as exc:
+                    messages.error(request, exc.messages[0])
+                else:
+                    messages.success(request, "Novo sistema gerado a partir dos processos finalizados.")
+                    return redirect("acompanhamento_sistemas_detail", pk=novo_sistema.pk)
+            else:
+                _enfileirar_erros_formulario(request, form)
+            view = SistemaDetailView()
+            view.setup(request, pk=self.sistema.pk)
+            view.object = self.sistema
+            return view.render_to_response(
+                view.get_context_data(
+                    abrir_modal_transformacao=True,
+                    processo_transformacao=self.processo,
+                    novo_sistema_form=form,
+                )
+            )
+
+        messages.error(request, "Selecione uma ação válida para a transformação do processo.")
+        return redirect("acompanhamento_sistemas_detail", pk=self.sistema.pk)
 
 
 class EntregaSistemaCreateView(LoginRequiredMixin, View):
@@ -652,9 +1041,39 @@ class EntregaSistemaDetailView(AcompanhamentoReadAccessMixin, DetailView):
         context["pode_publicar_ciclo"] = (
             _usuario_pode_editar_entrega(self.request.user, self.object)
             and self.object.status == EntregaSistema.Status.RASCUNHO
+            and entrega_pode_ser_publicada(self.object)
         )
         context["pode_editar_sistema"] = _usuario_pode_editar_sistema(self.request.user, self.object.sistema)
         context["pode_excluir_ciclo"] = _usuario_pode_excluir_entrega(self.request.user, self.object)
+        return context
+
+
+class EntregaSistemaHistoricoView(AcompanhamentoReadAccessMixin, DetailView):
+    model = EntregaSistema
+    template_name = "acompanhamento_sistemas/entrega_historico.html"
+    context_object_name = "entrega"
+
+    def get_queryset(self):
+        queryset = EntregaSistema.objects.select_related(
+            "sistema",
+            "criado_por",
+            "atualizado_por",
+        ).prefetch_related(
+            "sistema__interessados__usuario",
+            "sistema__interessados_manuais",
+            Prefetch("sistema__entregas", queryset=EntregaSistema.objects.order_by("ordem", "id")),
+            Prefetch("sistema__processos_requisito", queryset=ProcessoRequisito.objects.order_by("ordem", "id")),
+        )
+        return _filtrar_entregas_visiveis_para_usuario(queryset, self.request.user)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        sistema = self.object.sistema
+        historicos_page = _paginar_itens(self.request, _timeline_sistema(sistema))
+        context["sistema"] = sistema
+        context["historicos"] = historicos_page.object_list
+        context["historicos_page"] = historicos_page
+        context["timeline_query_param"] = "pagina_timeline"
         return context
 
 
@@ -718,6 +1137,11 @@ class EntregaSistemaDeleteView(LoginRequiredMixin, DeleteView):
         sistema_pk = self.object.sistema.pk
         messages.success(self.request, "Ciclo excluído com sucesso.")
         return reverse("acompanhamento_sistemas_detail", kwargs={"pk": sistema_pk})
+
+    def form_valid(self, form):
+        success_url = self.get_success_url()
+        excluir_entrega_sistema(self.object, usuario=self.request.user)
+        return HttpResponseRedirect(success_url)
 
 
 class EntregaSistemaPublishView(LoginRequiredMixin, View):
@@ -812,7 +1236,9 @@ class EtapaSistemaDetailView(AcompanhamentoReadAccessMixin, DetailView):
         context["interessado_form"] = kwargs.get("interessado_form") or InteressadoSistemaForm(sistema=sistema)
         context["pode_editar_etapa"] = pode_editar_etapa
         context["ciclo_publicado"] = ciclo_publicado
-        context["pode_alterar_status_etapa"] = pode_editar_etapa and ciclo_publicado
+        context["pode_alterar_status_etapa"] = pode_editar_etapa and (
+            ciclo_publicado or etapa_pode_alterar_status_em_rascunho(etapa)
+        )
         context["pode_lancar_nota_etapa"] = pode_editar_etapa and ciclo_publicado
         context["pode_editar_sistema"] = _usuario_pode_editar_sistema(self.request.user, sistema)
         return context

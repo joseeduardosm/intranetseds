@@ -1,0 +1,323 @@
+/*
+ * Estilos específicos para o módulo Acompanhamento de Sistemas
+ * Baseado na identidade visual do projeto Intranet SEDS (var(--primary), var(--accent), etc.)
+ */
+
+/* =========================================
+   VISÃO EXECUTIVA E LAYOUT EXPANDIDO
+   ========================================= */
+.as-container-expandido {
+  width: min(1800px, 98%);
+  margin: 0 auto;
+}
+
+.as-grid-executiva {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+  gap: 24px;
+  margin-bottom: 48px;
+}
+
+/* =========================================
+   CARDS DO SISTEMA
+   ========================================= */
+.as-card-sistema {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 22px rgba(31, 42, 68, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  overflow: hidden;
+  height: 100%;
+}
+
+.as-card-sistema:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 28px rgba(31, 42, 68, 0.14);
+}
+
+.as-card-header {
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--border);
+  background: #fbfaf7;
+}
+
+.as-card-title {
+  margin: 0 0 8px;
+  font-size: 1.15rem;
+  color: var(--primary);
+  line-height: 1.35;
+  word-break: break-word;
+  font-weight: 700;
+}
+
+.as-card-body {
+  padding: 22px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* =========================================
+   MARCADORES DE PRAZO (STATUS) E LEAD TIME
+   ========================================= */
+.as-badges-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.as-badge-prazo {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.as-badge-prazo--em-dia {
+  background: #ecf8ef;
+  color: #1f6c2f;
+  border: 1px solid #b9e3c1;
+}
+
+.as-badge-prazo--atencao {
+  background: #fff7e0;
+  color: #7a5800;
+  border: 1px solid #ecd38d;
+}
+
+.as-badge-prazo--atrasado {
+  background: #fdeeee;
+  color: #8a1f1f;
+  border: 1px solid #f0b9b9;
+}
+
+.as-lead-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-weight: 700;
+  background: var(--page-bg);
+  padding: 6px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+
+/* =========================================
+   STEPPER HORIZONTAL (CICLOS E ETAPAS)
+   ========================================= */
+.as-stepper {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin: 32px 0 24px;
+  position: relative;
+  padding: 0 10px;
+}
+
+.as-stepper::before {
+  content: "";
+  position: absolute;
+  top: 14px;
+  left: 40px;
+  right: 40px;
+  height: 2px;
+  background: var(--border);
+  z-index: 1;
+}
+
+.as-stepper-item {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  flex: 1;
+}
+
+.as-stepper-marker {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--muted);
+  transition: all 0.2s ease;
+}
+
+.as-stepper-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--muted);
+  max-width: 120px;
+  line-height: 1.25;
+}
+
+.as-stepper-item.is-active .as-stepper-marker {
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(217, 79, 4, 0.12);
+}
+
+.as-stepper-item.is-active .as-stepper-label {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.as-stepper-item.is-completed .as-stepper-marker {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #ffffff;
+}
+
+/* =========================================
+   RESUMO DE CICLOS (CARD INTERNO)
+   ========================================= */
+.as-ciclo-resumo {
+  margin-top: auto;
+  padding-top: 18px;
+  border-top: 1px dashed var(--border);
+}
+
+.as-ciclo-resumo-title {
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 12px;
+  font-weight: 700;
+}
+
+.as-ciclo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.as-ciclo-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.86rem;
+  background: #fbfaf7;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+
+.as-ciclo-item-nome {
+  font-weight: 700;
+  color: var(--primary);
+}
+
+/* =========================================
+   RODAPÉ DOS CARDS (ÚLTIMA AÇÃO)
+   ========================================= */
+.as-card-footer {
+  background: #f2f0ea;
+  padding: 14px 22px;
+  font-size: 0.82rem;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+}
+
+/* =========================================
+   PROCESSOS DE REQUISITOS (AS IS / TO BE)
+   ========================================= */
+.as-processos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+  margin-top: 16px;
+}
+
+.as-processo-card {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px;
+  box-shadow: 0 4px 12px rgba(31, 42, 68, 0.04);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.as-processo-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(31, 42, 68, 0.08);
+}
+
+.as-processo-title {
+  font-size: 1.05rem;
+  color: var(--primary);
+  margin: 0;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.as-processo-desc {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.as-processo-etapas {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.as-processo-etapa {
+  flex: 1;
+  background: #fbfaf7;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 4px;
+  text-align: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  transition: all 0.2s ease;
+}
+
+.as-processo-etapa.is-active {
+  border-color: var(--accent);
+  background: #fff9f5;
+  color: var(--accent);
+}
+
+.as-processo-etapa.is-completed {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #ffffff;
+}

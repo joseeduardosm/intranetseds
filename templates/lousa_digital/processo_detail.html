@@ -13,7 +13,9 @@
   </section>
 
   <div class="card-actions">
-    <a class="btn" href="{{ editar_processo_url }}">Editar processo</a>
+    {% if can_change_processo %}
+      <a class="btn" href="{{ editar_processo_url }}">Editar processo</a>
+    {% endif %}
     <a class="btn btn-light" href="{{ voltar_lousa_url }}">Voltar</a>
   </div>
 
@@ -36,67 +38,71 @@
 
       <div class="lousa-section-divider"></div>
       <h3>Novo encaminhamento</h3>
-      {% if processo_arquivo_morto %}
+      {% if not can_add_encaminhamento %}
+        <p class="detail-meta">Seu perfil possui acesso somente leitura nesta área.</p>
+      {% elif processo_arquivo_morto %}
         <p class="detail-meta">Processo marcado como arquivo morto. Novos encaminhamentos estão bloqueados.</p>
       {% endif %}
-      <form method="post" action="{% url 'lousa_digital_encaminhar' processo.pk %}" class="lousa-form">
-        {% csrf_token %}
-        {{ encaminhamento_form.non_field_errors }}
-        <p>
-          <label for="{{ encaminhamento_form.destino.id_for_label }}">{{ encaminhamento_form.destino.label }}</label>
-          <input
-            type="text"
-            id="lousa-destino-autocomplete"
-            class="form-control"
-            placeholder="Digite para buscar o setor"
-            list="lousa-destino-opcoes"
-            autocomplete="off"
-            {% if processo_arquivo_morto %}disabled{% endif %}
-          />
-          <datalist id="lousa-destino-opcoes">
-            {% for setor in setores_destino_disponiveis %}
-              <option value="{{ setor.group.name }}" data-id="{{ setor.group_id }}"></option>
-            {% endfor %}
-          </datalist>
-          <input
-            type="hidden"
-            name="destino"
-            id="{{ encaminhamento_form.destino.id_for_label }}"
-          />
-        </p>
-        <p>
-          <label for="{{ encaminhamento_form.prazo_data.id_for_label }}">{{ encaminhamento_form.prazo_data.label }}</label>
-          <input
-            type="date"
-            name="prazo_data"
-            id="{{ encaminhamento_form.prazo_data.id_for_label }}"
-            class="form-control"
-            {% if processo_arquivo_morto %}disabled{% endif %}
-          />
-        </p>
-        <p>
-          <label for="{{ encaminhamento_form.email_notificacao.id_for_label }}">{{ encaminhamento_form.email_notificacao.label }}</label>
-          <input
-            type="email"
-            name="email_notificacao"
-            id="{{ encaminhamento_form.email_notificacao.id_for_label }}"
-            class="form-control"
-            placeholder="exemplo@dominio.gov.br"
-            list="email-notificacao-opcoes"
-            maxlength="254"
-            {% if processo_arquivo_morto %}disabled{% endif %}
-          />
-          <datalist id="email-notificacao-opcoes">
-            {% for email in emails_notificacao_sugeridos %}
-              <option value="{{ email }}"></option>
-            {% endfor %}
-          </datalist>
-          <small class="detail-meta">Opcional. Sem e-mail, este encaminhamento não receberá alerta automático de 72h.</small>
-        </p>
-        <div class="form-actions">
-          <button class="btn" type="submit" {% if processo_arquivo_morto %}disabled{% endif %}>Encaminhar</button>
-        </div>
-      </form>
+      {% if can_add_encaminhamento %}
+        <form method="post" action="{% url 'lousa_digital_encaminhar' processo.pk %}" class="lousa-form">
+          {% csrf_token %}
+          {{ encaminhamento_form.non_field_errors }}
+          <p>
+            <label for="{{ encaminhamento_form.destino.id_for_label }}">{{ encaminhamento_form.destino.label }}</label>
+            <input
+              type="text"
+              id="lousa-destino-autocomplete"
+              class="form-control"
+              placeholder="Digite para buscar o setor"
+              list="lousa-destino-opcoes"
+              autocomplete="off"
+              {% if processo_arquivo_morto %}disabled{% endif %}
+            />
+            <datalist id="lousa-destino-opcoes">
+              {% for setor in setores_destino_disponiveis %}
+                <option value="{{ setor.group.name }}" data-id="{{ setor.group_id }}"></option>
+              {% endfor %}
+            </datalist>
+            <input
+              type="hidden"
+              name="destino"
+              id="{{ encaminhamento_form.destino.id_for_label }}"
+            />
+          </p>
+          <p>
+            <label for="{{ encaminhamento_form.prazo_data.id_for_label }}">{{ encaminhamento_form.prazo_data.label }}</label>
+            <input
+              type="date"
+              name="prazo_data"
+              id="{{ encaminhamento_form.prazo_data.id_for_label }}"
+              class="form-control"
+              {% if processo_arquivo_morto %}disabled{% endif %}
+            />
+          </p>
+          <p>
+            <label for="{{ encaminhamento_form.email_notificacao.id_for_label }}">{{ encaminhamento_form.email_notificacao.label }}</label>
+            <input
+              type="email"
+              name="email_notificacao"
+              id="{{ encaminhamento_form.email_notificacao.id_for_label }}"
+              class="form-control"
+              placeholder="exemplo@dominio.gov.br"
+              list="email-notificacao-opcoes"
+              maxlength="254"
+              {% if processo_arquivo_morto %}disabled{% endif %}
+            />
+            <datalist id="email-notificacao-opcoes">
+              {% for email in emails_notificacao_sugeridos %}
+                <option value="{{ email }}"></option>
+              {% endfor %}
+            </datalist>
+            <small class="detail-meta">Opcional. Sem e-mail, este encaminhamento não receberá alerta automático de 72h.</small>
+          </p>
+          <div class="form-actions">
+            <button class="btn" type="submit" {% if processo_arquivo_morto %}disabled{% endif %}>Encaminhar</button>
+          </div>
+        </form>
+      {% endif %}
 
       <div class="lousa-section-divider"></div>
       <h3>Encaminhamentos</h3>
@@ -118,7 +124,7 @@
                   Devolvido em {{ enc.data_conclusao|date:"d/m/Y H:i" }}
                 {% endif %}
               </p>
-              {% if enc.esta_ativo %}
+              {% if enc.esta_ativo and can_change_encaminhamento %}
                 <button
                   type="button"
                   class="sala-marcador-chip lousa-marcador-acao"
@@ -141,17 +147,19 @@
 
     <section class="detail-card detail-card-tall">
       <h3>Timeline</h3>
-      <form method="post" action="{% url 'lousa_digital_nota' processo.pk %}" class="lousa-note-form lousa-form">
-        {% csrf_token %}
-        {{ nota_form.non_field_errors }}
-        <p>
-          <label for="{{ nota_form.descricao.id_for_label }}">{{ nota_form.descricao.label }}</label>
-          {{ nota_form.descricao }}
-        </p>
-        <div class="form-actions">
-          <button class="btn" type="submit">Inserir nota</button>
-        </div>
-      </form>
+      {% if can_add_nota_lousa %}
+        <form method="post" action="{% url 'lousa_digital_nota' processo.pk %}" class="lousa-note-form lousa-form">
+          {% csrf_token %}
+          {{ nota_form.non_field_errors }}
+          <p>
+            <label for="{{ nota_form.descricao.id_for_label }}">{{ nota_form.descricao.label }}</label>
+            {{ nota_form.descricao }}
+          </p>
+          <div class="form-actions">
+            <button class="btn" type="submit">Inserir nota</button>
+          </div>
+        </form>
+      {% endif %}
 
       {% if eventos %}
         <ul class="incrementos-timeline">

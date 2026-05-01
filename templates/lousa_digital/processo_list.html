@@ -22,7 +22,9 @@
   </nav>
 
   <div class="card-actions">
-    <a class="btn" href="{{ novo_processo_url }}">Novo processo</a>
+    {% if perms.lousa_digital.add_processo %}
+      <a class="btn" href="{{ novo_processo_url }}">Novo processo</a>
+    {% endif %}
     <a class="btn btn-light" href="{% url 'lousa_digital_dashboard' %}">Dashboard</a>
     {% if view_mode == 'cards' %}
       <a class="btn btn-light" href="?aba={{ active_aba }}&view=table{% if query %}&q={{ query|urlencode }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if ordem_prazo %}&ordem_prazo={{ ordem_prazo }}{% endif %}{% if arquivo_morto_filter %}&arquivo_morto={{ arquivo_morto_filter|urlencode }}{% endif %}{% if sort_by %}&sort_by={{ sort_by|urlencode }}{% endif %}{% if sort_dir %}&sort_dir={{ sort_dir|urlencode }}{% endif %}{% if col_sei %}&col_sei={{ col_sei|urlencode }}{% endif %}{% if col_assunto %}&col_assunto={{ col_assunto|urlencode }}{% endif %}{% if col_origem %}&col_origem={{ col_origem|urlencode }}{% endif %}{% if col_destino %}&col_destino={{ col_destino|urlencode }}{% endif %}{% if col_ativos %}&col_ativos={{ col_ativos|urlencode }}{% endif %}{% if col_prazo %}&col_prazo={{ col_prazo|urlencode }}{% endif %}{% if col_atualizado %}&col_atualizado={{ col_atualizado|urlencode }}{% endif %}">Ver tabela</a>

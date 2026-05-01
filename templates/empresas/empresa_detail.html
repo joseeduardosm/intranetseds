@@ -13,8 +13,12 @@
   <div class="detail">
     <p><strong>CNPJ:</strong> {{ empresa.cnpj|default:"-" }}</p>
     <div class="detail-actions">
-      <a class="btn" href="{% url 'empresas_update' empresa.pk %}">Editar</a>
-      <a class="btn btn-secondary" href="{% url 'empresas_delete' empresa.pk %}">Excluir</a>
+      {% if perms.empresas.change_empresa %}
+        <a class="btn" href="{% url 'empresas_update' empresa.pk %}">Editar</a>
+      {% endif %}
+      {% if perms.empresas.delete_empresa %}
+        <a class="btn btn-secondary" href="{% url 'empresas_delete' empresa.pk %}">Excluir</a>
+      {% endif %}
       <a class="btn btn-light" href="{% url 'empresas_list' %}">Voltar</a>
     </div>
   </div>

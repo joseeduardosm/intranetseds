@@ -30,15 +30,17 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib import messages
 from django.http import FileResponse
-from django.contrib.auth.mixins import UserPassesTestMixin
+from django.contrib.auth.mixins import PermissionRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.models import Group
 from django.core.mail.backends.smtp import EmailBackend
+from django.db.models import Q
 from django.urls import reverse_lazy
 from django.shortcuts import redirect, render
 from django.utils.safestring import mark_safe
 from django.views import View
 from django.views.generic import CreateView, DeleteView, ListView, UpdateView
 from django.views.generic import TemplateView
+from notificacoes.models import NotificacaoUsuario
 
 try:
     from ldap3 import Connection, Server, NONE
@@ -109,6 +111,7 @@ SYSTEM_BACKUP_ROOT_DIRS = (
     "media",
     "noticias",
     "prepostos",
+    "rastreamento_navegacao",
     "ramais",
     "reserva_salas",
     "RFs",
@@ -726,6 +729,53 @@ class ConfiguracoesView(ConfiguracoesAccessMixin, TemplateView):
         context["show_card_identidade_visual"] = _can_manage_configuracoes(user)
         context["show_card_smtp"] = user.is_superuser
         context["show_card_backup_sistema"] = user.is_superuser
+        context["show_card_rastreamento_navegacao"] = user.is_superuser
+        context["show_card_notificacoes"] = _can_manage_configuracoes(user)
+        return context
+
+
+class NotificacaoHistoricoListView(ConfiguracoesAccessMixin, ListView):
+    """Lista notificacoes desktop ja emitidas com status derivado de entrega/leitura."""
+
+    model = NotificacaoUsuario
+    template_name = "administracao/notificacao_historico_list.html"
+    context_object_name = "notificacoes"
+    paginate_by = 50
+
+    def get_queryset(self):
+        queryset = NotificacaoUsuario.objects.select_related("user").order_by("-created_at", "-id")
+        termo = (self.request.GET.get("q") or "").strip()
+        if termo:
+            queryset = queryset.filter(
+                Q(user__username__icontains=termo)
+                | Q(user__first_name__icontains=termo)
+                | Q(user__email__icontains=termo)
+                | Q(title__icontains=termo)
+                | Q(body_short__icontains=termo)
+                | Q(source_app__icontains=termo)
+                | Q(event_type__icontains=termo)
+            )
+
+        status = (self.request.GET.get("status") or "").strip().lower()
+        if status == "lida":
+            queryset = queryset.filter(read_at__isnull=False)
+        elif status == "exibida":
+            queryset = queryset.filter(read_at__isnull=True, displayed_at__isnull=False)
+        elif status == "pendente":
+            queryset = queryset.filter(read_at__isnull=True, displayed_at__isnull=True)
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["search_query"] = (self.request.GET.get("q") or "").strip()
+        context["status_filter"] = (self.request.GET.get("status") or "todos").strip().lower() or "todos"
+        for notificacao in context["notificacoes"]:
+            if notificacao.read_at:
+                notificacao.status_label = "Lida"
+            elif notificacao.displayed_at:
+                notificacao.status_label = "Exibida"
+            else:
+                notificacao.status_label = "Pendente"
         return context
 
 
@@ -937,38 +987,64 @@ class AtalhoServicoListView(AtalhoServicoAccessMixin, ListView):
     template_name = "administracao/atalho_list.html"
     context_object_name = "atalhos"
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user = self.request.user
+        context["can_manage_atalhos_servico"] = bool(
+            user.is_authenticated
+            and (
+                user.is_staff
+                or user.has_perm("administracao.add_atalhoservico")
+                or user.has_perm("administracao.change_atalhoservico")
+                or user.has_perm("administracao.delete_atalhoservico")
+            )
+        )
+        return context
 
-class AtalhoServicoCreateView(AtalhoServicoAccessMixin, CreateView):
+
+class AtalhoServicoCreateView(PermissionRequiredMixin, CreateView):
     """Fluxo HTTP de criacao de atalho com validacao via `AtalhoServicoForm`."""
 
     model = AtalhoServico
     form_class = AtalhoServicoForm
     template_name = "administracao/atalho_form.html"
     success_url = reverse_lazy("administracao_atalho_list")
+    permission_required = "administracao.add_atalhoservico"
 
 
-class AtalhoServicoUpdateView(AtalhoServicoAccessMixin, UpdateView):
+class AtalhoServicoUpdateView(PermissionRequiredMixin, UpdateView):
     """Fluxo HTTP de atualizacao de atalho existente."""
 
     model = AtalhoServico
     form_class = AtalhoServicoForm
     template_name = "administracao/atalho_form.html"
     success_url = reverse_lazy("administracao_atalho_list")
+    permission_required = "administracao.change_atalhoservico"
 
 
-class AtalhoServicoDeleteView(AtalhoServicoAccessMixin, DeleteView):
+class AtalhoServicoDeleteView(PermissionRequiredMixin, DeleteView):
     """Fluxo HTTP de exclusao confirmada de atalhos."""
 
     model = AtalhoServico
     template_name = "administracao/atalho_confirm_delete.html"
     success_url = reverse_lazy("administracao_atalho_list")
+    permission_required = "administracao.delete_atalhoservico"
 
 
 class AtalhoAdministracaoAccessMixin(UserPassesTestMixin):
     """Mixin de autorizacao para CRUD dos cards administrativos da home."""
 
     def test_func(self) -> bool:
-        return can_manage_shortcuts(self.request.user)
+        user = self.request.user
+        if not user.is_authenticated:
+            return False
+        return (
+            user.is_superuser
+            or user.has_perm("administracao.view_atalhoadministracao")
+            or user.has_perm("administracao.add_atalhoadministracao")
+            or user.has_perm("administracao.change_atalhoadministracao")
+            or user.has_perm("administracao.delete_atalhoadministracao")
+        )
 
 
 class AtalhoAdministracaoListView(AtalhoAdministracaoAccessMixin, ListView):
@@ -983,14 +1059,29 @@ class AtalhoAdministracaoListView(AtalhoAdministracaoAccessMixin, ListView):
         atalhos.sort(key=lambda item: item.get_funcionalidade_display().casefold())
         return atalhos
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user = self.request.user
+        context["can_manage_atalhos_administracao"] = bool(
+            user.is_authenticated
+            and (
+                user.is_superuser
+                or user.has_perm("administracao.add_atalhoadministracao")
+                or user.has_perm("administracao.change_atalhoadministracao")
+                or user.has_perm("administracao.delete_atalhoadministracao")
+            )
+        )
+        return context
 
-class AtalhoAdministracaoCreateView(AtalhoAdministracaoAccessMixin, CreateView):
+
+class AtalhoAdministracaoCreateView(PermissionRequiredMixin, CreateView):
     """Cria configuracao de card administrativo da home."""
 
     model = AtalhoAdministracao
     form_class = AtalhoAdministracaoForm
     template_name = "administracao/atalho_administracao_form.html"
     success_url = reverse_lazy("administracao_atalho_administracao_list")
+    permission_required = "administracao.add_atalhoadministracao"
 
     def get_initial(self):
         initial = super().get_initial()
@@ -1000,21 +1091,23 @@ class AtalhoAdministracaoCreateView(AtalhoAdministracaoAccessMixin, CreateView):
         return initial
 
 
-class AtalhoAdministracaoUpdateView(AtalhoAdministracaoAccessMixin, UpdateView):
+class AtalhoAdministracaoUpdateView(PermissionRequiredMixin, UpdateView):
     """Atualiza configuracao de card administrativo existente."""
 
     model = AtalhoAdministracao
     form_class = AtalhoAdministracaoForm
     template_name = "administracao/atalho_administracao_form.html"
     success_url = reverse_lazy("administracao_atalho_administracao_list")
+    permission_required = "administracao.change_atalhoadministracao"
 
 
-class AtalhoAdministracaoDeleteView(AtalhoAdministracaoAccessMixin, DeleteView):
+class AtalhoAdministracaoDeleteView(PermissionRequiredMixin, DeleteView):
     """Exclui configuracao de card administrativo."""
 
     model = AtalhoAdministracao
     template_name = "administracao/atalho_administracao_confirm_delete.html"
     success_url = reverse_lazy("administracao_atalho_administracao_list")
+    permission_required = "administracao.delete_atalhoadministracao"
 
 
 class RFChangelogAccessMixin(UserPassesTestMixin):

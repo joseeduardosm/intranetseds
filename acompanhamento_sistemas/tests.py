@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
+from django.contrib.contenttypes.models import ContentType
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -18,10 +19,13 @@ from notificacoes.models import NotificacaoUsuario
 from .models import (
     HistoricoSistema,
     EntregaSistema,
+    EtapaProcessoRequisito,
     EtapaSistema,
     HistoricoEtapaSistema,
+    HistoricoEtapaProcessoRequisito,
     InteressadoSistema,
     InteressadoSistemaManual,
+    ProcessoRequisito,
     Sistema,
 )
 from .services import _corpo_email_historico, _corpo_email_publicacao
@@ -31,7 +35,7 @@ from .utils import nome_usuario_exibicao
 TEST_MEDIA_ROOT = tempfile.mkdtemp(prefix="acompanhamento-sistemas-test-")
 
 
-@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, EMAIL_DELIVERY_SYNC=True)
 class AcompanhamentoSistemasTests(TestCase):
     @classmethod
     def tearDownClass(cls):
@@ -121,6 +125,17 @@ class AcompanhamentoSistemasTests(TestCase):
         self.assertEqual(response.status_code, 302)
         return sistema.entregas.order_by("ordem", "id").last()
 
+    def _criar_processo(self, sistema, titulo="Processo inicial", descricao=""):
+        response = self.client.post(
+            reverse("acompanhamento_sistemas_processo_create", kwargs={"pk": sistema.pk}),
+            {
+                "titulo": titulo,
+                "descricao": descricao,
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        return sistema.processos_requisito.order_by("ordem", "id").last()
+
     def _definir_datas_ciclo(self, entrega, datas=None):
         datas = datas or [
             timezone.localdate() + timedelta(days=1),
@@ -134,6 +149,25 @@ class AcompanhamentoSistemasTests(TestCase):
             etapa.save(update_fields=["data_etapa", "atualizado_em"])
         entrega.refresh_from_db()
         return datas
+
+    def _preparar_ciclo_para_publicacao(self, entrega):
+        self._definir_datas_ciclo(entrega)
+        etapa_requisitos = entrega.etapas.order_by("ordem").first()
+        etapa_requisitos.data_etapa = None
+        etapa_requisitos.save(update_fields=["data_etapa", "atualizado_em"])
+
+        response = self.client.post(
+            reverse("acompanhamento_sistemas_etapa_update", kwargs={"pk": etapa_requisitos.pk}),
+            {
+                "data_etapa": "",
+                "status": EtapaSistema.Status.ENTREGUE,
+                "justificativa_status": "Documento finalizado",
+                "anexos": [SimpleUploadedFile("requisitos.pdf", b"pdf-requisitos")],
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        entrega.refresh_from_db()
+        return entrega
 
     def _publicar_entrega(self, entrega):
         response = self.client.post(
@@ -149,7 +183,7 @@ class AcompanhamentoSistemasTests(TestCase):
         self.assertEqual(sistema.entregas.count(), 0)
 
     @patch("acompanhamento_sistemas.services.EmailMessage.send", return_value=1)
-    def test_publicacao_de_entrega_gera_notificacao_desktop_para_interessado_vinculado(self, mock_send):
+    def test_criacao_de_entrega_gera_notificacao_desktop_para_interessado_vinculado(self, mock_send):
         sistema = self._criar_sistema()
         InteressadoSistema.objects.create(
             sistema=sistema,
@@ -160,18 +194,15 @@ class AcompanhamentoSistemasTests(TestCase):
             criado_por=self.user,
         )
         entrega = self._criar_entrega(sistema, titulo="MVP Desktop")
-        self._definir_datas_ciclo(entrega)
-
-        self._publicar_entrega(entrega)
 
         notificacao = NotificacaoUsuario.objects.get(user=self.viewer, event_type="publicacao_ciclo")
         self.assertEqual(notificacao.title, f"Sistema: {sistema.nome}")
         self.assertIn(f"Ciclo: {entrega.titulo}", notificacao.body_short)
-        self.assertIn("Etapa: Ciclo - cronograma inicial publicado.", notificacao.body_short)
+        self.assertIn("Etapa: Ciclo - cronograma inicial criado.", notificacao.body_short)
         self.assertIn(f"/acompanhamento-sistemas/entregas/{entrega.pk}/", notificacao.target_url)
 
     @patch("acompanhamento_sistemas.services.EmailMessage.send", return_value=1)
-    def test_historico_de_etapa_publicada_gera_notificacao_desktop(self, mock_send):
+    def test_historico_de_etapa_em_rascunho_gera_notificacao_desktop(self, mock_send):
         sistema = self._criar_sistema(nome="Sistema Desktop")
         InteressadoSistema.objects.create(
             sistema=sistema,
@@ -182,14 +213,13 @@ class AcompanhamentoSistemasTests(TestCase):
             criado_por=self.user,
         )
         entrega = self._criar_entrega(sistema, titulo="Entrega Desktop")
-        self._definir_datas_ciclo(entrega)
-        self._publicar_entrega(entrega)
+        mock_send.reset_mock()
         etapa = entrega.etapas.order_by("ordem").first()
 
         response = self.client.post(
             reverse("acompanhamento_sistemas_etapa_update", kwargs={"pk": etapa.pk}),
             {
-                "data_etapa": etapa.data_etapa.strftime("%Y-%m-%d"),
+                "data_etapa": etapa.data_etapa.strftime("%Y-%m-%d") if etapa.data_etapa else "",
                 "status": EtapaSistema.Status.EM_ANDAMENTO,
                 "justificativa_status": "Inicio dos trabalhos",
                 "texto_nota": "",
@@ -200,7 +230,7 @@ class AcompanhamentoSistemasTests(TestCase):
         notificacao = NotificacaoUsuario.objects.filter(user=self.viewer, event_type="etapa_status").latest("id")
         self.assertEqual(notificacao.title, f"Sistema: {sistema.nome}")
         self.assertIn(f"Ciclo: {entrega.titulo}", notificacao.body_short)
-        self.assertIn(f"Etapa: {etapa.get_tipo_etapa_display()} - status alterado para Em andamento.", notificacao.body_short)
+        self.assertIn(f"Etapa: {etapa.get_tipo_etapa_display()} - Status alterado para Em andamento.", notificacao.body_short)
         self.assertIn(f"/acompanhamento-sistemas/etapas/{etapa.pk}/", notificacao.target_url)
 
     def test_nota_em_sistema_gera_notificacao_desktop_mesmo_sem_email(self):
@@ -221,8 +251,8 @@ class AcompanhamentoSistemasTests(TestCase):
 
         self.assertEqual(response.status_code, 302)
         notificacao = NotificacaoUsuario.objects.get(user=self.viewer, event_type="sistema_nota")
-        self.assertEqual(notificacao.title, f"{sistema.nome} - Atualização do sistema")
-        self.assertIn("Sistema: Nova anotação do sistema", notificacao.body_short)
+        self.assertEqual(notificacao.title, f"Sistema: {sistema.nome}")
+        self.assertIn("Sistema: atualização registrada. Nova anotação do sistema", notificacao.body_short)
         self.assertIn(f"/acompanhamento-sistemas/{sistema.pk}/", notificacao.target_url)
 
     def test_criacao_manual_de_entrega_gera_cinco_etapas(self):
@@ -240,6 +270,306 @@ class AcompanhamentoSistemasTests(TestCase):
         self.assertEqual(
             list(entrega.etapas.order_by("ordem").values_list("data_etapa", flat=True)),
             [None] * 5,
+        )
+
+    def test_homologacao_de_requisitos_tambem_pode_avancar_sem_data(self):
+        sistema = self._criar_sistema()
+        entrega = self._criar_entrega(sistema, titulo="MVP", descricao="Primeira entrega")
+        etapa_requisitos, etapa_homologacao = list(entrega.etapas.order_by("ordem")[:2])
+
+        response_requisitos = self.client.post(
+            reverse("acompanhamento_sistemas_etapa_update", kwargs={"pk": etapa_requisitos.pk}),
+            {
+                "data_etapa": "",
+                "status": EtapaSistema.Status.ENTREGUE,
+                "justificativa_status": "Documento finalizado",
+                "anexos": [SimpleUploadedFile("requisitos.pdf", b"pdf-requisitos")],
+            },
+        )
+
+        self.assertEqual(response_requisitos.status_code, 302)
+        etapa_homologacao.refresh_from_db()
+        self.assertEqual(etapa_homologacao.status, EtapaSistema.Status.EM_ANDAMENTO)
+        self.assertIsNone(etapa_homologacao.data_etapa)
+
+        response_homologacao = self.client.post(
+            reverse("acompanhamento_sistemas_etapa_update", kwargs={"pk": etapa_homologacao.pk}),
+            {
+                "data_etapa": (timezone.localdate() + timedelta(days=5)).isoformat(),
+                "status": EtapaSistema.Status.APROVADO,
+                "justificativa_status": "Homologado sem data",
+                "texto_nota": "",
+            },
+        )
+
+        self.assertEqual(response_homologacao.status_code, 302)
+        etapa_homologacao.refresh_from_db()
+        self.assertEqual(etapa_homologacao.status, EtapaSistema.Status.APROVADO)
+        self.assertIsNone(etapa_homologacao.data_etapa)
+
+    def test_criacao_de_processo_gera_tres_etapas_fixas(self):
+        sistema = self._criar_sistema()
+        processo = self._criar_processo(sistema, titulo="Mapeamento de concessões")
+
+        self.assertEqual(ProcessoRequisito.objects.count(), 1)
+        self.assertEqual(processo.etapas.count(), 3)
+        self.assertEqual(
+            list(processo.etapas.order_by("ordem").values_list("tipo_etapa", flat=True)),
+            [
+                EtapaProcessoRequisito.TipoEtapa.AS_IS,
+                EtapaProcessoRequisito.TipoEtapa.DIAGNOSTICO,
+                EtapaProcessoRequisito.TipoEtapa.TO_BE,
+            ],
+        )
+
+    def test_detalhe_do_sistema_exibe_grade_de_processos(self):
+        sistema = self._criar_sistema()
+        self._criar_processo(sistema, titulo="Processo RH", descricao="Levantamento inicial")
+
+        response = self.client.get(reverse("acompanhamento_sistemas_detail", kwargs={"pk": sistema.pk}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Processos de requisitos")
+        self.assertContains(response, "Processo RH")
+        self.assertContains(response, "AS IS")
+        self.assertContains(response, "Diagnóstico")
+        self.assertContains(response, "TO BE")
+
+    def test_etapa_do_processo_respeita_fluxo_sequencial_de_status(self):
+        sistema = self._criar_sistema()
+        processo = self._criar_processo(sistema)
+        etapa = processo.etapas.order_by("ordem").first()
+
+        response = self.client.post(
+            reverse("acompanhamento_sistemas_processo_etapa_update", kwargs={"pk": etapa.pk}),
+            {
+                "status": EtapaProcessoRequisito.Status.VALIDACAO,
+                "justificativa_status": "Encaminhando para revisão",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        etapa.refresh_from_db()
+        self.assertEqual(etapa.status, EtapaProcessoRequisito.Status.PENDENTE)
+        self.assertContains(
+            response,
+            "Faça uma escolha válida. VALIDACAO não é uma das escolhas disponíveis.",
+        )
+
+    def test_atualizacao_da_etapa_do_processo_grava_historicos(self):
+        sistema = self._criar_sistema()
+        processo = self._criar_processo(sistema)
+        etapa = processo.etapas.order_by("ordem").first()
+
+        response = self.client.post(
+            reverse("acompanhamento_sistemas_processo_etapa_update", kwargs={"pk": etapa.pk}),
+            {
+                "status": EtapaProcessoRequisito.Status.EM_ANDAMENTO,
+                "justificativa_status": "Levantamento iniciado",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        etapa.refresh_from_db()
+        self.assertEqual(etapa.status, EtapaProcessoRequisito.Status.EM_ANDAMENTO)
+        self.assertTrue(HistoricoEtapaProcessoRequisito.objects.filter(etapa=etapa).exists())
+        self.assertTrue(processo.historicos.exists())
+        self.assertTrue(HistoricoSistema.objects.filter(sistema=sistema).exists())
+
+    def test_etapa_do_processo_exige_anexo_ao_enviar_para_validacao(self):
+        sistema = self._criar_sistema()
+        processo = self._criar_processo(sistema)
+        etapa = processo.etapas.order_by("ordem").first()
+        etapa.status = EtapaProcessoRequisito.Status.EM_ANDAMENTO
+        etapa.save(update_fields=["status", "atualizado_em"])
+
+        response = self.client.post(
+            reverse("acompanhamento_sistemas_processo_etapa_update", kwargs={"pk": etapa.pk}),
+            {
+                "status": EtapaProcessoRequisito.Status.VALIDACAO,
+                "justificativa_status": "Encaminhando para revisão",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        etapa.refresh_from_db()
+        self.assertEqual(etapa.status, EtapaProcessoRequisito.Status.EM_ANDAMENTO)
+        self.assertContains(response, "Ao enviar para Validação, anexe obrigatoriamente um arquivo.")
+
+    def test_reprovacao_da_etapa_do_processo_reabre_fluxo_e_exibe_retomada(self):
+        sistema = self._criar_sistema()
+        processo = self._criar_processo(sistema)
+        as_is = processo.etapas.get(tipo_etapa=EtapaProcessoRequisito.TipoEtapa.AS_IS)
+        diagnostico = processo.etapas.get(tipo_etapa=EtapaProcessoRequisito.TipoEtapa.DIAGNOSTICO)
+
+        as_is.status = EtapaProcessoRequisito.Status.APROVADO
+        as_is.save(update_fields=["status", "atualizado_em"])
+        diagnostico.status = EtapaProcessoRequisito.Status.VALIDACAO
+        diagnostico.save(update_fields=["status", "atualizado_em"])
+
+        response = self.client.post(
+            reverse("acompanhamento_sistemas_processo_etapa_update", kwargs={"pk": diagnostico.pk}),
+            {
+                "status": EtapaProcessoRequisito.Status.REPROVADO,
+                "justificativa_status": "Necessita ajustes",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        as_is.refresh_from_db()
+        diagnostico.refresh_from_db()
+        self.assertEqual(as_is.status, EtapaProcessoRequisito.Status.EM_ANDAMENTO)
+        self.assertEqual(diagnostico.status, EtapaProcessoRequisito.Status.PENDENTE)
+        self.assertTrue(diagnostico.historicos.filter(status_novo=EtapaProcessoRequisito.Status.REPROVADO).exists())
+
+        response_processo = self.client.get(reverse("acompanhamento_sistemas_processo_detail", kwargs={"pk": processo.pk}))
+        self.assertContains(response_processo, "Retomada")
+        self.assertContains(response_processo, "reprovada e retornou para tratamento")
+
+        response_etapa = self.client.get(reverse("acompanhamento_sistemas_processo_etapa_detail", kwargs={"pk": diagnostico.pk}))
+        self.assertContains(response_etapa, "Necessita ajustes")
+        response_etapa_anterior = self.client.get(reverse("acompanhamento_sistemas_processo_etapa_detail", kwargs={"pk": as_is.pk}))
+        self.assertContains(response_etapa_anterior, "Retomada")
+
+    def test_reprovacao_da_primeira_etapa_do_processo_retorna_para_em_andamento(self):
+        sistema = self._criar_sistema()
+        processo = self._criar_processo(sistema)
+        as_is = processo.etapas.get(tipo_etapa=EtapaProcessoRequisito.TipoEtapa.AS_IS)
+        as_is.status = EtapaProcessoRequisito.Status.VALIDACAO
+        as_is.save(update_fields=["status", "atualizado_em"])
+
+        response = self.client.post(
+            reverse("acompanhamento_sistemas_processo_etapa_update", kwargs={"pk": as_is.pk}),
+            {
+                "status": EtapaProcessoRequisito.Status.REPROVADO,
+                "justificativa_status": "Precisa complementar o levantamento",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        as_is.refresh_from_db()
+        self.assertEqual(as_is.status, EtapaProcessoRequisito.Status.EM_ANDAMENTO)
+        response_etapa = self.client.get(reverse("acompanhamento_sistemas_processo_etapa_detail", kwargs={"pk": as_is.pk}))
+        self.assertContains(response_etapa, "Etapa reprovada. AS IS voltou para Em andamento.")
+
+    def test_diagnostico_nao_permite_alteracao_sem_as_is_concluido(self):
+        sistema = self._criar_sistema()
+        processo = self._criar_processo(sistema)
+        diagnostico = processo.etapas.order_by("ordem").get(tipo_etapa=EtapaProcessoRequisito.TipoEtapa.DIAGNOSTICO)
+
+        response = self.client.post(
+            reverse("acompanhamento_sistemas_processo_etapa_update", kwargs={"pk": diagnostico.pk}),
+            {
+                "status": EtapaProcessoRequisito.Status.EM_ANDAMENTO,
+                "justificativa_status": "Tentativa de iniciar diagnostico",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        diagnostico.refresh_from_db()
+        self.assertEqual(diagnostico.status, EtapaProcessoRequisito.Status.PENDENTE)
+        self.assertContains(
+            response,
+            "Diagnóstico só pode ser alterado após AS IS estar Aprovado ou Retirado do escopo.",
+        )
+
+    def test_to_be_nao_permite_alteracao_sem_etapas_anteriores_concluidas(self):
+        sistema = self._criar_sistema()
+        processo = self._criar_processo(sistema)
+        as_is = processo.etapas.get(tipo_etapa=EtapaProcessoRequisito.TipoEtapa.AS_IS)
+        as_is.status = EtapaProcessoRequisito.Status.APROVADO
+        as_is.save(update_fields=["status", "atualizado_em"])
+        to_be = processo.etapas.get(tipo_etapa=EtapaProcessoRequisito.TipoEtapa.TO_BE)
+
+        response = self.client.post(
+            reverse("acompanhamento_sistemas_processo_etapa_update", kwargs={"pk": to_be.pk}),
+            {
+                "status": EtapaProcessoRequisito.Status.EM_ANDAMENTO,
+                "justificativa_status": "Tentativa de iniciar to be",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        to_be.refresh_from_db()
+        self.assertEqual(to_be.status, EtapaProcessoRequisito.Status.PENDENTE)
+        self.assertContains(
+            response,
+            "TO BE só pode ser alterado após AS IS e Diagnóstico estarem Aprovados ou Retirados do escopo.",
+        )
+
+    def test_tela_da_etapa_do_processo_oculta_botao_quando_dependencia_nao_foi_concluida(self):
+        sistema = self._criar_sistema()
+        processo = self._criar_processo(sistema)
+        diagnostico = processo.etapas.get(tipo_etapa=EtapaProcessoRequisito.TipoEtapa.DIAGNOSTICO)
+
+        response = self.client.get(reverse("acompanhamento_sistemas_processo_etapa_detail", kwargs={"pk": diagnostico.pk}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'id="acompanhamento-open-processo-etapa-status-modal"', html=False)
+        self.assertContains(
+            response,
+            "Diagnóstico só pode ser alterado após AS IS estar Aprovado ou Retirado do escopo.",
+        )
+
+    def test_transformacao_com_acao_ciclo_gera_ciclo_no_mesmo_sistema(self):
+        sistema = self._criar_sistema()
+        processo = self._criar_processo(sistema, titulo="Processo para ciclo")
+        for etapa in processo.etapas.order_by("ordem"):
+            etapa.status = EtapaProcessoRequisito.Status.APROVADO
+            etapa.save(update_fields=["status", "atualizado_em"])
+
+        response = self.client.post(
+            reverse("acompanhamento_sistemas_processo_transformar", kwargs={"pk": processo.pk}),
+            {"acao": "ciclo"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Sistema.objects.count(), 1)
+        self.assertTrue(sistema.entregas.filter(processo_requisito_origem=processo).exists())
+        entrega = sistema.entregas.get(processo_requisito_origem=processo)
+        etapas = list(entrega.etapas.order_by("ordem"))
+        self.assertIsNone(etapas[0].data_etapa)
+        self.assertIsNone(etapas[1].data_etapa)
+        self.assertIsNotNone(etapas[2].data_etapa)
+        self.assertIsNotNone(etapas[3].data_etapa)
+        self.assertIsNotNone(etapas[4].data_etapa)
+
+    def test_transformacao_com_acao_sistema_gera_novo_sistema(self):
+        sistema = self._criar_sistema(nome="Sistema Origem")
+        processo = self._criar_processo(sistema, titulo="Processo para sistema")
+        for etapa in processo.etapas.order_by("ordem"):
+            etapa.status = EtapaProcessoRequisito.Status.APROVADO
+            etapa.save(update_fields=["status", "atualizado_em"])
+
+        response = self.client.post(
+            reverse("acompanhamento_sistemas_processo_transformar", kwargs={"pk": processo.pk}),
+            {
+                "acao": "sistema",
+                "nome": "Sistema Derivado",
+                "descricao": "Criado a partir do processo",
+                "url_homologacao": "https://novo-homolog.exemplo.gov.br",
+                "url_producao": "https://novo-producao.exemplo.gov.br",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(Sistema.objects.filter(nome="Sistema Derivado").exists())
+        novo_sistema = Sistema.objects.get(nome="Sistema Derivado")
+        self.assertTrue(novo_sistema.processos_requisito.filter(titulo="Processo para sistema").exists())
+        processo_herdado = novo_sistema.processos_requisito.get(titulo="Processo para sistema")
+        self.assertEqual(processo_herdado.etapas.count(), 3)
+        self.assertEqual(
+            list(processo_herdado.etapas.order_by("ordem").values_list("status", flat=True)),
+            [EtapaProcessoRequisito.Status.APROVADO] * 3,
+        )
+        self.assertTrue(
+            processo_herdado.historicos.filter(descricao__contains="Processo herdado do sistema 'Sistema Origem'.").exists()
+        )
+        self.assertTrue(
+            HistoricoEtapaProcessoRequisito.objects.filter(
+                etapa__processo=processo_herdado,
+                descricao__contains="Etapa herdada do sistema 'Sistema Origem'.",
+            ).exists()
         )
 
     def test_ciclo_ganha_numeracao_dinamica_no_sistema(self):
@@ -385,11 +715,46 @@ class AcompanhamentoSistemasTests(TestCase):
         self.assertEqual(etapa.status, EtapaSistema.Status.PENDENTE)
         self.assertContains(response, "Ao concluir Requisitos, anexe obrigatoriamente o documento de requisitos.")
 
+    def test_etapas_finais_exigem_todas_as_tres_datas_para_qualquer_atualizacao(self):
+        sistema = self._criar_sistema()
+        entrega = self._criar_entrega(sistema)
+        self._preparar_ciclo_para_publicacao(entrega)
+        self._publicar_entrega(entrega)
+        etapas = list(entrega.etapas.order_by("ordem"))
+        etapa_desenvolvimento = etapas[2]
+        etapa_homologacao_dev = etapas[3]
+        etapa_producao = etapas[4]
+
+        etapa_desenvolvimento.data_etapa = timezone.localdate() + timedelta(days=7)
+        etapa_desenvolvimento.save(update_fields=["data_etapa", "atualizado_em"])
+        etapa_homologacao_dev.data_etapa = None
+        etapa_homologacao_dev.save(update_fields=["data_etapa", "atualizado_em"])
+        etapa_producao.data_etapa = None
+        etapa_producao.save(update_fields=["data_etapa", "atualizado_em"])
+
+        response = self.client.post(
+            reverse("acompanhamento_sistemas_etapa_update", kwargs={"pk": etapa_desenvolvimento.pk}),
+            {
+                "data_etapa": etapa_desenvolvimento.data_etapa.isoformat(),
+                "status": EtapaSistema.Status.EM_ANDAMENTO,
+                "justificativa_status": "Iniciando desenvolvimento",
+                "texto_nota": "",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        etapa_desenvolvimento.refresh_from_db()
+        self.assertEqual(etapa_desenvolvimento.status, EtapaSistema.Status.PENDENTE)
+        self.assertContains(
+            response,
+            "Defina a data de Desenvolvimento, Homologação do Desenvolvimento e Produção antes de atualizar essas etapas.",
+        )
+
     @patch("acompanhamento_sistemas.services.EmailMessage.send", return_value=1)
     def test_alteracao_de_status_grava_historico_auditoria_e_notifica(self, mock_send):
         sistema = self._criar_sistema()
         entrega = self._criar_entrega(sistema)
-        self._definir_datas_ciclo(entrega)
+        self._preparar_ciclo_para_publicacao(entrega)
         self._publicar_entrega(entrega)
         etapa = sistema.entregas.get().etapas.order_by("ordem").first()
         InteressadoSistemaManual.objects.create(
@@ -403,7 +768,7 @@ class AcompanhamentoSistemasTests(TestCase):
         response = self.client.post(
             reverse("acompanhamento_sistemas_etapa_update", kwargs={"pk": etapa.pk}),
             {
-                "data_etapa": etapa.data_etapa.isoformat(),
+                "data_etapa": etapa.data_etapa.isoformat() if etapa.data_etapa else "",
                 "status": EtapaSistema.Status.EM_ANDAMENTO,
                 "justificativa_status": "Priorização da equipe",
                 "texto_nota": "A etapa foi iniciada.",
@@ -474,16 +839,14 @@ class AcompanhamentoSistemasTests(TestCase):
             link="http://sgi.seds.sp.gov.br/acompanhamento-sistemas/entregas/11/",
         )
 
-        self.assertIn("Tipo de atualização: Publicação do cronograma inicial", corpo)
+        self.assertIn("Tipo de atualização: Criação do cronograma inicial", corpo)
         self.assertIn("- Requisitos: 01/04/2026", corpo)
         self.assertIn("- Producao: 20/04/2026", corpo)
         self.assertIn("Responsável: Administrador", corpo)
 
     @patch("acompanhamento_sistemas.services.EmailMessage.send", return_value=1)
-    def test_publicacao_do_ciclo_envia_email_consolidado(self, mock_send):
+    def test_criacao_do_ciclo_envia_email_consolidado(self, mock_send):
         sistema = self._criar_sistema()
-        entrega = self._criar_entrega(sistema, titulo="Sprint 01")
-        self._definir_datas_ciclo(entrega)
         InteressadoSistemaManual.objects.create(
             sistema=sistema,
             tipo_interessado="GESTAO",
@@ -492,17 +855,13 @@ class AcompanhamentoSistemasTests(TestCase):
             criado_por=self.user,
         )
 
-        response = self.client.post(
-            reverse("acompanhamento_sistemas_entrega_publish", kwargs={"pk": entrega.pk})
-        )
-
-        self.assertEqual(response.status_code, 302)
+        entrega = self._criar_entrega(sistema, titulo="Sprint 01")
         entrega.refresh_from_db()
-        self.assertEqual(entrega.status, EntregaSistema.Status.PUBLICADO)
+        self.assertEqual(entrega.status, EntregaSistema.Status.RASCUNHO)
         self.assertEqual(mock_send.call_count, 1)
 
     @patch("acompanhamento_sistemas.services.EmailMessage.send", return_value=1)
-    def test_rascunho_nao_envia_email_em_alteracao_individual(self, mock_send):
+    def test_rascunho_envia_email_em_alteracao_individual(self, mock_send):
         sistema = self._criar_sistema()
         entrega = self._criar_entrega(sistema)
         etapa = entrega.etapas.order_by("ordem").first()
@@ -517,23 +876,37 @@ class AcompanhamentoSistemasTests(TestCase):
         response = self.client.post(
             reverse("acompanhamento_sistemas_etapa_update", kwargs={"pk": etapa.pk}),
             {
-                "data_etapa": (timezone.localdate() + timedelta(days=2)).isoformat(),
-                "status": etapa.status,
-                "justificativa_status": "",
+                "data_etapa": "",
+                "status": EtapaSistema.Status.EM_ANDAMENTO,
+                "justificativa_status": "Inicio em rascunho",
                 "texto_nota": "",
             },
         )
 
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(mock_send.call_count, 0)
+        self.assertEqual(mock_send.call_count, 1)
 
     @patch("acompanhamento_sistemas.services.EmailMessage.send", return_value=1)
-    def test_publicacao_exige_todas_as_datas(self, mock_send):
+    def test_publicacao_exige_datas_das_etapas_seguintes(self, mock_send):
         sistema = self._criar_sistema()
         entrega = self._criar_entrega(sistema)
-        primeira_etapa = entrega.etapas.order_by("ordem").first()
-        primeira_etapa.data_etapa = timezone.localdate() + timedelta(days=1)
-        primeira_etapa.save(update_fields=["data_etapa", "atualizado_em"])
+        self._definir_datas_ciclo(entrega)
+        etapas = list(entrega.etapas.order_by("ordem"))
+        etapas[0].data_etapa = None
+        etapas[0].save(update_fields=["data_etapa", "atualizado_em"])
+        etapas[1].data_etapa = None
+        etapas[1].save(update_fields=["data_etapa", "atualizado_em"])
+        etapas[2].data_etapa = None
+        etapas[2].save(update_fields=["data_etapa", "atualizado_em"])
+        self.client.post(
+            reverse("acompanhamento_sistemas_etapa_update", kwargs={"pk": etapas[0].pk}),
+            {
+                "data_etapa": "",
+                "status": EtapaSistema.Status.ENTREGUE,
+                "justificativa_status": "Documento finalizado",
+                "anexos": [SimpleUploadedFile("requisitos.pdf", b"pdf-requisitos")],
+            },
+        )
 
         response = self.client.post(
             reverse("acompanhamento_sistemas_entrega_publish", kwargs={"pk": entrega.pk}),
@@ -543,12 +916,15 @@ class AcompanhamentoSistemasTests(TestCase):
         entrega.refresh_from_db()
         self.assertEqual(entrega.status, EntregaSistema.Status.RASCUNHO)
         self.assertEqual(mock_send.call_count, 0)
-        self.assertContains(response, "Defina a data de todas as etapas antes de publicar o ciclo.")
+        self.assertContains(
+            response,
+            "Defina a data das etapas seguintes antes de publicar o ciclo: Desenvolvimento.",
+        )
 
     def test_tela_do_ciclo_exibe_modal_de_publicacao(self):
         sistema = self._criar_sistema()
         entrega = self._criar_entrega(sistema)
-        self._definir_datas_ciclo(entrega)
+        self._preparar_ciclo_para_publicacao(entrega)
 
         response = self.client.get(reverse("acompanhamento_sistemas_entrega_detail", kwargs={"pk": entrega.pk}))
 
@@ -557,17 +933,18 @@ class AcompanhamentoSistemasTests(TestCase):
         self.assertContains(response, "Confirmar publicação")
         self.assertContains(response, "Publicar ciclo")
 
-    def test_etapa_entregue_avanca_proxima_para_em_andamento_e_grava_historico(self):
+    def test_requisitos_entregue_em_rascunho_avanca_homologacao_para_em_andamento(self):
         sistema = self._criar_sistema()
         entrega = self._criar_entrega(sistema)
         self._definir_datas_ciclo(entrega)
-        self._publicar_entrega(entrega)
         etapa_atual, proxima_etapa = list(entrega.etapas.order_by("ordem")[:2])
+        etapa_atual.data_etapa = None
+        etapa_atual.save(update_fields=["data_etapa", "atualizado_em"])
 
         response = self.client.post(
             reverse("acompanhamento_sistemas_etapa_update", kwargs={"pk": etapa_atual.pk}),
             {
-                "data_etapa": etapa_atual.data_etapa.isoformat(),
+                "data_etapa": "",
                 "status": EtapaSistema.Status.ENTREGUE,
                 "justificativa_status": "Etapa concluída",
                 "anexos": [SimpleUploadedFile("requisitos.pdf", b"pdf-requisitos")],
@@ -583,22 +960,22 @@ class AcompanhamentoSistemasTests(TestCase):
         historico_proxima = proxima_etapa.historicos.first()
         self.assertEqual(historico_proxima.tipo_evento, HistoricoEtapaSistema.TipoEvento.STATUS)
         self.assertEqual(historico_proxima.status_novo, EtapaSistema.Status.EM_ANDAMENTO)
-        self.assertNotContains(
-            self.client.get(reverse("acompanhamento_sistemas_etapa_detail", kwargs={"pk": proxima_etapa.pk})),
-            "Status alterado automaticamente de Pendente para Em andamento apos conclusao da etapa anterior.",
+        self.assertEqual(
+            historico_proxima.justificativa,
+            "Avanço automático para a próxima etapa após conclusão da etapa anterior.",
         )
 
     def test_homologacao_de_requisitos_exibe_anexo_herdado_da_etapa_requisitos(self):
         sistema = self._criar_sistema()
         entrega = self._criar_entrega(sistema)
-        self._definir_datas_ciclo(entrega)
+        self._preparar_ciclo_para_publicacao(entrega)
         self._publicar_entrega(entrega)
         etapa_requisitos, etapa_homologacao = list(entrega.etapas.order_by("ordem")[:2])
 
         self.client.post(
             reverse("acompanhamento_sistemas_etapa_update", kwargs={"pk": etapa_requisitos.pk}),
             {
-                "data_etapa": etapa_requisitos.data_etapa.isoformat(),
+                "data_etapa": etapa_requisitos.data_etapa.isoformat() if etapa_requisitos.data_etapa else "",
                 "status": EtapaSistema.Status.ENTREGUE,
                 "justificativa_status": "Documento finalizado",
                 "anexos": [SimpleUploadedFile("requisitos.pdf", b"pdf-requisitos")],
@@ -615,14 +992,14 @@ class AcompanhamentoSistemasTests(TestCase):
     def test_nao_permite_alterar_status_da_proxima_etapa_sem_concluir_a_anterior(self):
         sistema = self._criar_sistema()
         entrega = self._criar_entrega(sistema)
-        self._definir_datas_ciclo(entrega)
+        self._preparar_ciclo_para_publicacao(entrega)
         self._publicar_entrega(entrega)
-        primeira_etapa, segunda_etapa = list(entrega.etapas.order_by("ordem")[:2])
+        primeira_etapa, segunda_etapa, terceira_etapa = list(entrega.etapas.order_by("ordem")[:3])
 
         response = self.client.post(
-            reverse("acompanhamento_sistemas_etapa_update", kwargs={"pk": segunda_etapa.pk}),
+            reverse("acompanhamento_sistemas_etapa_update", kwargs={"pk": terceira_etapa.pk}),
             {
-                "data_etapa": segunda_etapa.data_etapa.isoformat(),
+                "data_etapa": terceira_etapa.data_etapa.isoformat(),
                 "status": EtapaSistema.Status.EM_ANDAMENTO,
                 "justificativa_status": "Tentativa de avanço antecipado",
             },
@@ -631,20 +1008,22 @@ class AcompanhamentoSistemasTests(TestCase):
         self.assertEqual(response.status_code, 200)
         primeira_etapa.refresh_from_db()
         segunda_etapa.refresh_from_db()
-        self.assertEqual(primeira_etapa.status, EtapaSistema.Status.PENDENTE)
-        self.assertEqual(segunda_etapa.status, EtapaSistema.Status.PENDENTE)
+        terceira_etapa.refresh_from_db()
+        self.assertEqual(primeira_etapa.status, EtapaSistema.Status.ENTREGUE)
+        self.assertEqual(segunda_etapa.status, EtapaSistema.Status.EM_ANDAMENTO)
+        self.assertEqual(terceira_etapa.status, EtapaSistema.Status.PENDENTE)
         self.assertContains(response, "A etapa anterior precisa estar como Entregue antes de alterar o status desta etapa.")
 
     def test_homologacao_exibe_status_aprovado_e_reprovado_no_formulario(self):
         sistema = self._criar_sistema()
         entrega = self._criar_entrega(sistema)
-        self._definir_datas_ciclo(entrega)
+        self._preparar_ciclo_para_publicacao(entrega)
         self._publicar_entrega(entrega)
         etapa_requisitos, etapa_homologacao = list(entrega.etapas.order_by("ordem")[:2])
         self.client.post(
             reverse("acompanhamento_sistemas_etapa_update", kwargs={"pk": etapa_requisitos.pk}),
             {
-                "data_etapa": etapa_requisitos.data_etapa.isoformat(),
+                "data_etapa": etapa_requisitos.data_etapa.isoformat() if etapa_requisitos.data_etapa else "",
                 "status": EtapaSistema.Status.ENTREGUE,
                 "justificativa_status": "Documento finalizado",
                 "anexos": [SimpleUploadedFile("requisitos.pdf", b"pdf-requisitos")],
@@ -660,18 +1039,9 @@ class AcompanhamentoSistemasTests(TestCase):
     def test_homologacao_aprovada_avanca_para_proxima_etapa(self):
         sistema = self._criar_sistema()
         entrega = self._criar_entrega(sistema)
-        self._definir_datas_ciclo(entrega)
+        self._preparar_ciclo_para_publicacao(entrega)
         self._publicar_entrega(entrega)
         etapa_requisitos, etapa_homologacao, etapa_desenvolvimento = list(entrega.etapas.order_by("ordem")[:3])
-        self.client.post(
-            reverse("acompanhamento_sistemas_etapa_update", kwargs={"pk": etapa_requisitos.pk}),
-            {
-                "data_etapa": etapa_requisitos.data_etapa.isoformat(),
-                "status": EtapaSistema.Status.ENTREGUE,
-                "justificativa_status": "Documento finalizado",
-                "anexos": [SimpleUploadedFile("requisitos.pdf", b"pdf-requisitos")],
-            },
-        )
 
         response = self.client.post(
             reverse("acompanhamento_sistemas_etapa_update", kwargs={"pk": etapa_homologacao.pk}),
@@ -694,18 +1064,9 @@ class AcompanhamentoSistemasTests(TestCase):
     def test_homologacao_reprovada_retorna_fluxo_e_exibe_marcadores_visuais(self):
         sistema = self._criar_sistema()
         entrega = self._criar_entrega(sistema, titulo="Ciclo Visual")
-        self._definir_datas_ciclo(entrega)
+        self._preparar_ciclo_para_publicacao(entrega)
         self._publicar_entrega(entrega)
         etapa_requisitos, etapa_homologacao = list(entrega.etapas.order_by("ordem")[:2])
-        self.client.post(
-            reverse("acompanhamento_sistemas_etapa_update", kwargs={"pk": etapa_requisitos.pk}),
-            {
-                "data_etapa": etapa_requisitos.data_etapa.isoformat(),
-                "status": EtapaSistema.Status.ENTREGUE,
-                "justificativa_status": "Documento finalizado",
-                "anexos": [SimpleUploadedFile("requisitos.pdf", b"pdf-requisitos")],
-            },
-        )
 
         response_reprovacao = self.client.post(
             reverse("acompanhamento_sistemas_etapa_update", kwargs={"pk": etapa_homologacao.pk}),
@@ -738,19 +1099,9 @@ class AcompanhamentoSistemasTests(TestCase):
     def test_etapa_retomada_entregue_novamente_reabre_homologacao_em_andamento(self):
         sistema = self._criar_sistema()
         entrega = self._criar_entrega(sistema, titulo="Ciclo Retorno")
-        self._definir_datas_ciclo(entrega)
+        self._preparar_ciclo_para_publicacao(entrega)
         self._publicar_entrega(entrega)
         etapa_requisitos, etapa_homologacao = list(entrega.etapas.order_by("ordem")[:2])
-
-        self.client.post(
-            reverse("acompanhamento_sistemas_etapa_update", kwargs={"pk": etapa_requisitos.pk}),
-            {
-                "data_etapa": etapa_requisitos.data_etapa.isoformat(),
-                "status": EtapaSistema.Status.ENTREGUE,
-                "justificativa_status": "Primeira entrega",
-                "anexos": [SimpleUploadedFile("requisitos.pdf", b"pdf-requisitos")],
-            },
-        )
         self.client.post(
             reverse("acompanhamento_sistemas_etapa_update", kwargs={"pk": etapa_homologacao.pk}),
             {
@@ -763,7 +1114,7 @@ class AcompanhamentoSistemasTests(TestCase):
         response_reentrega = self.client.post(
             reverse("acompanhamento_sistemas_etapa_update", kwargs={"pk": etapa_requisitos.pk}),
             {
-                "data_etapa": etapa_requisitos.data_etapa.isoformat(),
+                "data_etapa": "",
                 "status": EtapaSistema.Status.ENTREGUE,
                 "justificativa_status": "Segunda entrega após ajustes",
                 "anexos": [SimpleUploadedFile("requisitos-ajustados.pdf", b"pdf-requisitos-2")],
@@ -781,7 +1132,7 @@ class AcompanhamentoSistemasTests(TestCase):
     def test_marcador_retomada_exibe_contador_quando_houver_nova_reprovacao(self):
         sistema = self._criar_sistema()
         entrega = self._criar_entrega(sistema, titulo="Ciclo Retorno 2")
-        self._definir_datas_ciclo(entrega)
+        self._preparar_ciclo_para_publicacao(entrega)
         self._publicar_entrega(entrega)
         etapa_requisitos, etapa_homologacao = list(entrega.etapas.order_by("ordem")[:2])
 
@@ -789,7 +1140,7 @@ class AcompanhamentoSistemasTests(TestCase):
             self.client.post(
                 reverse("acompanhamento_sistemas_etapa_update", kwargs={"pk": etapa_requisitos.pk}),
                 {
-                    "data_etapa": etapa_requisitos.data_etapa.isoformat(),
+                    "data_etapa": "",
                     "status": EtapaSistema.Status.ENTREGUE,
                     "justificativa_status": f"Entrega {indice + 1}",
                     "anexos": [SimpleUploadedFile(f"requisitos-{indice + 1}.pdf", b"pdf-requisitos")],
@@ -798,7 +1149,7 @@ class AcompanhamentoSistemasTests(TestCase):
             self.client.post(
                 reverse("acompanhamento_sistemas_etapa_update", kwargs={"pk": etapa_homologacao.pk}),
                 {
-                    "data_etapa": etapa_homologacao.data_etapa.isoformat(),
+                    "data_etapa": "",
                     "status": EtapaSistema.Status.REPROVADO,
                     "justificativa_status": f"Reprovacao {indice + 1}",
                 },
@@ -814,7 +1165,7 @@ class AcompanhamentoSistemasTests(TestCase):
     def test_anotacao_livre_aceita_multiplos_anexos(self, mock_send):
         sistema = self._criar_sistema()
         entrega = self._criar_entrega(sistema)
-        self._definir_datas_ciclo(entrega)
+        self._preparar_ciclo_para_publicacao(entrega)
         self._publicar_entrega(entrega)
         etapa = sistema.entregas.get().etapas.order_by("ordem").first()
         InteressadoSistemaManual.objects.create(
@@ -875,7 +1226,7 @@ class AcompanhamentoSistemasTests(TestCase):
         sistema = self._criar_sistema()
         entrega = self._criar_entrega(sistema)
         self._definir_datas_ciclo(entrega)
-        etapa_1, etapa_2 = list(entrega.etapas.order_by("ordem")[:2])
+        etapa_1, etapa_2 = list(entrega.etapas.order_by("ordem")[2:4])
 
         response = self.client.post(
             reverse("acompanhamento_sistemas_etapa_update", kwargs={"pk": etapa_2.pk}),
@@ -961,7 +1312,7 @@ class AcompanhamentoSistemasTests(TestCase):
     def test_remover_interessado_impede_novo_envio(self, mock_send):
         sistema = self._criar_sistema()
         entrega = self._criar_entrega(sistema)
-        self._definir_datas_ciclo(entrega)
+        self._preparar_ciclo_para_publicacao(entrega)
         self._publicar_entrega(entrega)
         etapa = sistema.entregas.get().etapas.order_by("ordem").first()
         manual = InteressadoSistemaManual.objects.create(
@@ -1037,15 +1388,19 @@ class AcompanhamentoSistemasTests(TestCase):
     def test_filtros_da_listagem_funcionam_por_nome_status_e_responsavel(self):
         sistema_a = self._criar_sistema(nome="Sistema Alfa")
         sistema_b = self._criar_sistema(nome="Sistema Beta")
-        self._criar_entrega(sistema_a, titulo="Entrega Alfa")
-        self._criar_entrega(sistema_b, titulo="Entrega Beta")
+        entrega_a = self._criar_entrega(sistema_a, titulo="Entrega Alfa")
+        entrega_b = self._criar_entrega(sistema_b, titulo="Entrega Beta")
+        self._preparar_ciclo_para_publicacao(entrega_a)
+        self._preparar_ciclo_para_publicacao(entrega_b)
+        self._publicar_entrega(entrega_a)
+        self._publicar_entrega(entrega_b)
         etapa_a = sistema_a.entregas.get().etapas.order_by("ordem").first()
         etapa_b = sistema_b.entregas.get().etapas.order_by("ordem").first()
 
         self.client.post(
             reverse("acompanhamento_sistemas_etapa_update", kwargs={"pk": etapa_a.pk}),
             {
-                "data_etapa": "",
+                "data_etapa": etapa_a.data_etapa.isoformat() if etapa_a.data_etapa else "",
                 "status": EtapaSistema.Status.EM_ANDAMENTO,
                 "justificativa_status": "Fluxo alfa",
                 "texto_nota": "",
@@ -1059,7 +1414,7 @@ class AcompanhamentoSistemasTests(TestCase):
         self.client.post(
             reverse("acompanhamento_sistemas_etapa_update", kwargs={"pk": etapa_b.pk}),
             {
-                "data_etapa": "",
+                "data_etapa": etapa_b.data_etapa.isoformat() if etapa_b.data_etapa else "",
                 "status": EtapaSistema.Status.EM_ANDAMENTO,
                 "justificativa_status": "Fluxo beta",
                 "texto_nota": "",
@@ -1093,8 +1448,8 @@ class AcompanhamentoSistemasTests(TestCase):
         self.assertContains(response, "3 dias")
         self.assertContains(response, "Última ação em")
         self.assertContains(response, "acompanhamento-card-footer")
-        self.assertContains(response, "Sistemas visíveis")
-        self.assertContains(response, "Aguardando homologação")
+        self.assertContains(response, "Sistema Lead Time")
+        self.assertContains(response, "Sprint 01")
 
     def test_tela_da_etapa_renderiza_duas_colunas(self):
         sistema = self._criar_sistema()
@@ -1107,10 +1462,11 @@ class AcompanhamentoSistemasTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "acompanhamento-detail-grid")
         self.assertContains(response, "Timeline da etapa -")
-        self.assertContains(response, "Lançar nota")
+        self.assertNotContains(response, "Lançar nota")
         self.assertNotContains(response, "Anotação da etapa")
         self.assertContains(response, f'value="{etapa.data_etapa.isoformat()}"', html=False)
-        self.assertContains(response, "Em rascunho, ela pode ficar em branco até a publicação do ciclo.")
+        self.assertContains(response, "Esta etapa não utiliza data.")
+        self.assertContains(response, "a etapa de Requisitos já pode avançar com justificativa e anexo")
         self.assertNotContains(response, "Calendário")
         self.assertContains(response, "Selecionar data da etapa")
 
@@ -1166,7 +1522,7 @@ class AcompanhamentoSistemasTests(TestCase):
         self.assertNotContains(response, "Adicionar interessado")
         self.assertNotContains(response, "Auditoria complementar do sistema")
 
-    def test_timeline_consolidada_do_sistema_e_paginada_em_seis_eventos(self):
+    def test_detalhe_do_sistema_nao_renderiza_mais_timeline_consolidada(self):
         sistema = self._criar_sistema()
         entrega = self._criar_entrega(sistema, titulo="Sprint 01")
         etapa = entrega.etapas.order_by("ordem").first()
@@ -1176,22 +1532,18 @@ class AcompanhamentoSistemasTests(TestCase):
                 {"texto_nota": f"Nota {indice + 1}"},
             )
 
-        response_pagina_1 = self.client.get(reverse("acompanhamento_sistemas_detail", kwargs={"pk": sistema.pk}))
-        response_pagina_2 = self.client.get(
-            reverse("acompanhamento_sistemas_detail", kwargs={"pk": sistema.pk}),
-            {"pagina_timeline": 2},
-        )
+        response = self.client.get(reverse("acompanhamento_sistemas_detail", kwargs={"pk": sistema.pk}))
 
-        self.assertContains(response_pagina_1, "Página 1 de 2")
-        self.assertContains(response_pagina_1, "?pagina_timeline=2")
-        self.assertContains(response_pagina_1, "Nota 7")
-        self.assertNotContains(response_pagina_1, "Nota 1")
-        self.assertContains(response_pagina_2, "Página 2 de 2")
-        self.assertContains(response_pagina_2, "Nota 1")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Processos de requisitos")
+        self.assertNotContains(response, "Página 1 de 2")
+        self.assertNotContains(response, "Nota 7")
 
     def test_timeline_da_etapa_e_paginada_em_seis_eventos(self):
         sistema = self._criar_sistema()
         entrega = self._criar_entrega(sistema, titulo="Sprint 01")
+        self._preparar_ciclo_para_publicacao(entrega)
+        self._publicar_entrega(entrega)
         etapa = entrega.etapas.order_by("ordem").first()
         for indice in range(7):
             self.client.post(
@@ -1212,30 +1564,24 @@ class AcompanhamentoSistemasTests(TestCase):
         self.assertContains(response_pagina_2, "Página 2 de 2")
         self.assertContains(response_pagina_2, "Evento etapa 1")
 
-    def test_detalhe_do_sistema_exibe_timeline_consolidada_e_interessados_na_coluna_esquerda(self):
+    def test_detalhe_do_sistema_exibe_processos_e_modal_de_interessados(self):
         sistema = self._criar_sistema()
         entrega = self._criar_entrega(sistema, titulo="Sprint 01", descricao="Resumo das tarefas que serão feitas na sprint 01")
         self._criar_entrega(sistema, titulo="Sprint 02", descricao="Resumo das tarefas que serão feitas na sprint 02")
-        etapa = entrega.etapas.order_by("ordem").first()
-        self.client.post(
-            reverse("acompanhamento_sistemas_etapa_nota", kwargs={"pk": etapa.pk}),
-            {"texto_nota": "Histórico do sistema"},
-        )
+        self._criar_processo(sistema, titulo="Processo piloto", descricao="Mapeamento do cenário atual")
 
         response = self.client.get(reverse("acompanhamento_sistemas_detail", kwargs={"pk": sistema.pk}))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Timeline consolidada do sistema")
+        self.assertContains(response, "Processos de requisitos")
+        self.assertContains(response, "Base documental e estruturada dos processos de negócio do sistema.")
         self.assertContains(response, "Lançar nota")
         self.assertContains(response, "Ciclos")
+        self.assertContains(response, "Acompanhamento da execução, priorização e evolução do desenvolvimento.")
         self.assertContains(response, "Novo Ciclo")
-        self.assertNotContains(response, "Titulo:")
-        self.assertNotContains(response, "Descricao:")
-        self.assertContains(response, "Ciclo Sprint 01 criado.")
-        self.assertContains(response, "Ciclo Sprint 01: Criacao")
-        self.assertContains(response, "Histórico do sistema")
-        self.assertNotContains(response, "Etapa criada automaticamente na abertura do ciclo.")
-        self.assertNotContains(response, "Auditoria complementar do sistema")
+        self.assertContains(response, "Novo processo")
+        self.assertContains(response, "Processo piloto")
+        self.assertContains(response, "Mapeamento do cenário atual")
         self.assertContains(response, 'data-email="outro@exemplo.gov.br"', html=False)
         self.assertContains(response, "Evolução do Sistema")
         self.assertContains(response, "Evolução da Entrega")
@@ -1244,10 +1590,13 @@ class AcompanhamentoSistemasTests(TestCase):
         self.assertContains(response, 'id="acompanhamento-interessado-modal"', html=False)
         self.assertContains(response, 'id="acompanhamento-open-sistema-note-modal"', html=False)
         self.assertContains(response, 'id="acompanhamento-sistema-note-modal"', html=False)
-        self.assertContains(response, "Adicionar interessado")
+        self.assertContains(response, "Interessados")
+        self.assertContains(response, "Interessados do sistema")
         self.assertContains(response, "Vincular")
         self.assertContains(response, "1/2 Sprint 01")
         self.assertContains(response, "2/2 Sprint 02")
+        self.assertContains(response, reverse("acompanhamento_sistemas_historico", kwargs={"pk": sistema.pk}))
+        self.assertContains(response, "Histórico")
         self.assertContains(response, reverse("acompanhamento_sistemas_entrega_detail", kwargs={"pk": entrega.pk}))
         self.assertNotContains(response, "Tempo entre etapas")
 
@@ -1262,8 +1611,9 @@ class AcompanhamentoSistemasTests(TestCase):
         response = self.client.get(reverse("acompanhamento_sistemas_detail", kwargs={"pk": sistema.pk}))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Sistema Portal SEDS: Nota")
-        self.assertContains(response, "Nota do sistema")
+        self.assertContains(response, "Processos de requisitos")
+        self.assertContains(response, "Lançar nota do sistema")
+        self.assertNotContains(response, "Nota do sistema")
 
     def test_detalhe_da_entrega_exibe_tabela_de_etapas(self):
         sistema = self._criar_sistema()
@@ -1283,8 +1633,85 @@ class AcompanhamentoSistemasTests(TestCase):
         self.assertContains(response, "acompanhamento-stepper")
         self.assertContains(response, reverse("acompanhamento_sistemas_entrega_update", kwargs={"pk": entrega.pk}))
         self.assertContains(response, reverse("acompanhamento_sistemas_entrega_delete", kwargs={"pk": entrega.pk}))
+        self.assertContains(response, reverse("acompanhamento_sistemas_entrega_historico", kwargs={"pk": entrega.pk}))
+        self.assertContains(response, "Histórico")
         self.assertContains(response, "Editar ciclo")
         self.assertContains(response, "Excluir ciclo")
+
+    def test_historico_global_da_entrega_renderiza_contexto_do_sistema(self):
+        sistema = self._criar_sistema(nome="Sistema Histórico")
+        entrega = self._criar_entrega(sistema, titulo="Sprint Histórico")
+
+        response = self.client.get(reverse("acompanhamento_sistemas_entrega_historico", kwargs={"pk": entrega.pk}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Sistema Histórico")
+        self.assertContains(response, "Timeline global")
+        self.assertContains(response, reverse("acompanhamento_sistemas_entrega_detail", kwargs={"pk": entrega.pk}))
+        self.assertContains(response, reverse("acompanhamento_sistemas_detail", kwargs={"pk": sistema.pk}))
+
+    def test_historico_global_do_sistema_renderiza_contexto_direto(self):
+        sistema = self._criar_sistema(nome="Sistema Histórico Direto")
+
+        response = self.client.get(reverse("acompanhamento_sistemas_historico", kwargs={"pk": sistema.pk}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Sistema Histórico Direto")
+        self.assertContains(response, "Timeline global")
+        self.assertContains(response, reverse("acompanhamento_sistemas_detail", kwargs={"pk": sistema.pk}))
+        self.assertNotContains(response, "Voltar ao ciclo")
+
+    def test_historico_global_da_entrega_exibe_anotacao_do_sistema(self):
+        sistema = self._criar_sistema(nome="Sistema Feed")
+        entrega = self._criar_entrega(sistema, titulo="Sprint Feed")
+
+        self.client.post(
+            reverse("acompanhamento_sistemas_nota", kwargs={"pk": sistema.pk}),
+            {"texto_nota": "Nota consolidada do sistema"},
+        )
+
+        response = self.client.get(reverse("acompanhamento_sistemas_entrega_historico", kwargs={"pk": entrega.pk}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Nota consolidada do sistema")
+        self.assertContains(response, "Sistema Sistema Feed: Nota")
+
+    def test_historico_global_do_sistema_exibe_anotacao_do_sistema(self):
+        sistema = self._criar_sistema(nome="Sistema Feed Direto")
+
+        self.client.post(
+            reverse("acompanhamento_sistemas_nota", kwargs={"pk": sistema.pk}),
+            {"texto_nota": "Nota global direta"},
+        )
+
+        response = self.client.get(reverse("acompanhamento_sistemas_historico", kwargs={"pk": sistema.pk}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Nota global direta")
+        self.assertContains(response, "Sistema Sistema Feed Direto: Nota")
+
+    def test_historico_global_da_entrega_e_paginado(self):
+        sistema = self._criar_sistema(nome="Sistema Paginação")
+        entrega = self._criar_entrega(sistema, titulo="Sprint Paginação")
+        etapa = entrega.etapas.order_by("ordem").first()
+        for indice in range(7):
+            self.client.post(
+                reverse("acompanhamento_sistemas_nota", kwargs={"pk": sistema.pk}),
+                {"texto_nota": f"Evento consolidado {indice + 1}"},
+            )
+
+        response_pagina_1 = self.client.get(reverse("acompanhamento_sistemas_entrega_historico", kwargs={"pk": entrega.pk}))
+        response_pagina_2 = self.client.get(
+            reverse("acompanhamento_sistemas_entrega_historico", kwargs={"pk": entrega.pk}),
+            {"pagina_timeline": 2},
+        )
+
+        self.assertContains(response_pagina_1, "Página 1 de 2")
+        self.assertContains(response_pagina_1, "?pagina_timeline=2")
+        self.assertContains(response_pagina_1, "Evento consolidado 7")
+        self.assertNotContains(response_pagina_1, "Evento consolidado 1")
+        self.assertContains(response_pagina_2, "Página 2 de 2")
+        self.assertContains(response_pagina_2, "Evento consolidado 1")
 
     def test_tela_de_edicao_do_ciclo_exibe_botao_de_excluir(self):
         sistema = self._criar_sistema()
@@ -1297,7 +1724,7 @@ class AcompanhamentoSistemasTests(TestCase):
         self.assertContains(response, reverse("acompanhamento_sistemas_entrega_delete", kwargs={"pk": entrega.pk}))
         self.assertContains(response, "Excluir ciclo")
 
-    def test_edicao_do_ciclo_aparece_na_timeline_do_sistema(self):
+    def test_edicao_do_ciclo_aparece_na_area_de_ciclos_do_sistema(self):
         sistema = self._criar_sistema(nome="Sistema Timeline")
         entrega = self._criar_entrega(sistema, titulo="Sprint Inicial", descricao="Descricao original")
 
@@ -1314,11 +1741,9 @@ class AcompanhamentoSistemasTests(TestCase):
         response = self.client.get(reverse("acompanhamento_sistemas_detail", kwargs={"pk": sistema.pk}))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Ciclo Sprint Planejada: Edicao")
-        self.assertContains(response, "Ciclo renomeado de")
-        self.assertContains(response, "Sprint Inicial")
         self.assertContains(response, "Sprint Planejada")
-        self.assertContains(response, "Descrição atualizada: Descricao revisada do ciclo")
+        self.assertContains(response, "Descricao revisada do ciclo")
+        self.assertNotContains(response, "Sprint Inicial")
 
     def test_exclusao_de_ciclo_remove_registro_e_redireciona_para_sistema(self):
         sistema = self._criar_sistema(nome="Sistema Ciclos")
@@ -1328,6 +1753,55 @@ class AcompanhamentoSistemasTests(TestCase):
 
         self.assertRedirects(response, reverse("acompanhamento_sistemas_detail", kwargs={"pk": sistema.pk}))
         self.assertFalse(sistema.entregas.filter(pk=entrega.pk).exists())
+
+    def test_exclusao_de_ciclo_remove_auditoria_e_nao_vaza_historico_ao_recriar_mesmo_nome(self):
+        sistema = self._criar_sistema(nome="Sistema Ciclos")
+        entrega = self._criar_entrega(sistema, titulo="Sprint Excluir", descricao="Descricao antiga")
+        etapa = entrega.etapas.order_by("ordem").first()
+
+        self.client.post(
+            reverse("acompanhamento_sistemas_etapa_update", kwargs={"pk": etapa.pk}),
+            {
+                "data_etapa": "",
+                "status": EtapaSistema.Status.EM_ANDAMENTO,
+                "justificativa_status": "Teste inicial",
+                "texto_nota": "",
+            },
+        )
+        self.client.post(
+            reverse("acompanhamento_sistemas_entrega_update", kwargs={"pk": entrega.pk}),
+            {
+                "titulo": "Sprint Excluir",
+                "descricao": "Descricao alterada do ciclo antigo",
+            },
+        )
+
+        entrega_id_antiga = entrega.pk
+        etapa_ids_antigas = list(entrega.etapas.values_list("id", flat=True))
+
+        response_delete = self.client.post(reverse("acompanhamento_sistemas_entrega_delete", kwargs={"pk": entrega.pk}))
+
+        self.assertRedirects(response_delete, reverse("acompanhamento_sistemas_detail", kwargs={"pk": sistema.pk}))
+        self.assertFalse(sistema.entregas.filter(pk=entrega_id_antiga).exists())
+        self.assertFalse(
+            AuditLog.objects.filter(
+                content_type=ContentType.objects.get_for_model(EntregaSistema),
+                object_id=str(entrega_id_antiga),
+            ).exists()
+        )
+        self.assertFalse(
+            AuditLog.objects.filter(
+                content_type=ContentType.objects.get_for_model(EtapaSistema),
+                object_id__in=[str(item) for item in etapa_ids_antigas],
+            ).exists()
+        )
+
+        nova_entrega = self._criar_entrega(sistema, titulo="Sprint Excluir", descricao="Descricao nova")
+        response_historico = self.client.get(reverse("acompanhamento_sistemas_historico", kwargs={"pk": sistema.pk}))
+
+        self.assertEqual(response_historico.status_code, 200)
+        self.assertContains(response_historico, f"Ciclo {nova_entrega.titulo}: Criacao")
+        self.assertNotContains(response_historico, "Descricao alterada do ciclo antigo")
 
     def test_nome_usuario_exibicao_prioriza_nome_do_ramal(self):
         usuario_fake = SimpleNamespace(

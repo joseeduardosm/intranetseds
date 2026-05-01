@@ -1,0 +1,331 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load acompanhamento_tags %}
+
+{% block container_class %}container-wide acompanhamento-container{% endblock %}
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/acompanhamento_sistemas/acompanhamento_sistemas.css' %}?v={% now 'U' %}" />
+  <style>
+    .acompanhamento-container .acompanhamento-historico-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: end;
+      margin-bottom: 20px;
+    }
+
+    .acompanhamento-container .acompanhamento-historico-head p {
+      margin: 6px 0 0;
+      color: #6b7280;
+      max-width: 780px;
+    }
+
+    .acompanhamento-container .acompanhamento-historico-tabs {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+
+    .acompanhamento-container .acompanhamento-historico-tab {
+      padding: 12px 16px;
+      border-radius: 999px;
+      border: 1px solid #e6ddcf;
+      background: rgba(255, 255, 255, 0.76);
+      color: #22314d;
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .acompanhamento-container .acompanhamento-historico-tab.is-active {
+      background: linear-gradient(135deg, #d95f02, #ee7d20);
+      border-color: transparent;
+      color: #fff;
+      box-shadow: 0 12px 24px rgba(217, 95, 2, 0.22);
+    }
+
+    .acompanhamento-container .acompanhamento-historico-layout {
+      display: grid;
+      grid-template-columns: minmax(260px, 22%) minmax(0, 78%);
+      gap: 18px;
+    }
+
+    .acompanhamento-container .acompanhamento-historico-sidebar {
+      display: grid;
+      gap: 16px;
+      align-content: start;
+    }
+
+    .acompanhamento-container .acompanhamento-historico-box {
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: #faf6ef;
+      border: 1px solid #efe5d6;
+    }
+
+    .acompanhamento-container .acompanhamento-historico-box strong {
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .acompanhamento-container .acompanhamento-historico-box p {
+      margin: 0;
+      color: #6b7280;
+      line-height: 1.5;
+      font-size: 0.92rem;
+    }
+
+    .acompanhamento-container .acompanhamento-historico-filters {
+      display: grid;
+      gap: 10px;
+    }
+
+    .acompanhamento-container .acompanhamento-historico-pill {
+      min-height: 42px;
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      border: 1px solid #e6ddcf;
+      border-radius: 12px;
+      background: #fff;
+      color: #6b7280;
+      font-size: 0.92rem;
+    }
+
+    .acompanhamento-container .acompanhamento-historico-feed-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: end;
+      margin-bottom: 16px;
+    }
+
+    .acompanhamento-container .acompanhamento-historico-feed-head p {
+      margin: 5px 0 0;
+      color: #6b7280;
+    }
+
+    .acompanhamento-container .acompanhamento-historico-badges {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .acompanhamento-container .acompanhamento-historico-badge {
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: #f7efe3;
+      color: #73490b;
+      font-weight: 800;
+      font-size: 0.78rem;
+    }
+
+    .acompanhamento-container .acompanhamento-historico-feed {
+      display: grid;
+      gap: 12px;
+    }
+
+    .acompanhamento-container .acompanhamento-historico-item {
+      display: grid;
+      grid-template-columns: 84px 1fr;
+      gap: 14px;
+      padding: 16px;
+      border: 1px solid #e6ddcf;
+      border-radius: 18px;
+      background: linear-gradient(180deg, #fff 0%, #fffaf5 100%);
+    }
+
+    .acompanhamento-container .acompanhamento-historico-stamp {
+      display: grid;
+      align-content: start;
+      gap: 4px;
+      text-align: center;
+      padding-top: 2px;
+    }
+
+    .acompanhamento-container .acompanhamento-historico-stamp strong {
+      font-size: 1.1rem;
+      color: #9d0e35;
+    }
+
+    .acompanhamento-container .acompanhamento-historico-stamp span {
+      color: #6b7280;
+      font-size: 0.8rem;
+    }
+
+    .acompanhamento-container .acompanhamento-historico-item h3 {
+      margin: 0 0 8px;
+      font-size: 1rem;
+    }
+
+    .acompanhamento-container .acompanhamento-historico-item p {
+      margin: 0;
+      color: #4b5563;
+      line-height: 1.55;
+    }
+
+    .acompanhamento-container .acompanhamento-historico-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 10px;
+      margin-top: 10px;
+      color: #6b7280;
+      font-size: 0.8rem;
+    }
+
+    .acompanhamento-container .acompanhamento-historico-anexos {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .acompanhamento-container .acompanhamento-historico-anexos a {
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: #fff;
+      border: 1px solid #e6ddcf;
+      color: #22314d;
+      text-decoration: none;
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+
+    @media (max-width: 980px) {
+      .acompanhamento-container .acompanhamento-historico-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 700px) {
+      .acompanhamento-container .acompanhamento-historico-head,
+      .acompanhamento-container .acompanhamento-historico-feed-head {
+        display: grid;
+      }
+
+      .acompanhamento-container .acompanhamento-historico-item {
+        grid-template-columns: 1fr;
+      }
+
+      .acompanhamento-container .acompanhamento-historico-stamp {
+        text-align: left;
+      }
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <section class="acompanhamento-historico-head">
+    <div>
+      <h2>{{ sistema.nome }}</h2>
+      <p>
+        Timeline global consolidada do sistema,
+        {% if entrega %}
+          acessada a partir do ciclo {{ entrega.titulo_com_numeracao }}.
+        {% else %}
+          acessada diretamente pelo detalhe do sistema.
+        {% endif %}
+      </p>
+    </div>
+  </section>
+
+  <div class="card-actions acompanhamento-card-actions--tight">
+    {% if entrega %}
+      <a class="btn btn-light" href="{% url 'acompanhamento_sistemas_entrega_detail' entrega.pk %}">Voltar ao ciclo</a>
+    {% endif %}
+    <a class="btn btn-light" href="{% url 'acompanhamento_sistemas_detail' sistema.pk %}">Voltar ao sistema</a>
+  </div>
+
+  <nav class="acompanhamento-historico-tabs" aria-label="Navegação do sistema">
+    <a class="acompanhamento-historico-tab" href="{% url 'acompanhamento_sistemas_detail' sistema.pk %}">Visão geral</a>
+    <span class="acompanhamento-historico-tab">Ciclos</span>
+    <span class="acompanhamento-historico-tab">Processos</span>
+    <span class="acompanhamento-historico-tab is-active">Timeline global</span>
+    <span class="acompanhamento-historico-tab">Interessados</span>
+  </nav>
+
+  <section class="acompanhamento-historico-layout">
+    <aside class="detail-card acompanhamento-card acompanhamento-historico-sidebar">
+      <div>
+        <h3>Filtros rápidos</h3>
+        <div class="acompanhamento-historico-filters">
+          <div class="acompanhamento-historico-pill">Período: últimos 15 dias</div>
+          <div class="acompanhamento-historico-pill">Origem: tudo</div>
+          <div class="acompanhamento-historico-pill">Responsável: qualquer</div>
+          <div class="acompanhamento-historico-pill">Tipo de evento: status e notas</div>
+        </div>
+      </div>
+
+      <div>
+        <h3>Resumo da leitura</h3>
+        <div class="acompanhamento-historico-box">
+          <strong>{{ historicos_page.paginator.count }} eventos consolidados</strong>
+          <p>Unificação cronológica de sistema, ciclos, etapas e processos vinculados a {{ sistema.nome }}.</p>
+        </div>
+        <div class="acompanhamento-historico-box">
+          <strong>Ciclo de entrada</strong>
+          <p>
+            {% if entrega %}
+              {{ entrega.titulo_com_numeracao }} foi usado como ponto de acesso, mas esta tela mostra o histórico global do sistema inteiro.
+            {% else %}
+              Esta tela foi acessada diretamente pelo sistema e mostra o histórico global completo.
+            {% endif %}
+          </p>
+        </div>
+      </div>
+    </aside>
+
+    <section class="detail-card acompanhamento-card">
+      <div class="acompanhamento-historico-feed-head">
+        <div>
+          <h3>Timeline global</h3>
+          <p>Todos os acontecimentos do sistema em ordem cronológica.</p>
+        </div>
+        <div class="acompanhamento-historico-badges">
+          <span class="acompanhamento-historico-badge">{{ sistema.entregas.count }} ciclos</span>
+          <span class="acompanhamento-historico-badge">{{ sistema.processos_requisito.count }} processos</span>
+        </div>
+      </div>
+
+      <div class="acompanhamento-historico-feed">
+        {% for historico in historicos %}
+          <article class="acompanhamento-historico-item">
+            <div class="acompanhamento-historico-stamp">
+              <strong>{{ historico.criado_em|date:"d" }}</strong>
+              <span>{{ historico.criado_em|date:"M"|lower }}</span>
+              <span>{{ historico.criado_em|date:"H:i" }}</span>
+            </div>
+            <div>
+              <h3>{{ historico.timeline_titulo }}</h3>
+              <p>{{ historico.descricao|linebreaksbr }}</p>
+              <div class="acompanhamento-historico-meta">
+                <span>{{ historico.get_tipo_evento_display }}</span>
+                <span>{{ historico.criado_em|date:"d/m/Y H:i" }}</span>
+                <span>{{ historico.criado_por|usuario_nome|default:"Sistema" }}</span>
+              </div>
+              {% if historico.justificativa %}
+                <p class="card-meta" style="margin-top:10px;"><strong>Justificativa:</strong> {{ historico.justificativa }}</p>
+              {% endif %}
+              {% if historico.anexos.all %}
+                <div class="acompanhamento-historico-anexos">
+                  {% for anexo in historico.anexos.all %}
+                    <a href="{{ anexo.arquivo.url }}" target="_blank" rel="noopener">{{ anexo.nome_exibicao }}</a>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </div>
+          </article>
+        {% empty %}
+          <article class="acompanhamento-historico-item">
+            <div>
+              <h3>Nenhum evento consolidado</h3>
+              <p>Ainda não há movimentações registradas para este sistema.</p>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+
+      {% include "acompanhamento_sistemas/_timeline_pagination.html" %}
+    </section>
+  </section>
+{% endblock %}

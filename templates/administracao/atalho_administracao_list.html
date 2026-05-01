@@ -6,7 +6,9 @@
   </section>
 
   <div class="card-actions">
-    <a class="btn" href="{% url 'administracao_atalho_administracao_create' %}">Novo card</a>
+    {% if can_manage_atalhos_administracao %}
+      <a class="btn" href="{% url 'administracao_atalho_administracao_create' %}">Novo card</a>
+    {% endif %}
     <a class="btn btn-secondary" href="{% url 'administracao_configuracoes' %}">Voltar</a>
   </div>
 
@@ -19,10 +21,12 @@
             <p class="card-text"><strong>Status:</strong> {% if atalho.ativo %}Ativo{% else %}Inativo{% endif %}</p>
             <p class="card-text"><strong>Imagem:</strong> {% if atalho.imagem %}Configurada{% else %}Usando fallback{% endif %}</p>
           </div>
-          <div class="card-footer">
-            <a class="btn btn-small" href="{% url 'administracao_atalho_administracao_update' atalho.pk %}">Editar</a>
-            <a class="btn btn-small btn-danger" href="{% url 'administracao_atalho_administracao_delete' atalho.pk %}">Excluir</a>
-          </div>
+          {% if can_manage_atalhos_administracao %}
+            <div class="card-footer">
+              <a class="btn btn-small" href="{% url 'administracao_atalho_administracao_update' atalho.pk %}">Editar</a>
+              <a class="btn btn-small btn-danger" href="{% url 'administracao_atalho_administracao_delete' atalho.pk %}">Excluir</a>
+            </div>
+          {% endif %}
         </article>
       {% endfor %}
     </div>

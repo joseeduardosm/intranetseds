@@ -11,7 +11,9 @@
   </section>
 
   <div class="card-actions">
-    <a class="btn" href="{% url 'prepostos_create' %}">Novo preposto</a>
+    {% if perms.prepostos.add_preposto %}
+      <a class="btn" href="{% url 'prepostos_create' %}">Novo preposto</a>
+    {% endif %}
     <a class="btn btn-light" href="{% url 'contratos_list' %}">Contratos</a>
     <a class="btn btn-light" href="{% url 'empresas_list' %}">Empresas</a>
   </div>

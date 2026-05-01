@@ -634,17 +634,18 @@ main.container {
 
 .servico-card img {
   width: 100%;
-  height: auto;
-  min-height: 88px;
-  flex: 1 1 auto;
+  height: calc(100% - 34px);
+  min-height: 0;
+  flex: 1 1 0;
   object-fit: cover;
   display: block;
   background: #ffffff;
 }
 
 .servico-card-media-fallback {
-  min-height: 88px;
-  flex: 1 1 auto;
+  height: calc(100% - 34px);
+  min-height: 0;
+  flex: 1 1 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -665,8 +666,8 @@ main.container {
   line-height: 1.12;
   font-weight: 700;
   padding: 6px 6px;
-  min-height: 34px;
-  margin-top: auto;
+  height: 34px;
+  flex: 0 0 34px;
   display: flex;
   align-items: center;
   justify-content: center;

@@ -11,9 +11,10 @@
     <h2>{{ entrega.titulo_com_numeracao }}</h2>
   </section>
 
-  <div class="card-actions">
+  <div class="card-actions acompanhamento-card-actions--tight">
+    <a class="btn btn-light" href="{% url 'acompanhamento_sistemas_entrega_historico' entrega.pk %}">Histórico</a>
     {% if pode_publicar_ciclo %}
-      <button class="btn" type="button" id="acompanhamento-open-publish-modal">Publicar ciclo</button>
+      <a class="btn" href="#" id="acompanhamento-open-publish-modal">Publicar ciclo</a>
     {% endif %}
     {% if perms.acompanhamento_sistemas.change_entregasistema %}
       <a class="btn" href="{% url 'acompanhamento_sistemas_entrega_update' entrega.pk %}">Editar ciclo</a>
@@ -154,7 +155,10 @@
           backdrop.setAttribute("aria-hidden", "true");
         };
 
-        openBtn.addEventListener("click", openModal);
+        openBtn.addEventListener("click", (event) => {
+          event.preventDefault();
+          openModal();
+        });
         closeBtn.addEventListener("click", closeModal);
         backdrop.addEventListener("click", closeModal);
       })();

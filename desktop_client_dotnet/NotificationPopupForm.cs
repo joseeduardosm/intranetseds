@@ -4,8 +4,6 @@ namespace ClientSgi.Desktop;
 
 public sealed class NotificationPopupForm : Form
 {
-    private readonly Label _titleLabel;
-    private readonly Label _messageLabel;
     private readonly Button _openButton;
     private readonly Button _closeButton;
 
@@ -14,8 +12,8 @@ public sealed class NotificationPopupForm : Form
         Notification = notification;
 
         Text = "Notificações SGI";
-        Width = 360;
-        Height = 250;
+        Width = 400;
+        Height = 290;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         ShowInTaskbar = false;
         MaximizeBox = false;
@@ -27,31 +25,28 @@ public sealed class NotificationPopupForm : Form
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
-            RowCount = 3,
+            RowCount = 2,
             Padding = new Padding(14),
         };
-        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
-        _titleLabel = new Label
-        {
-            Dock = DockStyle.Top,
-            AutoSize = true,
-            Font = new Font("Segoe UI", 11F, FontStyle.Bold),
-            Text = notification.Title,
-            MaximumSize = new Size(320, 0),
-        };
-
-        _messageLabel = new Label
+        var contentPanel = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill,
-            AutoSize = true,
-            Font = new Font("Segoe UI", 10F),
-            Text = notification.Body_Short,
-            MaximumSize = new Size(320, 0),
-            Padding = new Padding(0, 8, 0, 0),
+            FlowDirection = FlowDirection.TopDown,
+            WrapContents = false,
+            AutoScroll = true,
+            AutoSize = false,
+            Margin = new Padding(0),
+            Padding = new Padding(0),
         };
+
+        AddLine(contentPanel, notification.Title, bold: true, topPadding: 0);
+        foreach (var line in notification.Body_Short.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            AddLine(contentPanel, line, bold: false, topPadding: 6);
+        }
 
         var buttonPanel = new FlowLayoutPanel
         {
@@ -88,9 +83,8 @@ public sealed class NotificationPopupForm : Form
         buttonPanel.Controls.Add(_openButton);
         buttonPanel.Controls.Add(_closeButton);
 
-        layout.Controls.Add(_titleLabel, 0, 0);
-        layout.Controls.Add(_messageLabel, 0, 1);
-        layout.Controls.Add(buttonPanel, 0, 2);
+        layout.Controls.Add(contentPanel, 0, 0);
+        layout.Controls.Add(buttonPanel, 0, 1);
 
         Controls.Add(layout);
     }
@@ -111,5 +105,23 @@ public sealed class NotificationPopupForm : Form
     {
         var area = Screen.PrimaryScreen?.WorkingArea ?? Screen.FromControl(this).WorkingArea;
         Location = new Point(area.Right - Width - 16, area.Bottom - Height - 16);
+    }
+
+    private static void AddLine(FlowLayoutPanel panel, string text, bool bold, int topPadding)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return;
+        }
+
+        var label = new Label
+        {
+            AutoSize = true,
+            MaximumSize = new Size(340, 0),
+            Margin = new Padding(0, topPadding, 0, 0),
+            Font = bold ? new Font("Segoe UI", 10.5F, FontStyle.Bold) : new Font("Segoe UI", 10F),
+            Text = text,
+        };
+        panel.Controls.Add(label);
     }
 }

@@ -96,5 +96,25 @@
         </a>
       </article>
     {% endif %}
+    {% if show_card_notificacoes %}
+      <article class="card card-square">
+        <a class="card-link card-square-link" href="{% url 'administracao_notificacao_historico' %}">
+          <div class="card-body">
+            <h3 class="card-title">Acompanhar notificacoes</h3>
+            <p class="card-text">Consultar notificacoes ja enviadas e acompanhar status de exibicao e leitura.</p>
+          </div>
+        </a>
+      </article>
+    {% endif %}
+    {% if show_card_rastreamento_navegacao %}
+      <article class="card card-square">
+        <a class="card-link card-square-link" href="{% url 'rastreamento_navegacao_dashboard' %}">
+          <div class="card-body">
+            <h3 class="card-title">Navegacao</h3>
+            <p class="card-text">Analisar visitas por pagina, periodo e tendencia diaria de acesso.</p>
+          </div>
+        </a>
+      </article>
+    {% endif %}
   </section>
 {% endblock %}

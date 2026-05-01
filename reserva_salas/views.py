@@ -19,7 +19,7 @@ from urllib.parse import urlencode
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import PermissionRequiredMixin, UserPassesTestMixin
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.db.models.functions import TruncMonth
 from django.http import HttpResponse
 from django.shortcuts import redirect
@@ -32,6 +32,15 @@ from .forms import ReservaForm, SalaForm
 from .models import Reserva, Sala
 
 User = get_user_model()
+
+
+def _user_has_only_view_permissions(user) -> bool:
+    """Identifica perfis estritamente de leitura sem impactar usuários sem permissões explícitas."""
+
+    if not getattr(user, "is_authenticated", False):
+        return False
+    permissions = user.get_all_permissions()
+    return bool(permissions) and all(".view_" in permission for permission in permissions)
 
 
 def _nome_curto(nome: str) -> str:
@@ -147,6 +156,32 @@ class ReservaListView(ListView):
     model = Reserva
     template_name = "reserva_salas/reserva_list.html"
     context_object_name = "reservas"
+
+    def get_queryset(self):
+        queryset = Reserva.objects.select_related("sala").all()
+        query = (self.request.GET.get("q") or "").strip()
+        if not query:
+            return queryset
+
+        filtros = (
+            Q(nome_evento__icontains=query)
+            | Q(sala__nome__icontains=query)
+            | Q(responsavel_evento__icontains=query)
+        )
+
+        for formato in ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y"):
+            try:
+                filtros |= Q(data=datetime.strptime(query, formato).date())
+                break
+            except ValueError:
+                continue
+
+        return queryset.filter(filtros)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["search_query"] = (self.request.GET.get("q") or "").strip()
+        return context
 
 
 class ReservaDashboardView(ListView):
@@ -553,7 +588,8 @@ class ReservaCreateView(UserPassesTestMixin, CreateView):
         Retorno:
         - `bool`: `True` para usuário autenticado.
         """
-        return self.request.user.is_authenticated
+        user = self.request.user
+        return user.is_authenticated and not _user_has_only_view_permissions(user)
 
     def form_valid(self, form):
         """
@@ -652,6 +688,8 @@ class ReservaUpdateView(UserPassesTestMixin, UpdateView):
         user = self.request.user
         if not user.is_authenticated:
             return False
+        if _user_has_only_view_permissions(user):
+            return False
         if user.is_staff or user.has_perm("reserva_salas.change_reserva"):
             return True
         return self.get_object().registrado_por_id == user.id
@@ -745,6 +783,8 @@ class ReservaDeleteView(UserPassesTestMixin, DeleteView):
         """
         user = self.request.user
         if not user.is_authenticated:
+            return False
+        if _user_has_only_view_permissions(user):
             return False
         if user.is_staff or user.has_perm("reserva_salas.delete_reserva"):
             return True

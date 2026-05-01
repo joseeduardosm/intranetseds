@@ -37,27 +37,67 @@ if hasattr(time, "tzset"):
     time.tzset()
 
 
+def _env(name, default=None):
+    return os.environ.get(name, default)
+
+
+def _env_bool(name, default=False):
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _env_list(name, default):
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
 # Configurações rápidas para desenvolvimento (não usar em produção).
 # Veja: https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # ATENÇÃO: mantenha a SECRET_KEY em segredo em produção!
-SECRET_KEY = 'django-insecure-3ldqwwlp74jd-txa89@%w+6k+_km21sxh^qb&^kij&5w=n&=ee'
+SECRET_KEY = _env(
+    "DJANGO_SECRET_KEY",
+    "django-insecure-3ldqwwlp74jd-txa89@%w+6k+_km21sxh^qb&^kij&5w=n&=ee",
+)
 
 # ATENÇÃO: não deixe DEBUG=True em produção!
-DEBUG = True
+DEBUG = _env_bool("DJANGO_DEBUG", True)
 
 # Hosts permitidos a acessar a aplicação.
 # ALLOWED_HOSTS = []
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "10.22.0.37", "sgi.seds.sp.gov.br"]
+ALLOWED_HOSTS = _env_list(
+    "DJANGO_ALLOWED_HOSTS",
+    [
+        "localhost",
+        "127.0.0.1",
+        "10.22.0.37",
+        "sgi.seds.sp.gov.br",
+        "200.144.29.245",
+    ],
+)
 
-# Ambientes suportados para acesso interno e publicado.
-CSRF_TRUSTED_ORIGINS = [
-    "http://sgi.seds.sp.gov.br",
-    "https://sgi.seds.sp.gov.br",
-]
-CSRF_COOKIE_SECURE = False
-SESSION_COOKIE_SECURE = False
-SECURE_SSL_REDIRECT = False
+CSRF_TRUSTED_ORIGINS = _env_list(
+    "DJANGO_CSRF_TRUSTED_ORIGINS",
+    [
+        "http://200.144.29.245",
+        "https://200.144.29.245",
+        "http://sgi.seds.sp.gov.br",
+        "https://sgi.seds.sp.gov.br",
+    ],
+)
+
+CSRF_COOKIE_SECURE = _env_bool("DJANGO_CSRF_COOKIE_SECURE", False)
+SESSION_COOKIE_SECURE = _env_bool("DJANGO_SESSION_COOKIE_SECURE", False)
+SECURE_SSL_REDIRECT = _env_bool("DJANGO_SECURE_SSL_REDIRECT", False)
+USE_X_FORWARDED_HOST = _env_bool("DJANGO_USE_X_FORWARDED_HOST", True)
+SECURE_PROXY_SSL_HEADER = (
+    "HTTP_X_FORWARDED_PROTO",
+    _env("DJANGO_SECURE_PROXY_SSL_HEADER_PROTO", "https"),
+)
 
 
 # Definição dos apps instalados.
@@ -87,6 +127,7 @@ INSTALLED_APPS = [
     'lousa_digital.apps.LousaDigitalConfig',
     'acompanhamento_sistemas.apps.AcompanhamentoSistemasConfig',
     'notificacoes.apps.NotificacoesConfig',
+    'rastreamento_navegacao.apps.RastreamentoNavegacaoConfig',
 ]
 
 # Pipeline de middlewares (ordem importa).
@@ -97,6 +138,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'rastreamento_navegacao.middleware.PageVisitTrackingMiddleware',
     'auditoria.middleware.CurrentUserMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -135,9 +177,6 @@ WSGI_APPLICATION = 'intranet.wsgi.application'
 
 # Banco de dados.
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
-
-def _env(name, default=None):
-    return os.environ.get(name, default)
 
 
 _mysql_name = _env("MYSQL_NAME")
@@ -207,7 +246,7 @@ STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Arquivos de mídia enviados via formulário.
-MEDIA_URL = 'media/'
+MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 # URLs padrão de autenticação.

@@ -7,7 +7,7 @@ de atalhos. Ele integra a camada de apresentacao com regras de permissao
 encapsuladas nas views.
 """
 
-from django.urls import path
+from django.urls import include, path
 from . import views
 
 urlpatterns = [
@@ -37,6 +37,15 @@ urlpatterns = [
         "configuracoes/backup-sistema/",
         views.SystemBackupDownloadView.as_view(),
         name="administracao_backup_sistema",
+    ),
+    path(
+        "configuracoes/notificacoes/",
+        views.NotificacaoHistoricoListView.as_view(),
+        name="administracao_notificacao_historico",
+    ),
+    path(
+        "configuracoes/rastreamento-navegacao/",
+        include("rastreamento_navegacao.urls"),
     ),
     # CRUD de atalhos de servico exibidos na interface.
     path(

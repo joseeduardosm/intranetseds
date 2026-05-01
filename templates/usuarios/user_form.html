@@ -140,9 +140,35 @@
         </div>
         {{ form.admin.errors }}
       </div>
-      <div class="form-field form-field--wide">
-        <label>{{ form.perfis.label }}</label>
-        <div class="table-wrapper">
+      <div class="form-field form-field--wide perfil-section">
+        <div class="perfil-section-header">
+          <label>{{ form.perfis.label }}</label>
+        </div>
+        <div class="perfil-quick-add">
+          <div class="perfil-quick-add-row">
+            <div class="perfil-quick-add-field">
+              <label for="perfil-app-select">App</label>
+              <select id="perfil-app-select" class="form-control">
+                <option value="" selected>Selecione...</option>
+                {% for app_label in perfil_app_options %}
+                  <option value="{{ app_label }}">{{ app_label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="perfil-quick-add-field perfil-quick-add-checks">
+              <label>Permissoes</label>
+              <div class="perfil-quick-add-checks-row">
+                <label class="perfil-quick-add-check"><input type="checkbox" id="perfil-add-leitura" /> Leitura</label>
+                <label class="perfil-quick-add-check"><input type="checkbox" id="perfil-add-edicao" /> Escrita</label>
+                <label class="perfil-quick-add-check"><input type="checkbox" id="perfil-add-admin" /> Exclusao</label>
+              </div>
+            </div>
+            <div class="perfil-quick-add-field perfil-quick-add-action">
+              <button class="btn btn-secondary" type="button" id="perfil-add-button">Adicionar</button>
+            </div>
+          </div>
+        </div>
+        <div class="table-wrapper perfil-table">
           <table class="table">
             <thead>
               <tr>
@@ -154,10 +180,18 @@
             </thead>
             <tbody>
               {% for row in perfil_matrix %}
-                <tr>
+                <tr
+                  data-app="{{ row.label }}"
+                  class="perfil-row{% if not row.is_selected %} perfil-row-hidden{% endif %}"
+                  {% if not row.is_selected %}style="display:none"{% endif %}
+                >
                   <td>{{ row.label }}</td>
                   {% for cell in row.cells %}
-                    <td>{{ cell|safe }}</td>
+                    <td data-access="{{ cell.level_label }}">
+                      {% if cell.checkbox %}
+                        {{ cell.checkbox.tag }}
+                      {% endif %}
+                    </td>
                   {% endfor %}
                 </tr>
               {% endfor %}
@@ -268,6 +302,67 @@
       });
 
       renderSetores("");
+    }
+
+    const addAppSelect = document.getElementById("perfil-app-select");
+    const addLeitura = document.getElementById("perfil-add-leitura");
+    const addEdicao = document.getElementById("perfil-add-edicao");
+    const addAdmin = document.getElementById("perfil-add-admin");
+    const addButton = document.getElementById("perfil-add-button");
+
+    const accessMap = {
+      Leitura: addLeitura,
+      "Criar/Editar": addEdicao,
+      Excluir: addAdmin,
+    };
+
+    const applyAccess = (row, accessKey) => {
+      const cell = row.querySelector(`td[data-access="${accessKey}"]`);
+      if (!cell) return;
+      const input = cell.querySelector('input[type="checkbox"]');
+      if (!input || input.disabled) return;
+      input.checked = true;
+    };
+
+    const updateRowVisibility = (row) => {
+      if (!row) return;
+      const inputs = row.querySelectorAll('input[type="checkbox"]');
+      const anyChecked = Array.from(inputs).some((input) => input.checked);
+      row.classList.toggle("perfil-row-hidden", !anyChecked);
+      row.style.display = anyChecked ? "" : "none";
+    };
+
+    const bindRowInputs = (row) => {
+      const inputs = row.querySelectorAll('input[type="checkbox"]');
+      inputs.forEach((input) => {
+        input.addEventListener("change", () => updateRowVisibility(row));
+      });
+    };
+
+    document.querySelectorAll("tr.perfil-row").forEach((row) => {
+      bindRowInputs(row);
+      updateRowVisibility(row);
+    });
+
+    if (addButton && addAppSelect) {
+      addButton.addEventListener("click", () => {
+        const selectedApp = addAppSelect.value;
+        if (!selectedApp) {
+          alert("Selecione um app para adicionar.");
+          return;
+        }
+        const row = document.querySelector(`tr[data-app="${selectedApp}"]`);
+        if (!row) {
+          alert("App nao encontrado na lista. Atualize a pagina.");
+          return;
+        }
+        Object.entries(accessMap).forEach(([accessKey, checkbox]) => {
+          if (checkbox && checkbox.checked) {
+            applyAccess(row, accessKey);
+          }
+        });
+        updateRowVisibility(row);
+      });
     }
   </script>
 {% endblock %}

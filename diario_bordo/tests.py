@@ -8,6 +8,7 @@ from django.utils import timezone
 
 from .models import BlocoTrabalho, DiarioMarcador, DiarioMarcadorVinculo, Incremento
 from .views import _dias_desde
+from notificacoes.models import NotificacaoUsuario
 
 
 class DiasDesdeTests(SimpleTestCase):
@@ -79,11 +80,64 @@ class BlocoTrabalhoUpdateViewTests(TestCase):
         )
 
         self.assertIn("Participante Novo inserido no bloco de trabalho", textos)
+        self.assertIn("Participante Antigo removido do bloco de trabalho", textos)
         self.assertIn("Alterou nome de Bloco original para Bloco revisado", textos)
         self.assertIn("Alterou descricao de Descricao antiga para Descricao nova", textos)
         self.assertIn("Alterou status de À Fazer para Concluído", textos)
-        self.assertIn(
-            "Alterou participantes de Participante Antigo para Participante Novo",
-            textos,
-        )
+        self.assertNotIn("Alterou participantes de Participante Antigo para Participante Novo", textos)
         self.assertIn("Alterou marcadores de Urgente para Prioridade Alta", textos)
+
+
+class DiarioBordoNotificacoesTests(TestCase):
+    def setUp(self):
+        user_model = get_user_model()
+        self.autor = user_model.objects.create_superuser(
+            username="autor_diario",
+            email="autor@example.com",
+            password="senha-forte-123",
+        )
+        self.participante = user_model.objects.create_user(
+            username="participante_diario",
+            first_name="Participante",
+            last_name="Diario",
+            password="senha-forte-123",
+        )
+        self.bloco = BlocoTrabalho.objects.create(
+            nome="Bloco notificacoes",
+            descricao="Descricao",
+            status=BlocoTrabalho.Status.EM_ANDAMENTO,
+        )
+        self.bloco.participantes.add(self.autor, self.participante)
+
+    def test_incremento_notifica_participante_e_nao_autor(self):
+        self.client.force_login(self.autor)
+
+        response = self.client.post(
+            reverse("diario_bordo_incremento_create", kwargs={"pk": self.bloco.pk}),
+            {"texto": "Nova atualização operacional"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        notificacao = NotificacaoUsuario.objects.get(user=self.participante, source_app="diario_bordo")
+        self.assertEqual(notificacao.event_type, "incremento")
+        self.assertEqual(notificacao.title, f"Diário de Bordo: {self.bloco.nome}")
+        self.assertIn("Incremento: Nova atualização operacional", notificacao.body_short)
+        self.assertIn(self.bloco.get_absolute_url(), notificacao.target_url)
+        self.assertFalse(NotificacaoUsuario.objects.filter(user=self.autor, source_app="diario_bordo").exists())
+
+    def test_ciencia_notifica_outros_participantes(self):
+        incremento = Incremento.objects.create(
+            bloco=self.bloco,
+            texto="Incremento base",
+            criado_por=self.autor,
+        )
+        self.client.force_login(self.autor)
+
+        response = self.client.post(
+            reverse("diario_bordo_incremento_ciente", kwargs={"pk": incremento.pk}),
+        )
+
+        self.assertEqual(response.status_code, 302)
+        notificacao = NotificacaoUsuario.objects.get(user=self.participante, event_type="ciencia_incremento")
+        self.assertEqual(notificacao.title, f"Diário de Bordo: {self.bloco.nome}")
+        self.assertIn("Ciência registrada no incremento: Incremento base", notificacao.body_short)

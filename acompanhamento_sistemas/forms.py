@@ -5,8 +5,28 @@ from django.contrib.auth import get_user_model
 
 from usuarios.utils import usuarios_visiveis
 
-from .models import EntregaSistema, EtapaSistema, InteressadoSistema, InteressadoSistemaManual, Sistema, TipoInteressado
+from .models import (
+    EntregaSistema,
+    EtapaProcessoRequisito,
+    EtapaSistema,
+    InteressadoSistema,
+    InteressadoSistemaManual,
+    ProcessoRequisito,
+    Sistema,
+    TipoInteressado,
+)
 from .utils import nome_usuario_exibicao
+
+ETAPAS_SEM_DATA = {
+    EtapaSistema.TipoEtapa.REQUISITOS,
+    EtapaSistema.TipoEtapa.HOMOLOGACAO_REQUISITOS,
+}
+
+ETAPAS_FINAIS_COM_DATA_OBRIGATORIA = {
+    EtapaSistema.TipoEtapa.DESENVOLVIMENTO,
+    EtapaSistema.TipoEtapa.HOMOLOGACAO_DESENVOLVIMENTO,
+    EtapaSistema.TipoEtapa.PRODUCAO,
+}
 
 
 User = get_user_model()
@@ -64,6 +84,98 @@ class EntregaSistemaForm(forms.ModelForm):
         }
 
 
+class ProcessoRequisitoForm(forms.ModelForm):
+    class Meta:
+        model = ProcessoRequisito
+        fields = ["titulo", "descricao"]
+        widgets = {
+            "titulo": forms.TextInput(attrs={"class": "form-control"}),
+            "descricao": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
+        }
+
+
+class EtapaProcessoRequisitoAtualizacaoForm(forms.ModelForm):
+    justificativa_status = forms.CharField(
+        required=False,
+        label="Nota / acompanhamento",
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 4}),
+    )
+    anexos = MultipleFileField(
+        required=False,
+        label="Anexos",
+        widget=MultipleFileInput(attrs={"class": "form-control", "multiple": True}),
+    )
+
+    class Meta:
+        model = EtapaProcessoRequisito
+        fields = ["status"]
+        widgets = {
+            "status": forms.Select(attrs={"class": "form-control"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and getattr(self.instance, "pk", None):
+            choices = [(self.instance.status, self.instance.get_status_display())]
+            if self.instance.dependencias_concluidas:
+                choices.extend(
+                    [
+                        (status, EtapaProcessoRequisito.Status(status).label)
+                        for status in self.instance.proximos_status_permitidos
+                    ]
+                )
+            self.fields["status"].choices = choices
+            self.initial.setdefault("status", self.instance.status)
+            if not self.instance.dependencias_concluidas and self.instance.mensagem_bloqueio_dependencia:
+                self.fields["status"].help_text = self.instance.mensagem_bloqueio_dependencia
+            elif not self.instance.proximos_status_permitidos:
+                self.fields["status"].help_text = "Esta etapa já está em um status final e não aceita novas mudanças."
+
+    def clean(self):
+        cleaned_data = super().clean()
+        status_novo = cleaned_data.get("status")
+        justificativa = (cleaned_data.get("justificativa_status") or "").strip()
+        anexos = cleaned_data.get("anexos") or []
+        if self.instance and getattr(self.instance, "pk", None):
+            if status_novo and status_novo != self.instance.status:
+                if not self.instance.dependencias_concluidas:
+                    self.add_error("status", self.instance.mensagem_bloqueio_dependencia)
+                elif status_novo not in self.instance.proximos_status_permitidos:
+                    self.add_error("status", "Transição de status inválida para esta etapa.")
+            if status_novo and status_novo != self.instance.status and not justificativa:
+                self.add_error("justificativa_status", "Informe a nota/acompanhamento ao alterar o status.")
+            if (
+                self.instance.status != EtapaProcessoRequisito.Status.VALIDACAO
+                and status_novo == EtapaProcessoRequisito.Status.VALIDACAO
+                and not anexos
+            ):
+                self.add_error("anexos", "Ao enviar para Validação, anexe obrigatoriamente um arquivo.")
+        return cleaned_data
+
+
+class GerarProcessoTransformacaoForm(forms.Form):
+    acao = forms.ChoiceField(
+        choices=[
+            ("ciclo", "Gerar ciclo no sistema atual"),
+            ("sistema", "Gerar novo sistema"),
+        ],
+        widget=forms.RadioSelect,
+        label="Ação",
+    )
+
+
+class GerarNovoSistemaAPartirProcessosForm(forms.ModelForm):
+    class Meta:
+        model = Sistema
+        fields = ["nome", "descricao", "url_homologacao", "url_producao"]
+        widgets = {
+            "nome": forms.TextInput(attrs={"class": "form-control"}),
+            "descricao": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
+            "url_homologacao": forms.URLInput(attrs={"class": "form-control", "placeholder": "https://..."}),
+            "url_producao": forms.URLInput(attrs={"class": "form-control", "placeholder": "https://..."}),
+        }
+
+
 class EtapaSistemaAtualizacaoForm(forms.ModelForm):
     data_etapa = forms.DateField(
         required=False,
@@ -114,17 +226,38 @@ class EtapaSistemaAtualizacaoForm(forms.ModelForm):
             if self.instance.tipo_etapa == EtapaSistema.TipoEtapa.REQUISITOS:
                 self.fields["anexos"].label = "Anexo dos requisitos"
                 self.fields["anexos"].help_text = "Ao concluir Requisitos, anexe obrigatoriamente o documento de requisitos."
+            if self.instance.tipo_etapa in ETAPAS_SEM_DATA:
+                self.fields["data_etapa"].help_text = "Esta etapa não utiliza data."
 
     def clean(self):
         cleaned_data = super().clean()
         status_novo = cleaned_data.get("status")
         justificativa = (cleaned_data.get("justificativa_status") or "").strip()
         anexos = cleaned_data.get("anexos") or []
+        if self.instance and getattr(self.instance, "pk", None) and self.instance.tipo_etapa in ETAPAS_SEM_DATA:
+            cleaned_data["data_etapa"] = None
         if self.instance and getattr(self.instance, "pk", None):
             if status_novo and status_novo != self.instance.status and not justificativa:
                 self.add_error("justificativa_status", "Informe a justificativa ao alterar o status.")
-            if self.instance.entrega.status == EntregaSistema.Status.PUBLICADO and not cleaned_data.get("data_etapa"):
+            if (
+                self.instance.entrega.status == EntregaSistema.Status.PUBLICADO
+                and self.instance.tipo_etapa not in ETAPAS_SEM_DATA
+                and not cleaned_data.get("data_etapa")
+            ):
                 self.add_error("data_etapa", "Informe a data da etapa.")
+            if self.instance.tipo_etapa in ETAPAS_FINAIS_COM_DATA_OBRIGATORIA:
+                etapas = {etapa.tipo_etapa: etapa for etapa in self.instance.entrega.etapas.all()}
+                faltam_datas = []
+                for tipo_etapa in ETAPAS_FINAIS_COM_DATA_OBRIGATORIA:
+                    etapa = etapas.get(tipo_etapa)
+                    data_referencia = cleaned_data.get("data_etapa") if tipo_etapa == self.instance.tipo_etapa else (etapa.data_etapa if etapa else None)
+                    if not data_referencia:
+                        faltam_datas.append(etapa.get_tipo_etapa_display() if etapa is not None else tipo_etapa)
+                if faltam_datas:
+                    self.add_error(
+                        "data_etapa",
+                        "Defina a data de Desenvolvimento, Homologação do Desenvolvimento e Produção antes de atualizar essas etapas.",
+                    )
             if (
                 self.instance.tipo_etapa == EtapaSistema.TipoEtapa.REQUISITOS
                 and status_novo == EtapaSistema.Status.ENTREGUE

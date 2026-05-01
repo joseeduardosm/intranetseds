@@ -4,7 +4,365 @@
 
 {% block container_class %}container-wide acompanhamento-container{% endblock %}
 {% block extra_css %}
-  <link rel="stylesheet" href="{% static 'css/acompanhamento_sistemas/acompanhamento_sistemas.css' %}" />
+  <link rel="stylesheet" href="{% static 'css/acompanhamento_sistemas/acompanhamento_sistemas.css' %}?v={% now 'U' %}" />
+  <link rel="stylesheet" href="{% static 'css/acompanhamento_sistemas.css' %}?v={% now 'U' %}" />
+  <style>
+    .acompanhamento-container .acompanhamento-detail-grid.acompanhamento-detail-grid--processos {
+      display: grid;
+      grid-template-columns: minmax(280px, 30%) minmax(0, 70%);
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .acompanhamento-container .acompanhamento-detail-grid.acompanhamento-detail-grid--processos > .acompanhamento-card {
+      min-width: 0;
+    }
+
+    .acompanhamento-container .acompanhamento-processos-shell {
+      overflow-x: auto;
+      margin-top: 14px;
+      border: 1px solid #e6ddcf;
+      border-radius: 18px;
+      background:
+        linear-gradient(180deg, rgba(157, 14, 53, 0.05) 0%, rgba(157, 14, 53, 0) 70%),
+        #fffdfa;
+    }
+
+    .acompanhamento-container .acompanhamento-processos-grid.acompanhamento-processos-grid--requisitos {
+      display: grid !important;
+      grid-template-columns: minmax(240px, 1.2fr) repeat(3, minmax(140px, 0.55fr)) 84px !important;
+      min-width: 980px;
+      align-items: stretch;
+    }
+
+    .acompanhamento-container .acompanhamento-processos-grid.acompanhamento-processos-grid--requisitos > div,
+    .acompanhamento-container .acompanhamento-processos-grid.acompanhamento-processos-grid--requisitos > a {
+      padding: 8px 14px;
+      border-right: 1px solid #ece5d8;
+      border-bottom: 1px solid #ece5d8;
+      box-sizing: border-box;
+    }
+
+    .acompanhamento-container .acompanhamento-processos-grid.acompanhamento-processos-grid--requisitos > div {
+      background: #fff;
+    }
+
+    .acompanhamento-container .acompanhamento-processos-grid.acompanhamento-processos-grid--requisitos > a {
+      background: transparent;
+    }
+
+    .acompanhamento-container .acompanhamento-processos-grid.acompanhamento-processos-grid--requisitos > :nth-child(5n) {
+      border-right: 0;
+    }
+
+    .acompanhamento-container .acompanhamento-processos-grid.acompanhamento-processos-grid--requisitos > .head {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: var(--nav-bg);
+      color: #fff;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      font-size: 0.78rem;
+    }
+
+    .acompanhamento-container .acompanhamento-processo-meta--principal {
+      display: grid;
+      gap: 4px;
+      align-content: center;
+      align-items: start;
+      justify-items: start;
+      min-height: 100%;
+      background: linear-gradient(180deg, #fff 0%, #fffaf4 100%);
+    }
+
+    .acompanhamento-container .acompanhamento-processo-meta-top {
+      display: flex;
+      justify-content: flex-start;
+      align-items: flex-start;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .acompanhamento-container .acompanhamento-processo-titulo {
+      margin: 0;
+      color: #13294b;
+      font-size: 0.92rem;
+      line-height: 1.2;
+    }
+
+    .acompanhamento-container .acompanhamento-processo-link--title {
+      text-decoration: none;
+      min-width: 0;
+    }
+
+    .acompanhamento-container .acompanhamento-processo-descricao--rich {
+      margin: 0;
+      color: #6b7280;
+      line-height: 1.5;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .acompanhamento-container .acompanhamento-processo-submeta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 16px;
+      color: #6b7280;
+      font-size: 0.82rem;
+    }
+
+    .acompanhamento-container .acompanhamento-processo-cell {
+      min-height: 44px;
+      display: flex !important;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      text-align: center;
+      text-decoration: none;
+      font-weight: 800;
+      border-radius: 12px;
+      margin: 6px 8px;
+      padding: 8px;
+      color: #1f2937;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .acompanhamento-container .acompanhamento-processo-cell:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+
+    .acompanhamento-container .acompanhamento-processo-cell strong {
+      display: block;
+      font-size: 0.88rem;
+      line-height: 1.2;
+    }
+
+    .acompanhamento-container .acompanhamento-processo-cell small {
+      display: block;
+      margin-top: 4px;
+      font-size: 0.62rem;
+      line-height: 1.2;
+      opacity: 0.85;
+      font-weight: 600;
+    }
+
+    .acompanhamento-container .acompanhamento-processo-cell small span {
+      display: block;
+    }
+
+    .acompanhamento-container .acompanhamento-processos-grid.acompanhamento-processos-grid--requisitos > a.acompanhamento-processo-cell--pendente {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fca5a5;
+    }
+
+    .acompanhamento-container .acompanhamento-processos-grid.acompanhamento-processos-grid--requisitos > a.acompanhamento-processo-cell--em_andamento {
+      background: #fef3c7;
+      color: #b45309;
+      border: 1px solid #fcd34d;
+    }
+
+    .acompanhamento-container .acompanhamento-processos-grid.acompanhamento-processos-grid--requisitos > a.acompanhamento-processo-cell--validacao {
+      background: #fef08a;
+      color: #854d0e;
+      font-weight: 900;
+      border: 1px solid #fde047;
+    }
+
+    .acompanhamento-container .acompanhamento-processos-grid.acompanhamento-processos-grid--requisitos > a.acompanhamento-processo-cell--aprovado {
+      background: #d1fae5;
+      color: #065f46;
+      border: 1px solid #6ee7b7;
+    }
+
+    .acompanhamento-container .acompanhamento-processos-grid.acompanhamento-processos-grid--requisitos > a.acompanhamento-processo-cell--reprovado_vivo {
+      background: #fecaca;
+      color: #b91c1c;
+      border: 1px solid #fca5a5;
+    }
+
+    .acompanhamento-container .acompanhamento-processos-grid.acompanhamento-processos-grid--requisitos > a.acompanhamento-processo-cell--retirado_escopo {
+      background: #f3f4f6;
+      color: #374151;
+      font-weight: 900;
+      border: 1px solid #d1d5db;
+    }
+
+    .acompanhamento-container .acompanhamento-processo-actions {
+      display: flex !important;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      background: #fffdf9;
+    }
+
+    .acompanhamento-container .acompanhamento-processo-menu-trigger {
+      width: 28px;
+      height: 28px;
+      min-height: 28px;
+      border-radius: 999px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.05rem;
+      line-height: 1;
+      font-weight: 700;
+    }
+
+    .acompanhamento-container .acompanhamento-processo-menu {
+      position: fixed;
+      top: 0;
+      left: 0;
+      min-width: 150px;
+      padding: 10px;
+      border: 1px solid #e6ddcf;
+      border-radius: 14px;
+      background: #fff;
+      box-shadow: 0 16px 30px rgba(15, 23, 42, 0.14);
+      display: grid;
+      gap: 8px;
+      z-index: 2000;
+    }
+
+    .acompanhamento-container .acompanhamento-processo-menu.auth-required-hidden {
+      display: none;
+    }
+
+    .acompanhamento-container .acompanhamento-processo-menu .btn {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .acompanhamento-container .acompanhamento-processo-menu form {
+      margin: 0;
+    }
+
+    .acompanhamento-container #acompanhamento-transformacao-modal {
+      max-width: 620px;
+    }
+
+    .acompanhamento-container .acompanhamento-radio-list {
+      display: grid;
+      gap: 12px;
+      margin: 18px 0 16px;
+    }
+
+    .acompanhamento-container .acompanhamento-radio-option {
+      display: grid;
+      grid-template-columns: 22px minmax(0, 1fr);
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      border: 1px solid #e6ddcf;
+      border-radius: 14px;
+      background: #fbfaf7;
+      cursor: pointer;
+    }
+
+    .acompanhamento-container .acompanhamento-radio-option input[type="radio"] {
+      width: 20px;
+      height: 20px;
+      margin: 0;
+    }
+
+    .acompanhamento-container .acompanhamento-radio-option__text {
+      display: block;
+      font-weight: 700;
+      color: #1f2937;
+      line-height: 1.3;
+    }
+
+    .acompanhamento-container .acompanhamento-radio-option:has(input[type="radio"]:checked) {
+      border-color: #d95f02;
+      box-shadow: 0 0 0 3px rgba(217, 95, 2, 0.12);
+      background: #fff;
+    }
+
+    .acompanhamento-container .acompanhamento-radio-option.acompanhamento-disabled-label {
+      background: #f3f4f6;
+      cursor: not-allowed;
+    }
+
+    .acompanhamento-container .acompanhamento-transformacao-actions {
+      justify-content: flex-start;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .acompanhamento-container .acompanhamento-processos-empty {
+      grid-column: 1 / -1;
+      margin: 16px;
+      padding: 36px 24px;
+      text-align: center;
+      color: #6b7280;
+      background: #fbfaf7;
+      border: 1px dashed #d9cdbb;
+      border-radius: 16px;
+    }
+
+    @media (max-width: 1100px) {
+      .acompanhamento-container .acompanhamento-detail-grid.acompanhamento-detail-grid--processos {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 860px) {
+      .acompanhamento-container .acompanhamento-processos-shell {
+        overflow: visible;
+        border: 0;
+        background: transparent;
+      }
+
+      .acompanhamento-container .acompanhamento-processos-grid.acompanhamento-processos-grid--requisitos {
+        min-width: 0;
+        grid-template-columns: 1fr !important;
+        gap: 14px;
+      }
+
+      .acompanhamento-container .acompanhamento-processos-grid.acompanhamento-processos-grid--requisitos > .head {
+        display: none;
+      }
+
+      .acompanhamento-container .acompanhamento-processos-grid.acompanhamento-processos-grid--requisitos > div,
+      .acompanhamento-container .acompanhamento-processos-grid.acompanhamento-processos-grid--requisitos > a {
+        border: 0;
+        border-radius: 14px;
+        padding: 14px 16px;
+      }
+
+      .acompanhamento-container .acompanhamento-processo-meta--principal,
+      .acompanhamento-container .acompanhamento-processo-actions {
+        background: #fff;
+      }
+
+      .acompanhamento-container .acompanhamento-processo-cell {
+        min-height: 0;
+      }
+
+      .acompanhamento-container .acompanhamento-processo-menu {
+        position: fixed;
+        min-width: 0;
+        width: min(220px, calc(100vw - 32px));
+      }
+
+      .acompanhamento-container .acompanhamento-processo-menu .btn {
+        width: auto;
+        flex: 1 1 140px;
+      }
+
+      .acompanhamento-container .acompanhamento-radio-option {
+        grid-template-columns: 20px minmax(0, 1fr);
+      }
+    }
+  </style>
 {% endblock %}
 
 {% block content %}
@@ -13,122 +371,124 @@
   </section>
 
   <div class="card-actions acompanhamento-card-actions--tight">
+    <a class="btn btn-light" href="{% url 'acompanhamento_sistemas_historico' sistema.pk %}">Histórico</a>
     {% if perms.acompanhamento_sistemas.change_sistema %}
       <a class="btn" href="{% url 'acompanhamento_sistemas_update' sistema.pk %}">Editar sistema</a>
+    {% endif %}
+    {% if pode_editar_sistema %}
+      <a class="btn" href="#" id="acompanhamento-open-interessado-modal">Interessados</a>
     {% endif %}
     {% if pode_excluir_sistema %}
       <a class="btn btn-secondary" href="{% url 'acompanhamento_sistemas_delete' sistema.pk %}">Excluir sistema</a>
     {% endif %}
+    {% if sistema.url_homologacao %}
+      <a class="btn btn-light" href="{{ sistema.url_homologacao }}" target="_blank" rel="noopener">Amb. Homologação</a>
+    {% endif %}
+    {% if sistema.url_producao %}
+      <a class="btn btn-light" href="{{ sistema.url_producao }}" target="_blank" rel="noopener">Amb. Produção</a>
+    {% endif %}
     <a class="btn btn-light" href="{% url 'acompanhamento_sistemas_list' %}">Voltar</a>
   </div>
 
-  <div class="acompanhamento-detail-grid">
+  <div class="acompanhamento-detail-grid acompanhamento-detail-grid--processos">
     <section class="detail-card acompanhamento-card">
       <h3>Dados do sistema</h3>
       {% include "acompanhamento_sistemas/_progresso_simples.html" with item=sistema %}
       <p><strong>Descrição:</strong> {{ sistema.descricao|linebreaksbr }}</p>
-      <p>
-        <strong>URL de homologação:</strong>
-        {% if sistema.url_homologacao %}
-          <a href="{{ sistema.url_homologacao }}" target="_blank" rel="noopener">{{ sistema.url_homologacao }}</a>
-        {% else %}
-          -
-        {% endif %}
-      </p>
-      <p>
-        <strong>URL de produção:</strong>
-        {% if sistema.url_producao %}
-          <a href="{{ sistema.url_producao }}" target="_blank" rel="noopener">{{ sistema.url_producao }}</a>
-        {% else %}
-          -
-        {% endif %}
-      </p>
       <p><strong>Cadastrado em:</strong> {{ sistema.criado_em|date:"d/m/Y H:i" }}</p>
       <p><strong>Responsável pelo cadastro:</strong> {{ sistema.criado_por|usuario_nome|default:"-" }}</p>
-      <div class="lousa-section-divider"></div>
-      <h3 class="acompanhamento-subtitle">Interessados</h3>
-      <div class="acompanhamento-lista-curta">
-        {% if sistema.interessados.all or sistema.interessados_manuais.all %}
-          {% for interessado in sistema.interessados.all %}
-            <article class="acompanhamento-item-curto">
-              <div class="acompanhamento-item-curto__conteudo">
-                <strong>{{ interessado.nome_snapshot|primeiros_dois_nomes }}</strong>
-                <span>{{ interessado.get_tipo_interessado_display }} · {{ interessado.email_snapshot|default:"sem e-mail" }}</span>
-              </div>
-              {% if pode_editar_sistema %}
-                <form method="post" action="{% url 'acompanhamento_sistemas_interessado_remove' sistema.pk interessado.pk %}">
-                  {% csrf_token %}
-                  <input type="hidden" name="next" value="{{ request.path }}" />
-                  <button class="acompanhamento-remove-btn" type="submit" aria-label="Remover interessado" title="Remover interessado">&times;</button>
-                </form>
-              {% endif %}
-            </article>
-          {% endfor %}
-          {% for interessado in sistema.interessados_manuais.all %}
-            <article class="acompanhamento-item-curto">
-              <div class="acompanhamento-item-curto__conteudo">
-                <strong>{{ interessado.nome|primeiros_dois_nomes }}</strong>
-                <span>{{ interessado.get_tipo_interessado_display }} · {{ interessado.email }}</span>
-              </div>
-              {% if pode_editar_sistema %}
-                <form method="post" action="{% url 'acompanhamento_sistemas_interessado_remove' sistema.pk interessado.pk %}">
-                  {% csrf_token %}
-                  <input type="hidden" name="next" value="{{ request.path }}" />
-                  <button class="acompanhamento-remove-btn" type="submit" aria-label="Remover interessado" title="Remover interessado">&times;</button>
-                </form>
-              {% endif %}
-            </article>
-          {% endfor %}
-        {% else %}
-          <p>Nenhum interessado vinculado.</p>
-        {% endif %}
-      </div>
-
-      {% if pode_editar_sistema %}
-        <div class="lousa-section-divider acompanhamento-section-divider--compact"></div>
-        <button class="btn" type="button" id="acompanhamento-open-interessado-modal">Adicionar interessado</button>
-      {% endif %}
+      <p><strong>Processos cadastrados:</strong> {{ sistema.processos_requisito.count }}</p>
+      <p><strong>Todos finalizados:</strong> {% if todos_processos_finalizados %}Sim{% else %}Não{% endif %}</p>
     </section>
 
     <section class="detail-card detail-card-tall acompanhamento-card">
-      <div class="acompanhamento-timeline-head">
-        <h3>Timeline consolidada do sistema</h3>
-        {% if pode_editar_sistema and historico_sistema_disponivel %}
-          <button class="btn" type="button" id="acompanhamento-open-sistema-note-modal">Lançar nota</button>
-        {% endif %}
+      <div class="acompanhamento-section-head acompanhamento-section-head--contextual acompanhamento-section-head--stack-mobile">
+        <div class="acompanhamento-section-copy">
+          <h3>Processos de requisitos</h3>
+          <p class="card-meta">Base documental e estruturada dos processos de negócio do sistema.</p>
+        </div>
+        <div class="acompanhamento-inline-actions">
+          {% if pode_editar_sistema and historico_sistema_disponivel %}
+            <button class="btn btn-light" type="button" id="acompanhamento-open-sistema-note-modal">Lançar nota</button>
+          {% endif %}
+          {% if pode_gerir_processos %}
+            <button class="btn" type="button" id="acompanhamento-open-processo-modal">Novo processo</button>
+          {% endif %}
+        </div>
       </div>
-      <ul class="incrementos-timeline">
-        {% for historico in historicos %}
-          <li class="incremento-item">
-            <div class="incremento-meta">
-              <span>{{ historico.timeline_titulo }}</span>
-              <span>{{ historico.get_tipo_evento_display }}</span>
-              <span>{{ historico.criado_em|date:"d/m/Y H:i" }}</span>
-              <span>{{ historico.criado_por|usuario_nome|default:"Sistema" }}</span>
-            </div>
-            <div class="incremento-text">{{ historico.descricao|linebreaksbr }}</div>
-            {% if historico.justificativa %}
-              <p class="card-meta"><strong>Justificativa:</strong> {{ historico.justificativa }}</p>
-            {% endif %}
-            {% if historico.anexos.all %}
-              <div class="acompanhamento-anexos">
-                {% for anexo in historico.anexos.all %}
-                  <a href="{{ anexo.arquivo.url }}" target="_blank" rel="noopener">{{ anexo.nome_exibicao }}</a>
-                {% endfor %}
+
+      <div class="acompanhamento-processos-shell">
+        <div class="acompanhamento-processos-grid acompanhamento-processos-grid--requisitos">
+          <div class="head">Processo</div>
+          <div class="head">AS IS</div>
+          <div class="head">Diagnóstico</div>
+          <div class="head">TO BE</div>
+          <div class="head">Ações</div>
+          {% for processo in sistema.processos_requisito.all %}
+            <div class="acompanhamento-processo-meta acompanhamento-processo-meta--principal">
+              <div class="acompanhamento-processo-meta-top">
+                <a class="acompanhamento-processo-link acompanhamento-processo-link--title" href="{% url 'acompanhamento_sistemas_processo_detail' processo.pk %}">
+                  <h4 class="acompanhamento-processo-titulo">{{ processo.titulo }}</h4>
+                </a>
               </div>
-            {% endif %}
-          </li>
-        {% empty %}
-          <li class="incremento-item">Nenhum histórico consolidado registrado.</li>
-        {% endfor %}
-      </ul>
-      {% include "acompanhamento_sistemas/_timeline_pagination.html" %}
+            </div>
+
+            {% for etapa in processo.etapas.all %}
+              <a class="acompanhamento-processo-cell acompanhamento-processo-cell--{{ etapa.status_visual_classe }}"
+                 href="{% url 'acompanhamento_sistemas_processo_etapa_detail' etapa.pk %}"
+                 title="Status: {{ etapa.get_status_display }}">
+                <strong>{{ etapa.get_status_display }}</strong>
+                {% if etapa.marcadores_historicos %}
+                  <div class="acompanhamento-marcadores acompanhamento-marcadores--inline">
+                    {% for marcador in etapa.marcadores_historicos %}
+                      <span class="acompanhamento-marcador acompanhamento-marcador--{{ marcador.classe }}">{{ marcador.label }}</span>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+                <small>
+                  <span>{{ etapa.atualizado_em|date:"d/m/Y H:i" }}</span>
+                  {% if etapa.atualizado_por %}
+                    <span>{{ etapa.atualizado_por|usuario_nome|primeiros_dois_nomes }}</span>
+                  {% endif %}
+                </small>
+              </a>
+            {% endfor %}
+
+            <div class="acompanhamento-processo-actions">
+              {% if pode_gerir_processos %}
+                <button class="btn btn-light btn-small acompanhamento-processo-menu-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Ações do processo">
+                  ...
+                </button>
+                <div class="acompanhamento-processo-menu auth-required-hidden">
+                  <button class="btn btn-light btn-small acompanhamento-open-processo-edit" type="button" data-processo-id="{{ processo.pk }}" data-processo-titulo="{{ processo.titulo }}" data-processo-descricao="{{ processo.descricao }}">Editar</button>
+                  {% if processo.processo_finalizado %}
+                    <button class="btn btn-light btn-small acompanhamento-open-transformacao" type="button" data-processo-id="{{ processo.pk }}" data-processo-titulo="{{ processo.titulo }}" data-processo-finalizado="true">Gerar</button>
+                  {% endif %}
+                  {% if processo.criado_por_id == request.user.id %}
+                    <form method="post" action="{% url 'acompanhamento_sistemas_processo_delete' processo.pk %}" class="acompanhamento-processo-delete-form" data-processo-titulo="{{ processo.titulo }}">
+                      {% csrf_token %}
+                      <button class="btn btn-secondary btn-small" type="submit">Excluir</button>
+                    </form>
+                  {% endif %}
+                </div>
+              {% endif %}
+            </div>
+          {% empty %}
+            <div class="acompanhamento-processos-empty">
+              Nenhum processo de requisitos cadastrado.
+            </div>
+          {% endfor %}
+        </div>
+      </div>
     </section>
   </div>
 
   <section class="detail-card acompanhamento-card">
-    <div class="acompanhamento-section-head">
-      <h3>Ciclos - Visão Executiva</h3>
+    <div class="acompanhamento-section-head acompanhamento-section-head--contextual">
+      <div class="acompanhamento-section-copy">
+        <h3>Ciclos - Visão Executiva</h3>
+        <p class="card-meta">Acompanhamento da execução, priorização e evolução do desenvolvimento.</p>
+      </div>
       {% if pode_criar_entrega %}
         <button class="btn" type="button" id="acompanhamento-open-ciclo-modal">Novo Ciclo</button>
       {% endif %}
@@ -143,6 +503,9 @@
                 <h4 class="card-title acompanhamento-card-title acompanhamento-card-title--autofit" data-autofit-title>{{ entrega.titulo_com_numeracao }}</h4>
                 {% if entrega.descricao %}
                   <p class="card-meta acompanhamento-card-description">{{ entrega.descricao }}</p>
+                {% endif %}
+                {% if entrega.processo_requisito_origem %}
+                  <p class="card-meta">Origem: {{ entrega.processo_requisito_origem.titulo }}</p>
                 {% endif %}
               </div>
               {% include "acompanhamento_sistemas/_progresso_ciclo_duplo.html" with entrega=entrega %}
@@ -188,36 +551,150 @@
     </div>
   {% endif %}
 
-  {% if pode_editar_sistema %}
-    {% if historico_sistema_disponivel %}
-    <div class="profile-alert-backdrop{% if not abrir_modal_nota_sistema %} auth-required-hidden{% endif %}" id="acompanhamento-sistema-note-backdrop" aria-hidden="{% if abrir_modal_nota_sistema %}false{% else %}true{% endif %}"></div>
-    <div class="profile-alert-modal{% if not abrir_modal_nota_sistema %} auth-required-hidden{% endif %} acompanhamento-note-modal" id="acompanhamento-sistema-note-modal" role="dialog" aria-modal="true" aria-label="Lançar nota do sistema">
-      <h3>Lançar nota do sistema</h3>
-      <p class="acompanhamento-note-text">Registre aqui uma anotação geral do sistema. Ela será exibida na timeline consolidada e enviada aos interessados.</p>
-      <form method="post" enctype="multipart/form-data" action="{% url 'acompanhamento_sistemas_nota' sistema.pk %}" class="acompanhamento-form acompanhamento-form--compact-top">
+  {% if pode_gerir_processos %}
+    <div class="profile-alert-backdrop{% if not abrir_modal_processo %} auth-required-hidden{% endif %}" id="acompanhamento-processo-backdrop" aria-hidden="{% if abrir_modal_processo %}false{% else %}true{% endif %}"></div>
+    <div class="profile-alert-modal{% if not abrir_modal_processo %} auth-required-hidden{% endif %} acompanhamento-note-modal" id="acompanhamento-processo-modal" role="dialog" aria-modal="true" aria-label="Processo de requisitos">
+      <h3 id="acompanhamento-processo-modal-title">{% if processo_edicao %}Editar processo{% else %}Novo processo{% endif %}</h3>
+      <p class="acompanhamento-note-text">Ao criar um processo, as etapas `AS IS`, `Diagnóstico` e `TO BE` serão abertas automaticamente.</p>
+      <form method="post" action="{% if processo_edicao %}{% url 'acompanhamento_sistemas_processo_update' processo_edicao.pk %}{% else %}{% url 'acompanhamento_sistemas_processo_create' sistema.pk %}{% endif %}" class="acompanhamento-form" id="acompanhamento-processo-form">
         {% csrf_token %}
-        {{ nota_sistema_form.non_field_errors }}
+        {{ processo_form.non_field_errors }}
         <p>
-          {{ nota_sistema_form.texto_nota.label_tag }}
-          {{ nota_sistema_form.texto_nota }}
-          {% for error in nota_sistema_form.texto_nota.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
+          {{ processo_form.titulo.label_tag }}
+          {{ processo_form.titulo }}
+          {% for error in processo_form.titulo.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
         </p>
         <p>
-          {{ nota_sistema_form.anexos.label_tag }}
-          {{ nota_sistema_form.anexos }}
-          {% for error in nota_sistema_form.anexos.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
+          {{ processo_form.descricao.label_tag }}
+          {{ processo_form.descricao }}
+          {% for error in processo_form.descricao.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
         </p>
         <div class="profile-alert-actions">
-          <button class="btn" type="submit">Registrar anotação</button>
-          <button class="btn btn-secondary" type="button" id="acompanhamento-sistema-note-cancel">Cancelar</button>
+          <button class="btn" type="submit">{% if processo_edicao %}Salvar processo{% else %}Criar processo{% endif %}</button>
+          <button class="btn btn-secondary" type="button" id="acompanhamento-processo-cancel">Cancelar</button>
         </div>
       </form>
     </div>
+
+    <div class="profile-alert-backdrop{% if not abrir_modal_transformacao %} auth-required-hidden{% endif %}" id="acompanhamento-transformacao-backdrop" aria-hidden="{% if abrir_modal_transformacao %}false{% else %}true{% endif %}"></div>
+    <div class="profile-alert-modal{% if not abrir_modal_transformacao %} auth-required-hidden{% endif %} acompanhamento-note-modal" id="acompanhamento-transformacao-modal" role="dialog" aria-modal="true" aria-label="Transformar processo">
+      <h3>Gerar a partir do processo</h3>
+      <p class="acompanhamento-note-text">
+        Processo selecionado:
+        <strong id="acompanhamento-transformacao-processo-nome">{% if processo_transformacao %}{{ processo_transformacao.titulo }}{% else %}-{% endif %}</strong>
+      </p>
+      <div class="acompanhamento-transformacao-alert{% if todos_processos_finalizados %} auth-required-hidden{% endif %}" id="acompanhamento-transformacao-bloqueio">
+        Nem todos os processos do sistema estão finalizados. Você ainda pode gerar um ciclo no sistema atual, mas a geração de um novo sistema permanece bloqueada.
+      </div>
+      <div class="acompanhamento-transformacao-alert acompanhamento-transformacao-alert--danger auth-required-hidden" id="acompanhamento-transformacao-processo-bloqueado">
+        Esse processo ainda não está finalizado. Conclua `AS IS`, `Diagnóstico` e `TO BE` com `Aprovado` ou `Retirado do escopo` antes de gerar.
+      </div>
+      <form method="post" action="{% if processo_transformacao %}{% url 'acompanhamento_sistemas_processo_transformar' processo_transformacao.pk %}{% else %}#{% endif %}" class="acompanhamento-form" id="acompanhamento-transformacao-form">
+        {% csrf_token %}
+        <div class="acompanhamento-radio-list">
+          <label class="acompanhamento-radio-option">
+            <input type="radio" name="acao" value="ciclo" checked />
+            <span class="acompanhamento-radio-option__text">Gerar ciclo no sistema atual</span>
+          </label>
+          <label class="acompanhamento-radio-option {% if not todos_processos_finalizados %}acompanhamento-disabled-label{% endif %}">
+            <input type="radio" name="acao" value="sistema" {% if not todos_processos_finalizados %}disabled{% endif %} />
+            <span class="acompanhamento-radio-option__text">Gerar novo sistema</span>
+          </label>
+        </div>
+        <div id="acompanhamento-novo-sistema-campos" class="auth-required-hidden">
+          {{ novo_sistema_form.non_field_errors }}
+          <p>
+            {{ novo_sistema_form.nome.label_tag }}
+            {{ novo_sistema_form.nome }}
+            {% for error in novo_sistema_form.nome.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
+          </p>
+          <p>
+            {{ novo_sistema_form.descricao.label_tag }}
+            {{ novo_sistema_form.descricao }}
+            {% for error in novo_sistema_form.descricao.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
+          </p>
+          <p>
+            {{ novo_sistema_form.url_homologacao.label_tag }}
+            {{ novo_sistema_form.url_homologacao }}
+            {% for error in novo_sistema_form.url_homologacao.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
+          </p>
+          <p>
+            {{ novo_sistema_form.url_producao.label_tag }}
+            {{ novo_sistema_form.url_producao }}
+            {% for error in novo_sistema_form.url_producao.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
+          </p>
+        </div>
+        <div class="profile-alert-actions acompanhamento-transformacao-actions">
+          <button class="btn" type="submit" id="acompanhamento-transformacao-submit">Confirmar</button>
+          <button class="btn btn-secondary" type="button" id="acompanhamento-transformacao-cancel">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  {% endif %}
+
+  {% if pode_editar_sistema %}
+    {% if historico_sistema_disponivel %}
+      <div class="profile-alert-backdrop{% if not abrir_modal_nota_sistema %} auth-required-hidden{% endif %}" id="acompanhamento-sistema-note-backdrop" aria-hidden="{% if abrir_modal_nota_sistema %}false{% else %}true{% endif %}"></div>
+      <div class="profile-alert-modal{% if not abrir_modal_nota_sistema %} auth-required-hidden{% endif %} acompanhamento-note-modal" id="acompanhamento-sistema-note-modal" role="dialog" aria-modal="true" aria-label="Lançar nota do sistema">
+        <h3>Lançar nota do sistema</h3>
+        <p class="acompanhamento-note-text">Registre aqui uma anotação geral do sistema. Ela será adicionada ao histórico consolidado e enviada aos interessados.</p>
+        <form method="post" enctype="multipart/form-data" action="{% url 'acompanhamento_sistemas_nota' sistema.pk %}" class="acompanhamento-form acompanhamento-form--compact-top">
+          {% csrf_token %}
+          {{ nota_sistema_form.non_field_errors }}
+          <p>
+            {{ nota_sistema_form.texto_nota.label_tag }}
+            {{ nota_sistema_form.texto_nota }}
+            {% for error in nota_sistema_form.texto_nota.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
+          </p>
+          <p>
+            {{ nota_sistema_form.anexos.label_tag }}
+            {{ nota_sistema_form.anexos }}
+            {% for error in nota_sistema_form.anexos.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
+          </p>
+          <div class="profile-alert-actions">
+            <button class="btn" type="submit">Registrar anotação</button>
+            <button class="btn btn-secondary" type="button" id="acompanhamento-sistema-note-cancel">Cancelar</button>
+          </div>
+        </form>
+      </div>
     {% endif %}
 
     <div class="profile-alert-backdrop{% if not abrir_modal_interessado %} auth-required-hidden{% endif %}" id="acompanhamento-interessado-backdrop" aria-hidden="{% if abrir_modal_interessado %}false{% else %}true{% endif %}"></div>
-    <div class="profile-alert-modal{% if not abrir_modal_interessado %} auth-required-hidden{% endif %} acompanhamento-note-modal" id="acompanhamento-interessado-modal" role="dialog" aria-modal="true" aria-label="Adicionar interessado">
-      <h3>Adicionar interessado</h3>
+    <div class="profile-alert-modal{% if not abrir_modal_interessado %} auth-required-hidden{% endif %} acompanhamento-note-modal acompanhamento-interessado-modal" id="acompanhamento-interessado-modal" role="dialog" aria-modal="true" aria-label="Gerenciar interessados">
+      <h3>Interessados do sistema</h3>
+      <p class="acompanhamento-note-text">Adicione ou remova interessados usando a mesma interface de gestão já aplicada no sistema.</p>
+      <div class="acompanhamento-lista-curta acompanhamento-lista-curta--modal">
+        {% if sistema.interessados.all or sistema.interessados_manuais.all %}
+          {% for interessado in sistema.interessados.all %}
+            <article class="acompanhamento-item-curto">
+              <div class="acompanhamento-item-curto__conteudo">
+                <strong>{{ interessado.nome_snapshot|primeiros_dois_nomes }}</strong>
+                <span>{{ interessado.get_tipo_interessado_display }} · {{ interessado.email_snapshot|default:"sem e-mail" }}</span>
+              </div>
+              <form method="post" action="{% url 'acompanhamento_sistemas_interessado_remove' sistema.pk interessado.pk %}">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.path }}" />
+                <button class="acompanhamento-remove-btn" type="submit" aria-label="Remover interessado" title="Remover interessado">&times;</button>
+              </form>
+            </article>
+          {% endfor %}
+          {% for interessado in sistema.interessados_manuais.all %}
+            <article class="acompanhamento-item-curto">
+              <div class="acompanhamento-item-curto__conteudo">
+                <strong>{{ interessado.nome|primeiros_dois_nomes }}</strong>
+                <span>{{ interessado.get_tipo_interessado_display }} · {{ interessado.email }}</span>
+              </div>
+              <form method="post" action="{% url 'acompanhamento_sistemas_interessado_remove' sistema.pk interessado.pk %}">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.path }}" />
+                <button class="acompanhamento-remove-btn" type="submit" aria-label="Remover interessado" title="Remover interessado">&times;</button>
+              </form>
+            </article>
+          {% endfor %}
+        {% else %}
+          <p>Nenhum interessado vinculado.</p>
+        {% endif %}
+      </div>
       <form method="post" action="{% url 'acompanhamento_sistemas_interessado_add' sistema.pk %}" class="acompanhamento-form acompanhamento-form--compact-top">
         {% csrf_token %}
         <input type="hidden" name="next" value="{{ request.path }}" />
@@ -236,7 +713,7 @@
 {% endblock %}
 
 {% block extra_js %}
-  {% if pode_editar_sistema or pode_criar_entrega %}
+  {% if pode_editar_sistema or pode_criar_entrega or pode_gerir_processos %}
     <script>
       (function() {
         const ajustarTitulosCiclos = () => {
@@ -251,32 +728,6 @@
             }
           });
         };
-
-        const usuarioSelect = document.getElementById("id_usuario");
-        const emailInput = document.getElementById("id_email_manual");
-        if (usuarioSelect && emailInput) {
-          const sincronizarEmail = () => {
-            const selectedOption = usuarioSelect.options[usuarioSelect.selectedIndex];
-            emailInput.value = selectedOption ? (selectedOption.dataset.email || "") : "";
-          };
-
-          usuarioSelect.addEventListener("change", sincronizarEmail);
-        }
-
-        const openBtn = document.getElementById("acompanhamento-open-ciclo-modal");
-        const closeBtn = document.getElementById("acompanhamento-ciclo-cancel");
-        const modal = document.getElementById("acompanhamento-ciclo-modal");
-        const backdrop = document.getElementById("acompanhamento-ciclo-backdrop");
-        const tituloInput = document.getElementById("id_titulo");
-        const openInteressadoBtn = document.getElementById("acompanhamento-open-interessado-modal");
-        const closeInteressadoBtn = document.getElementById("acompanhamento-interessado-cancel");
-        const interessadoModal = document.getElementById("acompanhamento-interessado-modal");
-        const interessadoBackdrop = document.getElementById("acompanhamento-interessado-backdrop");
-        const openSistemaNoteBtn = document.getElementById("acompanhamento-open-sistema-note-modal");
-        const closeSistemaNoteBtn = document.getElementById("acompanhamento-sistema-note-cancel");
-        const sistemaNoteModal = document.getElementById("acompanhamento-sistema-note-modal");
-        const sistemaNoteBackdrop = document.getElementById("acompanhamento-sistema-note-backdrop");
-        const sistemaNoteTextarea = sistemaNoteModal ? sistemaNoteModal.querySelector("textarea") : null;
 
         const openBox = (targetModal, targetBackdrop, focusTarget = null) => {
           if (!targetModal || !targetBackdrop) return;
@@ -295,36 +746,242 @@
           targetBackdrop.setAttribute("aria-hidden", "true");
         };
 
-        if (openBtn && closeBtn && modal && backdrop) {
-          openBtn.addEventListener("click", () => openBox(modal, backdrop, tituloInput));
-          closeBtn.addEventListener("click", () => closeBox(modal, backdrop));
-          backdrop.addEventListener("click", () => closeBox(modal, backdrop));
+        const usuarioSelect = document.getElementById("id_usuario");
+        const emailInput = document.getElementById("id_email_manual");
+        if (usuarioSelect && emailInput) {
+          const sincronizarEmail = () => {
+            const selectedOption = usuarioSelect.options[usuarioSelect.selectedIndex];
+            emailInput.value = selectedOption ? (selectedOption.dataset.email || "") : "";
+          };
+          usuarioSelect.addEventListener("change", sincronizarEmail);
         }
 
+        const cicloModal = document.getElementById("acompanhamento-ciclo-modal");
+        const cicloBackdrop = document.getElementById("acompanhamento-ciclo-backdrop");
+        const openCicloBtn = document.getElementById("acompanhamento-open-ciclo-modal");
+        const closeCicloBtn = document.getElementById("acompanhamento-ciclo-cancel");
+        const cicloTituloInput = cicloModal ? cicloModal.querySelector("input[name='titulo']") : null;
+        if (openCicloBtn && closeCicloBtn && cicloModal && cicloBackdrop) {
+          openCicloBtn.addEventListener("click", () => openBox(cicloModal, cicloBackdrop, cicloTituloInput));
+          closeCicloBtn.addEventListener("click", () => closeBox(cicloModal, cicloBackdrop));
+          cicloBackdrop.addEventListener("click", () => closeBox(cicloModal, cicloBackdrop));
+        }
+
+        const processoModal = document.getElementById("acompanhamento-processo-modal");
+        const processoBackdrop = document.getElementById("acompanhamento-processo-backdrop");
+        const processoForm = document.getElementById("acompanhamento-processo-form");
+        const processoTitle = document.getElementById("acompanhamento-processo-modal-title");
+        const processoTituloInput = processoForm ? processoForm.querySelector("input[name='titulo']") : null;
+        const processoDescricaoInput = processoForm ? processoForm.querySelector("textarea[name='descricao']") : null;
+        const processoOpenBtn = document.getElementById("acompanhamento-open-processo-modal");
+        const processoCloseBtn = document.getElementById("acompanhamento-processo-cancel");
+        const processoCreateUrl = "{% url 'acompanhamento_sistemas_processo_create' sistema.pk %}";
+
+        const preencherProcessoModal = ({ action, titulo, descricao, label }) => {
+          if (!processoForm) return;
+          processoForm.action = action;
+          if (processoTitle) processoTitle.textContent = label;
+          if (processoTituloInput) processoTituloInput.value = titulo || "";
+          if (processoDescricaoInput) processoDescricaoInput.value = descricao || "";
+        };
+
+        if (processoOpenBtn && processoModal && processoBackdrop) {
+          processoOpenBtn.addEventListener("click", () => {
+            preencherProcessoModal({
+              action: processoCreateUrl,
+              titulo: "",
+              descricao: "",
+              label: "Novo processo",
+            });
+            openBox(processoModal, processoBackdrop, processoTituloInput);
+          });
+        }
+        if (processoCloseBtn && processoModal && processoBackdrop) {
+          processoCloseBtn.addEventListener("click", () => closeBox(processoModal, processoBackdrop));
+          processoBackdrop.addEventListener("click", () => closeBox(processoModal, processoBackdrop));
+        }
+        document.querySelectorAll(".acompanhamento-open-processo-edit").forEach((botao) => {
+          botao.addEventListener("click", () => {
+            closeProcessoMenus();
+            preencherProcessoModal({
+              action: `/acompanhamento-sistemas/processos/${botao.dataset.processoId}/editar/`,
+              titulo: botao.dataset.processoTitulo || "",
+              descricao: botao.dataset.processoDescricao || "",
+              label: "Editar processo",
+            });
+            openBox(processoModal, processoBackdrop, processoTituloInput);
+          });
+        });
+
+        const closeProcessoMenus = () => {
+          document.querySelectorAll(".acompanhamento-processo-menu").forEach((menu) => {
+            menu.classList.add("auth-required-hidden");
+            menu.style.top = "";
+            menu.style.left = "";
+          });
+          document.querySelectorAll(".acompanhamento-processo-menu-trigger").forEach((botao) => {
+            botao.setAttribute("aria-expanded", "false");
+          });
+        };
+
+        const posicionarProcessoMenu = (trigger, menu) => {
+          if (!trigger || !menu) return;
+          const rect = trigger.getBoundingClientRect();
+          const menuWidth = Math.max(menu.offsetWidth || 150, 150);
+          const viewportWidth = window.innerWidth;
+          const viewportHeight = window.innerHeight;
+          let left = rect.right - menuWidth;
+          if (left < 12) left = 12;
+          if (left + menuWidth > viewportWidth - 12) {
+            left = viewportWidth - menuWidth - 12;
+          }
+
+          let top = rect.bottom + 8;
+          const menuHeight = menu.offsetHeight || 96;
+          if (top + menuHeight > viewportHeight - 12) {
+            top = Math.max(12, rect.top - menuHeight - 8);
+          }
+
+          menu.style.left = `${left}px`;
+          menu.style.top = `${top}px`;
+        };
+
+        document.querySelectorAll(".acompanhamento-processo-actions").forEach((container) => {
+          const trigger = container.querySelector(".acompanhamento-processo-menu-trigger");
+          const menu = container.querySelector(".acompanhamento-processo-menu");
+          if (!trigger || !menu) return;
+          trigger.addEventListener("click", (event) => {
+            event.stopPropagation();
+            const abrir = menu.classList.contains("auth-required-hidden");
+            closeProcessoMenus();
+            if (abrir) {
+              menu.classList.remove("auth-required-hidden");
+              trigger.setAttribute("aria-expanded", "true");
+              posicionarProcessoMenu(trigger, menu);
+            } else {
+              trigger.setAttribute("aria-expanded", "false");
+            }
+          });
+          menu.addEventListener("click", (event) => {
+            event.stopPropagation();
+          });
+        });
+
+        document.querySelectorAll(".acompanhamento-processo-delete-form").forEach((form) => {
+          form.addEventListener("submit", (event) => {
+            const titulo = form.dataset.processoTitulo || "este processo";
+            const confirmar = window.confirm(`Deseja realmente excluir o processo "${titulo}"?`);
+            if (!confirmar) {
+              event.preventDefault();
+              return;
+            }
+            closeProcessoMenus();
+          });
+        });
+
+        const transformacaoModal = document.getElementById("acompanhamento-transformacao-modal");
+        const transformacaoBackdrop = document.getElementById("acompanhamento-transformacao-backdrop");
+        const transformacaoForm = document.getElementById("acompanhamento-transformacao-form");
+        const transformacaoCloseBtn = document.getElementById("acompanhamento-transformacao-cancel");
+        const transformacaoNome = document.getElementById("acompanhamento-transformacao-processo-nome");
+        const transformacaoBloqueio = document.getElementById("acompanhamento-transformacao-bloqueio");
+        const transformacaoBloqueioProcesso = document.getElementById("acompanhamento-transformacao-processo-bloqueado");
+        const novoSistemaCampos = document.getElementById("acompanhamento-novo-sistema-campos");
+        const radiosAcao = transformacaoForm ? transformacaoForm.querySelectorAll("input[name='acao']") : [];
+        const permitirNovoSistema = {% if todos_processos_finalizados %}true{% else %}false{% endif %};
+
+        const syncTransformacaoCampos = () => {
+          if (!transformacaoForm || !novoSistemaCampos) return;
+          const selecionado = transformacaoForm.querySelector("input[name='acao']:checked");
+          const mostrar = selecionado && selecionado.value === "sistema";
+          novoSistemaCampos.classList.toggle("auth-required-hidden", !mostrar);
+          novoSistemaCampos.querySelectorAll("input, textarea, select").forEach((campo) => {
+            campo.disabled = !mostrar;
+          });
+        };
+
+        document.querySelectorAll(".acompanhamento-open-transformacao").forEach((botao) => {
+          botao.addEventListener("click", () => {
+            if (!transformacaoForm) return;
+            closeProcessoMenus();
+            const finalizado = botao.dataset.processoFinalizado === "true";
+            transformacaoForm.reset();
+            transformacaoForm.action = `/acompanhamento-sistemas/processos/${botao.dataset.processoId}/transformar/`;
+            if (transformacaoNome) transformacaoNome.textContent = botao.dataset.processoTitulo || "-";
+            if (transformacaoBloqueio) {
+              transformacaoBloqueio.classList.toggle("auth-required-hidden", permitirNovoSistema);
+            }
+            if (transformacaoBloqueioProcesso) {
+              transformacaoBloqueioProcesso.classList.toggle("auth-required-hidden", finalizado);
+            }
+            transformacaoForm.querySelectorAll("input[name='acao']").forEach((radio) => {
+              if (radio.value === "ciclo") {
+                radio.disabled = !finalizado;
+                radio.checked = finalizado;
+              }
+              if (radio.value === "sistema") {
+                radio.disabled = !permitirNovoSistema || !finalizado;
+                radio.checked = false;
+              }
+            });
+            syncTransformacaoCampos();
+            openBox(transformacaoModal, transformacaoBackdrop);
+          });
+        });
+        radiosAcao.forEach((radio) => radio.addEventListener("change", syncTransformacaoCampos));
+        if (transformacaoCloseBtn && transformacaoModal && transformacaoBackdrop) {
+          transformacaoCloseBtn.addEventListener("click", () => closeBox(transformacaoModal, transformacaoBackdrop));
+          transformacaoBackdrop.addEventListener("click", () => closeBox(transformacaoModal, transformacaoBackdrop));
+        }
+
+        const openInteressadoBtn = document.getElementById("acompanhamento-open-interessado-modal");
+        const closeInteressadoBtn = document.getElementById("acompanhamento-interessado-cancel");
+        const interessadoModal = document.getElementById("acompanhamento-interessado-modal");
+        const interessadoBackdrop = document.getElementById("acompanhamento-interessado-backdrop");
         if (openInteressadoBtn && closeInteressadoBtn && interessadoModal && interessadoBackdrop) {
-          openInteressadoBtn.addEventListener("click", () => openBox(interessadoModal, interessadoBackdrop, usuarioSelect || emailInput));
+          openInteressadoBtn.addEventListener("click", (event) => {
+            event.preventDefault();
+            closeProcessoMenus();
+            openBox(interessadoModal, interessadoBackdrop, usuarioSelect || emailInput);
+          });
           closeInteressadoBtn.addEventListener("click", () => closeBox(interessadoModal, interessadoBackdrop));
           interessadoBackdrop.addEventListener("click", () => closeBox(interessadoModal, interessadoBackdrop));
         }
 
+        const openSistemaNoteBtn = document.getElementById("acompanhamento-open-sistema-note-modal");
+        const closeSistemaNoteBtn = document.getElementById("acompanhamento-sistema-note-cancel");
+        const sistemaNoteModal = document.getElementById("acompanhamento-sistema-note-modal");
+        const sistemaNoteBackdrop = document.getElementById("acompanhamento-sistema-note-backdrop");
+        const sistemaNoteTextarea = sistemaNoteModal ? sistemaNoteModal.querySelector("textarea") : null;
         if (openSistemaNoteBtn && closeSistemaNoteBtn && sistemaNoteModal && sistemaNoteBackdrop) {
-          openSistemaNoteBtn.addEventListener("click", () => openBox(sistemaNoteModal, sistemaNoteBackdrop, sistemaNoteTextarea));
+          openSistemaNoteBtn.addEventListener("click", () => {
+            closeProcessoMenus();
+            openBox(sistemaNoteModal, sistemaNoteBackdrop, sistemaNoteTextarea);
+          });
           closeSistemaNoteBtn.addEventListener("click", () => closeBox(sistemaNoteModal, sistemaNoteBackdrop));
           sistemaNoteBackdrop.addEventListener("click", () => closeBox(sistemaNoteModal, sistemaNoteBackdrop));
         }
 
+        document.addEventListener("click", () => closeProcessoMenus());
+        window.addEventListener("resize", () => closeProcessoMenus());
+        window.addEventListener("scroll", () => closeProcessoMenus(), true);
         document.addEventListener("keydown", (event) => {
-          if (event.key === "Escape") {
-            if (modal && !modal.classList.contains("auth-required-hidden")) closeBox(modal, backdrop);
-            if (interessadoModal && !interessadoModal.classList.contains("auth-required-hidden")) {
-              closeBox(interessadoModal, interessadoBackdrop);
+          if (event.key !== "Escape") return;
+          closeProcessoMenus();
+          [
+            [cicloModal, cicloBackdrop],
+            [processoModal, processoBackdrop],
+            [transformacaoModal, transformacaoBackdrop],
+            [interessadoModal, interessadoBackdrop],
+            [sistemaNoteModal, sistemaNoteBackdrop],
+          ].forEach(([modal, backdrop]) => {
+            if (modal && !modal.classList.contains("auth-required-hidden")) {
+              closeBox(modal, backdrop);
             }
-            if (sistemaNoteModal && !sistemaNoteModal.classList.contains("auth-required-hidden")) {
-              closeBox(sistemaNoteModal, sistemaNoteBackdrop);
-            }
-          }
+          });
         });
 
+        syncTransformacaoCampos();
         ajustarTitulosCiclos();
         window.addEventListener("resize", ajustarTitulosCiclos);
       })();

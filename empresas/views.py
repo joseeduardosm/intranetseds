@@ -8,7 +8,7 @@ edição, detalhe e exclusão), integrando:
 - relacionamentos com `prepostos` e `contratos` no detalhe.
 """
 
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
 
@@ -33,21 +33,23 @@ class EmpresaListView(LoginRequiredMixin, ListView):
         return Empresa.objects.prefetch_related("prepostos")
 
 
-class EmpresaCreateView(LoginRequiredMixin, CreateView):
+class EmpresaCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     """Fluxo HTTP de criação de empresa."""
 
     model = Empresa
     fields = ["nome", "cnpj"]
     template_name = "empresas/empresa_form.html"
     success_url = reverse_lazy("empresas_list")
+    permission_required = "empresas.add_empresa"
 
 
-class EmpresaUpdateView(LoginRequiredMixin, UpdateView):
+class EmpresaUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
     """Fluxo HTTP de edição de empresa existente."""
 
     model = Empresa
     fields = ["nome", "cnpj"]
     template_name = "empresas/empresa_form.html"
+    permission_required = "empresas.change_empresa"
 
     def get_success_url(self):
         """
@@ -81,9 +83,10 @@ class EmpresaDetailView(LoginRequiredMixin, DetailView):
         return context
 
 
-class EmpresaDeleteView(LoginRequiredMixin, DeleteView):
+class EmpresaDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
     """Fluxo HTTP de exclusão de empresa."""
 
     model = Empresa
     template_name = "empresas/empresa_confirm_delete.html"
     success_url = reverse_lazy("empresas_list")
+    permission_required = "empresas.delete_empresa"

@@ -11,7 +11,7 @@ Integração arquitetural:
 - URLs: mapeadas em `prepostos/urls.py`.
 - Autenticação: `LoginRequiredMixin` restringe acesso a usuários logados.
 """
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
 
@@ -32,7 +32,7 @@ class PrepostoListView(LoginRequiredMixin, ListView):
     context_object_name = "prepostos"
 
 
-class PrepostoCreateView(LoginRequiredMixin, CreateView):
+class PrepostoCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     """
     Controla o endpoint de criação de preposto.
 
@@ -44,9 +44,10 @@ class PrepostoCreateView(LoginRequiredMixin, CreateView):
     fields = ["nome", "cpf", "telefone", "email", "empresa"]
     template_name = "prepostos/preposto_form.html"
     success_url = reverse_lazy("prepostos_list")
+    permission_required = "prepostos.add_preposto"
 
 
-class PrepostoUpdateView(LoginRequiredMixin, UpdateView):
+class PrepostoUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
     """
     Controla o endpoint de edição de preposto existente.
 
@@ -57,6 +58,7 @@ class PrepostoUpdateView(LoginRequiredMixin, UpdateView):
     model = Preposto
     fields = ["nome", "cpf", "telefone", "email", "empresa"]
     template_name = "prepostos/preposto_form.html"
+    permission_required = "prepostos.change_preposto"
 
     def get_success_url(self):
         """
@@ -85,7 +87,7 @@ class PrepostoDetailView(LoginRequiredMixin, DetailView):
     context_object_name = "preposto"
 
 
-class PrepostoDeleteView(LoginRequiredMixin, DeleteView):
+class PrepostoDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
     """
     Controla o endpoint de exclusão de preposto.
 
@@ -96,3 +98,4 @@ class PrepostoDeleteView(LoginRequiredMixin, DeleteView):
     model = Preposto
     template_name = "prepostos/preposto_confirm_delete.html"
     success_url = reverse_lazy("prepostos_list")
+    permission_required = "prepostos.delete_preposto"

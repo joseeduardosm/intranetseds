@@ -19,7 +19,7 @@ from datetime import datetime, timedelta
 
 from django.contrib.auth import get_user_model
 from django.contrib import messages
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.db.models import Count, Exists, F, Func, IntegerField, OuterRef, Prefetch, Q, Subquery, Value
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
@@ -794,12 +794,13 @@ class ProcessoDashboardView(LoginRequiredMixin, TemplateView):
         )
         return context
 
-class ProcessoCreateView(LoginRequiredMixin, CreateView):
+class ProcessoCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     """Fluxo HTTP de criação de processo na lousa."""
 
     model = Processo
     form_class = ProcessoForm
     template_name = "lousa_digital/processo_form.html"
+    permission_required = "lousa_digital.add_processo"
 
     def _get_aba_ativa(self):
         """Retorna a aba selecionada para o cadastro do processo."""
@@ -853,12 +854,13 @@ class ProcessoCreateView(LoginRequiredMixin, CreateView):
         return context
 
 
-class ProcessoUpdateView(LoginRequiredMixin, UpdateView):
+class ProcessoUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
     """Fluxo HTTP de edição de processo existente."""
 
     model = Processo
     form_class = ProcessoForm
     template_name = "lousa_digital/processo_form.html"
+    permission_required = "lousa_digital.change_processo"
 
     def get_form_kwargs(self):
         """Mantém a origem atual do processo mesmo com campo oculto."""
@@ -1007,6 +1009,10 @@ class ProcessoDetailView(LoginRequiredMixin, DetailView):
             if aba
             else reverse("lousa_digital_update", kwargs={"pk": processo.pk})
         )
+        context["can_change_processo"] = self.request.user.has_perm("lousa_digital.change_processo")
+        context["can_add_encaminhamento"] = self.request.user.has_perm("lousa_digital.add_encaminhamento")
+        context["can_change_encaminhamento"] = self.request.user.has_perm("lousa_digital.change_encaminhamento")
+        context["can_add_nota_lousa"] = self.request.user.has_perm("lousa_digital.add_eventotimeline")
         return context
 
 
@@ -1015,6 +1021,10 @@ class CriarEncaminhamentoView(LoginRequiredMixin, View):
 
     def post(self, request, pk):
         """Valida formulário, cria encaminhamento e mantém processo em aberto."""
+
+        if not request.user.has_perm("lousa_digital.add_encaminhamento"):
+            messages.error(request, "Voce nao possui permissao para criar encaminhamentos.")
+            return redirect("lousa_digital_detail", pk=pk)
 
         processo = get_object_or_404(_processos_visiveis_para_usuario(request.user), pk=pk)
         if processo.arquivo_morto:
@@ -1058,6 +1068,10 @@ class DevolverEncaminhamentoView(LoginRequiredMixin, View):
     def post(self, request, pk, encaminhamento_id):
         """Conclui encaminhamento, registra evento e recalcula status do processo."""
 
+        if not request.user.has_perm("lousa_digital.change_encaminhamento"):
+            messages.error(request, "Voce nao possui permissao para alterar encaminhamentos.")
+            return redirect("lousa_digital_detail", pk=pk)
+
         processo = get_object_or_404(_processos_visiveis_para_usuario(request.user), pk=pk)
         encaminhamento = get_object_or_404(
             Encaminhamento,
@@ -1091,6 +1105,10 @@ class CriarNotaView(LoginRequiredMixin, View):
 
     def post(self, request, pk):
         """Valida nota, registra evento e atualiza metadado de edição do processo."""
+
+        if not request.user.has_perm("lousa_digital.add_eventotimeline"):
+            messages.error(request, "Voce nao possui permissao para inserir notas.")
+            return redirect("lousa_digital_detail", pk=pk)
 
         processo = get_object_or_404(_processos_visiveis_para_usuario(request.user), pk=pk)
         form = NotaTimelineForm(request.POST)

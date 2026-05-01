@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/rastreamento_navegacao/rastreamento_navegacao.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <section class="page-header analytics-header">
+    <div>
+      <h2>{{ page_title }}</h2>
+      <p class="analytics-subtitle"><code>{{ page_path }}</code></p>
+    </div>
+    <a class="btn btn-secondary" href="{% url 'rastreamento_navegacao_dashboard' %}?{{ dashboard_query }}">Voltar ao painel</a>
+  </section>
+
+  <form class="analytics-filter-card" method="get">
+    <div class="analytics-filter-grid">
+      <div class="form-field">
+        <label for="data_inicio">Data inicio</label>
+        <input id="data_inicio" type="date" name="data_inicio" value="{{ data_inicio }}" required />
+      </div>
+      <div class="form-field">
+        <label for="data_fim">Data fim</label>
+        <input id="data_fim" type="date" name="data_fim" value="{{ data_fim }}" required />
+      </div>
+      <div class="form-field analytics-filter-actions">
+        <button class="btn" type="submit">Filtrar</button>
+      </div>
+    </div>
+  </form>
+
+  <section class="analytics-metric-grid">
+    <article class="analytics-metric-card">
+      <span class="analytics-metric-label">Total de visitas</span>
+      <strong class="analytics-metric-value">{{ total_visits }}</strong>
+    </article>
+    <article class="analytics-metric-card">
+      <span class="analytics-metric-label">Media por dia</span>
+      <strong class="analytics-metric-value">{{ average_per_day }}</strong>
+    </article>
+  </section>
+
+  <section class="analytics-panel analytics-panel--wide">
+    <div class="analytics-panel-header">
+      <h3>Tendencia diaria da pagina</h3>
+      <p>Evolucao das visitas no periodo filtrado.</p>
+    </div>
+    <div id="analytics-detail-chart" class="analytics-chart"></div>
+  </section>
+
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <script>
+    const detailLabels = {{ graph_labels_json|safe }};
+    const detailValues = {{ graph_values_json|safe }};
+    Plotly.newPlot(
+      "analytics-detail-chart",
+      [
+        {
+          x: detailLabels,
+          y: detailValues,
+          type: "scatter",
+          mode: "lines+markers",
+          line: { color: "#0f766e", width: 3, shape: "spline" },
+          marker: { color: "#1d4ed8", size: 8 },
+          fill: "tozeroy",
+          fillcolor: "rgba(15, 118, 110, 0.14)",
+          name: "Visitas",
+        },
+      ],
+      {
+        margin: { l: 48, r: 24, t: 12, b: 48 },
+        paper_bgcolor: "#ffffff",
+        plot_bgcolor: "#f8fafc",
+        xaxis: { title: "Dia" },
+        yaxis: { title: "Visitas", rangemode: "tozero" },
+      },
+      { responsive: true, displayModeBar: false }
+    );
+  </script>
+{% endblock %}

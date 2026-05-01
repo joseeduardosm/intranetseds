@@ -34,6 +34,7 @@ from .models import (
     escolher_cor_marcador,
     normalizar_nome_marcador,
 )
+from .services import emitir_notificacao_ciencia, emitir_notificacao_incremento
 
 
 KANBAN_COLUMNS = [
@@ -221,13 +222,15 @@ def incremento_ciente(request, pk):
     bloco = incremento_base.bloco
 
     usuario_nome = request.user.get_full_name() or request.user.username
-    IncrementoCiencia.objects.get_or_create(
+    ciencia, created = IncrementoCiencia.objects.get_or_create(
         incremento=incremento_base,
         usuario=request.user,
         defaults={
             "texto": f"{usuario_nome} ciente do incremento",
         },
     )
+    if created:
+        emitir_notificacao_ciencia(ciencia)
     _mark_bloco_seen(request.user, bloco)
 
     next_url = (request.POST.get("next") or "").strip()
@@ -827,16 +830,18 @@ class BlocoTrabalhoCreateView(PermissionRequiredMixin, CreateView):
             ):
                 continue
             nome = participante.get_full_name() or participante.username
-            Incremento.objects.create(
+            incremento = Incremento.objects.create(
                 bloco=self.object,
                 texto=f"{nome} inserido no bloco de trabalho",
                 criado_por=self.request.user if self.request.user.is_authenticated else None,
             )
-        Incremento.objects.create(
+            emitir_notificacao_incremento(incremento)
+        incremento_criacao = Incremento.objects.create(
             bloco=self.object,
             texto=f"Criação do Bloco: {self.object.nome}",
             criado_por=self.request.user if self.request.user.is_authenticated else None,
         )
+        emitir_notificacao_incremento(incremento_criacao)
         _mark_bloco_seen(self.request.user, self.object)
         return response
 
@@ -890,7 +895,6 @@ class BlocoTrabalhoUpdateView(PermissionRequiredMixin, UpdateView):
             )
 
         participantes_anteriores = set(bloco_original.participantes.all())
-        nomes_participantes_anteriores = _nomes_usuarios(participantes_anteriores)
         marcadores_anteriores = list(bloco_original.marcadores_locais)
         nomes_marcadores_anteriores = _nomes_marcadores(marcadores_anteriores)
         if self.request.user.is_authenticated:
@@ -898,13 +902,6 @@ class BlocoTrabalhoUpdateView(PermissionRequiredMixin, UpdateView):
         form.instance.atualizado_em = timezone.now()
         response = super().form_valid(form)
         participantes_novos = set(self.object.participantes.all())
-        nomes_participantes_novos = _nomes_usuarios(participantes_novos)
-        if nomes_participantes_anteriores != nomes_participantes_novos:
-            alteracoes.append(
-                "Alterou participantes de "
-                f"{_valor_historico(nomes_participantes_anteriores)} "
-                f"para {_valor_historico(nomes_participantes_novos)}"
-            )
         nomes_marcadores_novos = _nomes_marcadores(self.object.marcadores_locais)
         if nomes_marcadores_anteriores != nomes_marcadores_novos:
             alteracoes.append(
@@ -914,19 +911,30 @@ class BlocoTrabalhoUpdateView(PermissionRequiredMixin, UpdateView):
             )
 
         adicionados = participantes_novos - participantes_anteriores
+        removidos = participantes_anteriores - participantes_novos
         for participante in adicionados:
             nome = participante.get_full_name() or participante.username
-            Incremento.objects.create(
+            incremento = Incremento.objects.create(
                 bloco=self.object,
                 texto=f"{nome} inserido no bloco de trabalho",
                 criado_por=self.request.user if self.request.user.is_authenticated else None,
             )
+            emitir_notificacao_incremento(incremento)
+        for participante in removidos:
+            nome = participante.get_full_name() or participante.username
+            incremento = Incremento.objects.create(
+                bloco=self.object,
+                texto=f"{nome} removido do bloco de trabalho",
+                criado_por=self.request.user if self.request.user.is_authenticated else None,
+            )
+            emitir_notificacao_incremento(incremento)
         for texto in alteracoes:
-            Incremento.objects.create(
+            incremento = Incremento.objects.create(
                 bloco=self.object,
                 texto=texto,
                 criado_por=self.request.user if self.request.user.is_authenticated else None,
             )
+            emitir_notificacao_incremento(incremento)
         _mark_bloco_seen(self.request.user, self.object)
         return response
 
@@ -982,7 +990,9 @@ class IncrementoCreateView(PermissionRequiredMixin, CreateView):
         if bloco.status == BlocoTrabalho.Status.A_FAZER:
             bloco.status = BlocoTrabalho.Status.EM_ANDAMENTO
             bloco.save(update_fields=["status"])
-        return super().form_valid(form)
+        response = super().form_valid(form)
+        emitir_notificacao_incremento(self.object)
+        return response
 
     def get_context_data(self, **kwargs):
         """Inclui bloco alvo no contexto do formulário de incremento."""

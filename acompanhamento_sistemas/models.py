@@ -194,6 +194,13 @@ class EntregaSistema(models.Model):
         blank=True,
         related_name="entregas_sistema_atualizadas",
     )
+    processo_requisito_origem = models.ForeignKey(
+        "ProcessoRequisito",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="entregas_geradas",
+    )
 
     class Meta:
         ordering = ["ordem", "id"]
@@ -669,3 +676,287 @@ class InteressadoSistemaManual(models.Model):
 
     def __str__(self) -> str:
         return f"{self.nome} - {self.sistema.nome}"
+
+
+class ProcessoRequisito(models.Model):
+    sistema = models.ForeignKey(Sistema, on_delete=models.CASCADE, related_name="processos_requisito")
+    titulo = models.CharField(max_length=180)
+    descricao = models.TextField(blank=True)
+    ordem = models.PositiveIntegerField(default=1)
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+    criado_por = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="processos_requisito_criados",
+    )
+    atualizado_por = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="processos_requisito_atualizados",
+    )
+
+    class Meta:
+        ordering = ["ordem", "id"]
+        unique_together = ("sistema", "ordem")
+        verbose_name = "Processo de requisito"
+        verbose_name_plural = "Processos de requisito"
+
+    def __str__(self) -> str:
+        return f"{self.sistema.nome} - {self.titulo}"
+
+    def get_absolute_url(self):
+        return reverse("acompanhamento_sistemas_processo_detail", kwargs={"pk": self.pk})
+
+    @property
+    def etapas_ordenadas(self):
+        return self.etapas.order_by("ordem", "id")
+
+    @property
+    def processo_finalizado(self) -> bool:
+        etapas = list(self.etapas_ordenadas)
+        if len(etapas) != 3:
+            return False
+        status_finais = {
+            EtapaProcessoRequisito.Status.APROVADO,
+            EtapaProcessoRequisito.Status.RETIRADO_ESCOPO,
+        }
+        return all(etapa.status in status_finais for etapa in etapas)
+
+
+class EtapaProcessoRequisito(models.Model):
+    class TipoEtapa(models.TextChoices):
+        AS_IS = "AS_IS", "AS IS"
+        DIAGNOSTICO = "DIAGNOSTICO", "Diagnóstico"
+        TO_BE = "TO_BE", "TO BE"
+
+    class Status(models.TextChoices):
+        PENDENTE = "PENDENTE", "Pendente"
+        EM_ANDAMENTO = "EM_ANDAMENTO", "Em andamento"
+        VALIDACAO = "VALIDACAO", "Validação"
+        APROVADO = "APROVADO", "Aprovado"
+        REPROVADO = "REPROVADO", "Reprovado"
+        RETIRADO_ESCOPO = "RETIRADO_ESCOPO", "Retirado do escopo"
+
+    processo = models.ForeignKey(ProcessoRequisito, on_delete=models.CASCADE, related_name="etapas")
+    tipo_etapa = models.CharField(max_length=30, choices=TipoEtapa.choices)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDENTE)
+    ordem = models.PositiveIntegerField(default=1)
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+    criado_por = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="etapas_processo_requisito_criadas",
+    )
+    atualizado_por = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="etapas_processo_requisito_atualizadas",
+    )
+
+    class Meta:
+        ordering = ["ordem", "id"]
+        unique_together = ("processo", "tipo_etapa")
+        verbose_name = "Etapa do processo de requisito"
+        verbose_name_plural = "Etapas do processo de requisito"
+
+    @property
+    def etapas_anteriores(self):
+        return self.processo.etapas.filter(ordem__lt=self.ordem).order_by("ordem", "id")
+
+    @property
+    def status_finais_dependencia(self) -> set[str]:
+        return {
+            self.Status.APROVADO,
+            self.Status.RETIRADO_ESCOPO,
+        }
+
+    @property
+    def dependencias_concluidas(self) -> bool:
+        return all(etapa.status in self.status_finais_dependencia for etapa in self.etapas_anteriores)
+
+    @property
+    def mensagem_bloqueio_dependencia(self) -> str:
+        if self.tipo_etapa == self.TipoEtapa.DIAGNOSTICO:
+            return "Diagnóstico só pode ser alterado após AS IS estar Aprovado ou Retirado do escopo."
+        if self.tipo_etapa == self.TipoEtapa.TO_BE:
+            return "TO BE só pode ser alterado após AS IS e Diagnóstico estarem Aprovados ou Retirados do escopo."
+        return ""
+
+    @property
+    def proximos_status_permitidos(self) -> list[str]:
+        mapa = {
+            self.Status.PENDENTE: [self.Status.EM_ANDAMENTO],
+            self.Status.EM_ANDAMENTO: [self.Status.VALIDACAO],
+            self.Status.VALIDACAO: [
+                self.Status.APROVADO,
+                self.Status.REPROVADO,
+                self.Status.RETIRADO_ESCOPO,
+            ],
+            self.Status.APROVADO: [],
+            self.Status.REPROVADO: [],
+            self.Status.RETIRADO_ESCOPO: [],
+        }
+        return mapa.get(self.status, [])
+
+    def _historicos_lista(self):
+        return list(self.historicos.all())
+
+    def total_retomadas_por_reprovacao(self) -> int:
+        proxima = self.processo.etapas.filter(ordem__gt=self.ordem).order_by("ordem", "id").first()
+        if proxima is None:
+            return 0
+        return sum(1 for historico in proxima.historicos.all() if historico.status_novo == self.Status.REPROVADO)
+
+    @property
+    def marcadores_historicos(self) -> list[dict[str, str]]:
+        marcadores = []
+        total_retomadas = self.total_retomadas_por_reprovacao()
+        if total_retomadas:
+            label = "Retomada"
+            if total_retomadas > 1:
+                label = f"Retomada ({total_retomadas})"
+            marcadores.append({"label": label, "classe": "retorno"})
+        vistos = set()
+        resultado = []
+        for marcador in marcadores:
+            chave = (marcador["label"], marcador["classe"])
+            if chave in vistos:
+                continue
+            vistos.add(chave)
+            resultado.append(marcador)
+        return resultado
+
+    @property
+    def pode_alterar_status(self) -> bool:
+        return bool(self.proximos_status_permitidos) and self.dependencias_concluidas
+
+    def __str__(self) -> str:
+        return f"{self.processo} - {self.get_tipo_etapa_display()}"
+
+    def get_absolute_url(self):
+        return reverse("acompanhamento_sistemas_processo_etapa_detail", kwargs={"pk": self.pk})
+
+    @property
+    def status_visual_classe(self) -> str:
+        mapa = {
+            self.Status.PENDENTE: "pendente",
+            self.Status.EM_ANDAMENTO: "em_andamento",
+            self.Status.VALIDACAO: "validacao",
+            self.Status.APROVADO: "aprovado",
+            self.Status.REPROVADO: "reprovado_vivo",
+            self.Status.RETIRADO_ESCOPO: "retirado_escopo",
+        }
+        return mapa.get(self.status, "pendente")
+
+
+class HistoricoProcessoRequisito(models.Model):
+    class TipoEvento(models.TextChoices):
+        CRIACAO = "CRIACAO", "Criação"
+        EDICAO = "EDICAO", "Edição"
+        EXCLUSAO = "EXCLUSAO", "Exclusão"
+        NOTA = "NOTA", "Nota"
+        GERACAO_CICLO = "GERACAO_CICLO", "Geração de ciclo"
+        GERACAO_SISTEMA = "GERACAO_SISTEMA", "Geração de sistema"
+
+    processo = models.ForeignKey(ProcessoRequisito, on_delete=models.CASCADE, related_name="historicos")
+    tipo_evento = models.CharField(max_length=30, choices=TipoEvento.choices)
+    descricao = models.TextField(blank=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+    criado_por = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="historicos_processo_requisito_criados",
+    )
+
+    class Meta:
+        ordering = ["-criado_em", "-id"]
+        verbose_name = "Histórico do processo de requisito"
+        verbose_name_plural = "Históricos do processo de requisito"
+
+    def __str__(self) -> str:
+        return f"Histórico processo #{self.pk} - {self.processo}"
+
+
+class HistoricoEtapaProcessoRequisito(models.Model):
+    class TipoEvento(models.TextChoices):
+        CRIACAO = "CRIACAO", "Criação"
+        STATUS = "STATUS", "Status"
+        NOTA = "NOTA", "Nota"
+        ANEXO = "ANEXO", "Anexo"
+
+    etapa = models.ForeignKey(EtapaProcessoRequisito, on_delete=models.CASCADE, related_name="historicos")
+    tipo_evento = models.CharField(max_length=20, choices=TipoEvento.choices)
+    descricao = models.TextField(blank=True)
+    status_anterior = models.CharField(max_length=20, blank=True)
+    status_novo = models.CharField(max_length=20, blank=True)
+    justificativa = models.TextField(blank=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+    criado_por = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="historicos_etapa_processo_requisito_criados",
+    )
+
+    class Meta:
+        ordering = ["-criado_em", "-id"]
+        verbose_name = "Histórico da etapa do processo de requisito"
+        verbose_name_plural = "Históricos da etapa do processo de requisito"
+
+    def __str__(self) -> str:
+        return f"Histórico etapa processo #{self.pk} - {self.etapa}"
+
+
+class AnexoHistoricoProcessoRequisito(models.Model):
+    historico = models.ForeignKey(HistoricoProcessoRequisito, on_delete=models.CASCADE, related_name="anexos")
+    arquivo = models.FileField(upload_to="acompanhamento_sistemas/anexos/")
+    nome_original = models.CharField(max_length=255, blank=True, default="")
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["id"]
+        verbose_name = "Anexo do histórico do processo de requisito"
+        verbose_name_plural = "Anexos do histórico do processo de requisito"
+
+    def save(self, *args, **kwargs):
+        if self.arquivo and not self.nome_original:
+            self.nome_original = getattr(self.arquivo, "name", "") or ""
+        return super().save(*args, **kwargs)
+
+    @property
+    def nome_exibicao(self) -> str:
+        return self.nome_original or os.path.basename(getattr(self.arquivo, "name", "") or "")
+
+
+class AnexoHistoricoEtapaProcessoRequisito(models.Model):
+    historico = models.ForeignKey(HistoricoEtapaProcessoRequisito, on_delete=models.CASCADE, related_name="anexos")
+    arquivo = models.FileField(upload_to="acompanhamento_sistemas/anexos/")
+    nome_original = models.CharField(max_length=255, blank=True, default="")
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["id"]
+        verbose_name = "Anexo do histórico da etapa do processo de requisito"
+        verbose_name_plural = "Anexos do histórico da etapa do processo de requisito"
+
+    def save(self, *args, **kwargs):
+        if self.arquivo and not self.nome_original:
+            self.nome_original = getattr(self.arquivo, "name", "") or ""
+        return super().save(*args, **kwargs)
+
+    @property
+    def nome_exibicao(self) -> str:
+        return self.nome_original or os.path.basename(getattr(self.arquivo, "name", "") or "")

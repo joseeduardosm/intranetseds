@@ -5,6 +5,52 @@
   margin: 16px 0 32px;
 }
 
+.reserva-actions-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: nowrap;
+}
+
+.reserva-actions-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.reserva-search-form {
+  display: flex;
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.reserva-search-form .table-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #ffffff;
+}
+
+.reserva-search-form .table-search input {
+  border: none;
+  outline: none;
+  font-size: 0.95rem;
+  min-width: 320px;
+  background: transparent;
+}
+
+.reserva-search-form .table-search-icon {
+  font-size: 0.9rem;
+}
+
 .table {
   width: 100%;
   border-collapse: collapse;
@@ -34,4 +80,31 @@
 
 .table tbody tr:last-child td {
   border-bottom: none;
+}
+
+@media (max-width: 900px) {
+  .reserva-actions-bar {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+
+  .reserva-actions-left {
+    width: 100%;
+  }
+
+  .reserva-search-form {
+    width: 100%;
+    margin-left: 0;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .reserva-search-form .table-search {
+    flex: 1 1 100%;
+  }
+
+  .reserva-search-form .table-search input {
+    min-width: 0;
+    width: 100%;
+  }
 }

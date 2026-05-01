@@ -13,6 +13,12 @@
   </section>
 
   <div class="card-actions">
+    {% if etapa.entrega.sistema.url_homologacao %}
+      <a class="btn btn-light" href="{{ etapa.entrega.sistema.url_homologacao }}" target="_blank" rel="noopener">Amb. Homologação</a>
+    {% endif %}
+    {% if etapa.entrega.sistema.url_producao %}
+      <a class="btn btn-light" href="{{ etapa.entrega.sistema.url_producao }}" target="_blank" rel="noopener">Amb. Produção</a>
+    {% endif %}
     <a class="btn btn-light" href="{% url 'acompanhamento_sistemas_detail' etapa.entrega.sistema.pk %}">Voltar ao sistema</a>
     <a class="btn btn-light" href="{% url 'acompanhamento_sistemas_entrega_detail' etapa.entrega.pk %}">Voltar ao ciclo</a>
   </div>
@@ -44,29 +50,12 @@
         {% endif %}
       </div>
       <p><strong>Tempo desde a etapa anterior:</strong> {{ etapa.tempo_desde_etapa_anterior_em_dias|default:"-" }}</p>
-      <p>
-        <strong>URL de homologação:</strong>
-        {% if etapa.entrega.sistema.url_homologacao %}
-          <a href="{{ etapa.entrega.sistema.url_homologacao }}" target="_blank" rel="noopener">{{ etapa.entrega.sistema.url_homologacao }}</a>
-        {% else %}
-          -
-        {% endif %}
-      </p>
-      <p>
-        <strong>URL de produção:</strong>
-        {% if etapa.entrega.sistema.url_producao %}
-          <a href="{{ etapa.entrega.sistema.url_producao }}" target="_blank" rel="noopener">{{ etapa.entrega.sistema.url_producao }}</a>
-        {% else %}
-          -
-        {% endif %}
-      </p>
-
       {% if pode_editar_etapa %}
         <form method="post" enctype="multipart/form-data" action="{% url 'acompanhamento_sistemas_etapa_update' etapa.pk %}" class="acompanhamento-form">
           {% csrf_token %}
           {{ etapa_form.non_field_errors }}
           {% if not ciclo_publicado %}
-            <p class="card-meta">Enquanto o ciclo estiver em rascunho, apenas a data da etapa pode ser alterada. Status, comentários e anexos serão liberados após a publicação.</p>
+            <p class="card-meta">Enquanto o ciclo estiver em rascunho, a etapa de Requisitos já pode avançar com justificativa e anexo. As demais etapas liberam status, comentários e anexos após a publicação.</p>
           {% endif %}
           <p>
             <label for="{{ etapa_form.data_etapa.id_for_label }}">{{ etapa_form.data_etapa.label }}</label>
@@ -239,6 +228,7 @@
         const modal = document.getElementById("acompanhamento-note-modal");
         const backdrop = document.getElementById("acompanhamento-note-backdrop");
         const textarea = document.getElementById("id_texto_nota");
+        const noteForm = modal ? modal.querySelector("form.acompanhamento-note-form") : null;
         const openNoteModal = () => {
           modal.classList.remove("auth-required-hidden");
           backdrop.classList.remove("auth-required-hidden");
@@ -258,6 +248,14 @@
           openBtn.addEventListener("click", openNoteModal);
           closeBtn.addEventListener("click", closeNoteModal);
           backdrop.addEventListener("click", closeNoteModal);
+          if (textarea && noteForm) {
+            textarea.addEventListener("keydown", (event) => {
+              if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+                event.preventDefault();
+                noteForm.requestSubmit();
+              }
+            });
+          }
         }
 
         const dateModal = document.getElementById("acompanhamento-date-calendar-modal");

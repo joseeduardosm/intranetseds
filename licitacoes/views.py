@@ -21,7 +21,7 @@ import logging
 import re
 
 from django.contrib import messages
-from django.contrib.auth.mixins import UserPassesTestMixin
+from django.contrib.auth.mixins import PermissionRequiredMixin, UserPassesTestMixin
 from django.db import transaction
 from django.db.models import Max
 from django.http import HttpResponse
@@ -1317,10 +1317,11 @@ class EtpTicListView(LicitacoesAccessMixin, ListView):
     context_object_name = "etps"
 
 
-class EtpTicCreateView(LicitacoesAccessMixin, CreateView):
+class EtpTicCreateView(PermissionRequiredMixin, CreateView):
     model = EtpTic
     form_class = EtpTicCreateForm
     template_name = "licitacoes/etp_tic_create.html"
+    permission_required = "licitacoes.add_etptic"
 
     def form_valid(self, form):
         self.object = form.save(commit=False)
@@ -1331,11 +1332,12 @@ class EtpTicCreateView(LicitacoesAccessMixin, CreateView):
         return redirect("licitacoes_etp_tic_edit", pk=self.object.pk)
 
 
-class EtpTicEditView(LicitacoesAccessMixin, UpdateView):
+class EtpTicEditView(PermissionRequiredMixin, UpdateView):
     model = EtpTic
     form_class = EtpTicSecaoForm
     template_name = "licitacoes/etp_tic_edit.html"
     context_object_name = "etp"
+    permission_required = "licitacoes.change_etptic"
 
     def _get_secao_numero(self):
         secao = self.request.GET.get("secao")
@@ -1451,7 +1453,8 @@ class EtpTicConcluirView(LicitacoesAccessMixin, View):
         return redirect("licitacoes_etp_tic_preview", pk=pk)
 
 
-class EtpTicDeleteView(LicitacoesAccessMixin, DeleteView):
+class EtpTicDeleteView(PermissionRequiredMixin, DeleteView):
+    permission_required = "licitacoes.delete_etptic"
     model = EtpTic
     template_name = "licitacoes/etp_tic_confirm_delete.html"
     success_url = reverse_lazy("licitacoes_etp_tic_list")
@@ -1552,7 +1555,8 @@ class TermoReferenciaListView(LicitacoesAccessMixin, ListView):
     context_object_name = "termos"
 
 
-class TermoReferenciaCreateView(LicitacoesAccessMixin, CreateView):
+class TermoReferenciaCreateView(PermissionRequiredMixin, CreateView):
+    permission_required = "licitacoes.add_termoreferencia"
     """Classe `TermoReferenciaCreateView` do app `licitacoes`.
 
     Objetivo pedagógico:
@@ -1621,7 +1625,8 @@ class TermoReferenciaImportarView(LicitacoesAccessMixin, FormView):
         return redirect("licitacoes_termo_detail", pk=termo.pk)
 
 
-class TermoReferenciaUpdateView(LicitacoesAccessMixin, UpdateView):
+class TermoReferenciaUpdateView(PermissionRequiredMixin, UpdateView):
+    permission_required = "licitacoes.change_termoreferencia"
     """Classe `TermoReferenciaUpdateView` do app `licitacoes`.
 
     Objetivo pedagógico:
@@ -1645,7 +1650,8 @@ class TermoReferenciaUpdateView(LicitacoesAccessMixin, UpdateView):
         return reverse("licitacoes_termo_detail", kwargs={"pk": self.object.pk})
 
 
-class TermoReferenciaDeleteView(LicitacoesAccessMixin, DeleteView):
+class TermoReferenciaDeleteView(PermissionRequiredMixin, DeleteView):
+    permission_required = "licitacoes.delete_termoreferencia"
     """Classe `TermoReferenciaDeleteView` do app `licitacoes`.
 
     Objetivo pedagógico:
@@ -2067,7 +2073,8 @@ class TermoReferenciaExportDocxView(LicitacoesAccessMixin, View):
         return response
 
 
-class SessaoTermoCreateView(LicitacoesAccessMixin, CreateView):
+class SessaoTermoCreateView(PermissionRequiredMixin, CreateView):
+    permission_required = "licitacoes.add_sessaotermo"
     """Classe `SessaoTermoCreateView` do app `licitacoes`.
 
     Objetivo pedagógico:
@@ -2134,7 +2141,8 @@ class SessaoTermoCreateView(LicitacoesAccessMixin, CreateView):
         return _safe_next_url(self.request, default_url)
 
 
-class SessaoTermoUpdateView(LicitacoesAccessMixin, UpdateView):
+class SessaoTermoUpdateView(PermissionRequiredMixin, UpdateView):
+    permission_required = "licitacoes.change_sessaotermo"
     """Classe `SessaoTermoUpdateView` do app `licitacoes`.
 
     Objetivo pedagógico:
@@ -2199,7 +2207,8 @@ class SessaoTermoUpdateView(LicitacoesAccessMixin, UpdateView):
         return _safe_next_url(self.request, default_url)
 
 
-class SessaoTermoDeleteView(LicitacoesAccessMixin, DeleteView):
+class SessaoTermoDeleteView(PermissionRequiredMixin, DeleteView):
+    permission_required = "licitacoes.delete_sessaotermo"
     """Classe `SessaoTermoDeleteView` do app `licitacoes`.
 
     Objetivo pedagógico:
@@ -2353,7 +2362,8 @@ class SessaoMoveDownView(SessaoMoveView):
     direction = "down"
 
 
-class SubsessaoTermoCreateView(LicitacoesAccessMixin, CreateView):
+class SubsessaoTermoCreateView(PermissionRequiredMixin, CreateView):
+    permission_required = "licitacoes.add_subsessaotermo"
     """Classe `SubsessaoTermoCreateView` do app `licitacoes`.
 
     Objetivo pedagógico:
@@ -2421,7 +2431,8 @@ class SubsessaoTermoCreateView(LicitacoesAccessMixin, CreateView):
         return _safe_next_url(self.request, default_url)
 
 
-class SubsessaoTermoUpdateView(LicitacoesAccessMixin, UpdateView):
+class SubsessaoTermoUpdateView(PermissionRequiredMixin, UpdateView):
+    permission_required = "licitacoes.change_subsessaotermo"
     """Classe `SubsessaoTermoUpdateView` do app `licitacoes`.
 
     Objetivo pedagógico:
@@ -2487,7 +2498,8 @@ class SubsessaoTermoUpdateView(LicitacoesAccessMixin, UpdateView):
         return _safe_next_url(self.request, default_url)
 
 
-class SubsessaoTermoDeleteView(LicitacoesAccessMixin, DeleteView):
+class SubsessaoTermoDeleteView(PermissionRequiredMixin, DeleteView):
+    permission_required = "licitacoes.delete_subsessaotermo"
     """Classe `SubsessaoTermoDeleteView` do app `licitacoes`.
 
     Objetivo pedagógico:
@@ -2630,7 +2642,8 @@ class SubsessaoMoveDownView(SubsessaoMoveView):
     direction = "down"
 
 
-class ItemSessaoCreateView(LicitacoesAccessMixin, CreateView):
+class ItemSessaoCreateView(PermissionRequiredMixin, CreateView):
+    permission_required = "licitacoes.add_itemsessao"
     """Classe `ItemSessaoCreateView` do app `licitacoes`.
 
     Objetivo pedagógico:
@@ -2749,7 +2762,8 @@ class ItemSessaoCreateView(LicitacoesAccessMixin, CreateView):
         return _safe_next_url(self.request, default_url)
 
 
-class ItemSessaoUpdateView(LicitacoesAccessMixin, UpdateView):
+class ItemSessaoUpdateView(PermissionRequiredMixin, UpdateView):
+    permission_required = "licitacoes.change_itemsessao"
     """Classe `ItemSessaoUpdateView` do app `licitacoes`.
 
     Objetivo pedagógico:
@@ -2848,7 +2862,8 @@ class ItemSessaoUpdateView(LicitacoesAccessMixin, UpdateView):
         return _safe_next_url(self.request, default_url)
 
 
-class ItemSessaoDeleteView(LicitacoesAccessMixin, DeleteView):
+class ItemSessaoDeleteView(PermissionRequiredMixin, DeleteView):
+    permission_required = "licitacoes.delete_itemsessao"
     """Classe `ItemSessaoDeleteView` do app `licitacoes`.
 
     Objetivo pedagógico:
@@ -3081,7 +3096,8 @@ class ItemMoveDownView(ItemMoveView):
     direction = "down"
 
 
-class TabelaItemLinhaCreateView(LicitacoesAccessMixin, CreateView):
+class TabelaItemLinhaCreateView(PermissionRequiredMixin, CreateView):
+    permission_required = "licitacoes.add_tabelaitemlinha"
     """Classe `TabelaItemLinhaCreateView` do app `licitacoes`.
 
     Objetivo pedagógico:
@@ -3154,7 +3170,8 @@ class TabelaItemLinhaCreateView(LicitacoesAccessMixin, CreateView):
         return _safe_next_url(self.request, default_url)
 
 
-class TabelaItemLinhaUpdateView(LicitacoesAccessMixin, UpdateView):
+class TabelaItemLinhaUpdateView(PermissionRequiredMixin, UpdateView):
+    permission_required = "licitacoes.change_tabelaitemlinha"
     """Classe `TabelaItemLinhaUpdateView` do app `licitacoes`.
 
     Objetivo pedagógico:
@@ -3223,7 +3240,8 @@ class TabelaItemLinhaUpdateView(LicitacoesAccessMixin, UpdateView):
         return _safe_next_url(self.request, default_url)
 
 
-class TabelaItemLinhaDeleteView(LicitacoesAccessMixin, DeleteView):
+class TabelaItemLinhaDeleteView(PermissionRequiredMixin, DeleteView):
+    permission_required = "licitacoes.delete_tabelaitemlinha"
     """Classe `TabelaItemLinhaDeleteView` do app `licitacoes`.
 
     Objetivo pedagógico:

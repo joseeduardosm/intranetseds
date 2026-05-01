@@ -17,28 +17,6 @@
     {% endif %}
   </div>
 
-  <section class="acompanhamento-dashboard">
-    <article class="acompanhamento-dashboard-card">
-      <span class="acompanhamento-dashboard-card__label">Sistemas visíveis</span>
-      <strong class="acompanhamento-dashboard-card__value">{{ dashboard.total }}</strong>
-    </article>
-    <article class="acompanhamento-dashboard-card">
-      <span class="acompanhamento-dashboard-card__label">Com atraso</span>
-      <strong class="acompanhamento-dashboard-card__value">{{ dashboard.com_atraso }}</strong>
-    </article>
-    <article class="acompanhamento-dashboard-card">
-      <span class="acompanhamento-dashboard-card__label">Em atenção</span>
-      <strong class="acompanhamento-dashboard-card__value">{{ dashboard.com_atencao }}</strong>
-    </article>
-    <article class="acompanhamento-dashboard-card">
-      <span class="acompanhamento-dashboard-card__label">Com retomada</span>
-      <strong class="acompanhamento-dashboard-card__value">{{ dashboard.com_retomada }}</strong>
-    </article>
-    <article class="acompanhamento-dashboard-card">
-      <span class="acompanhamento-dashboard-card__label">Aguardando homologação</span>
-      <strong class="acompanhamento-dashboard-card__value">{{ dashboard.aguardando_homologacao }}</strong>
-    </article>
-  </section>
 
   <div class="card-grid card-grid-fixed acompanhamento-card-grid">
     {% for sistema in sistemas %}
@@ -89,5 +67,14 @@
     {% empty %}
       <p>Nenhum sistema encontrado.</p>
     {% endfor %}
+  </div>
+
+  <div style="margin-top: 36px; text-align: center; padding: 24px; background: #fff; border: 1px dashed #d7d4cc; border-radius: 16px;">
+    <h3 style="margin-top: 0;">Cliente Desktop SGI</h3>
+    <p style="color: #6b7280; font-size: 0.95rem; margin-bottom: 18px;">Notificações diretamente na bandeja do seu computador para não perder nenhuma atualização dos seus processos.</p>
+    <a class="btn" href="/media/downloads/clientsgi.exe" download style="display: inline-flex; align-items: center; justify-content: center; min-width: 220px;">
+      <svg style="width: 18px; margin-right: 10px;" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
+      Baixar Client (.exe)
+    </a>
   </div>
 {% endblock %}

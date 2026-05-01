@@ -5,8 +5,9 @@ Este módulo é o ponto de entrada para cenários automatizados de regras de
 negócio, persistência e fluxos HTTP relacionados ao diretório de ramais.
 """
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import Group
-from django.test import RequestFactory, TestCase
+from django.contrib.auth.models import Group, Permission
+from django.test import Client, RequestFactory, TestCase
+from django.urls import reverse
 
 from intranet.context_processors import ramal_profile
 from usuarios.models import SetorNode, UserSetorMembership
@@ -147,3 +148,80 @@ class PessoaRamalAdminExclusionTests(TestCase):
 
         self.assertNotIn(self.admin_profile, queryset)
         self.assertIn(self.common_profile, queryset)
+
+
+class PessoaRamalAuthenticationTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = get_user_model().objects.create_user(username="joao", password="123456")
+        self.profile = PessoaRamal.objects.create(
+            usuario=self.user,
+            nome="Joao Silva",
+            cargo="Analista",
+            setor="Financeiro",
+            ramal="1234",
+            email="joao@exemplo.gov.br",
+        )
+
+    def test_lista_exige_login(self):
+        response = self.client.get(reverse("ramais_list"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, f"{reverse('login')}?next={reverse('ramais_list')}")
+
+    def test_detalhe_exige_login(self):
+        response = self.client.get(reverse("ramais_detail", kwargs={"pk": self.profile.pk}))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response.url,
+            f"{reverse('login')}?next={reverse('ramais_detail', kwargs={'pk': self.profile.pk})}",
+        )
+
+    def test_organograma_exige_login(self):
+        response = self.client.get(reverse("organograma"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, f"{reverse('login')}?next={reverse('organograma')}")
+
+
+class PessoaRamalUpdatePermissionTests(TestCase):
+    def setUp(self):
+        self.client = Client(HTTP_HOST="sgi.seds.sp.gov.br")
+        self.user = get_user_model().objects.create_user(username="lcjardim_teste", password="123456")
+        self.profile = PessoaRamal.objects.create(
+            usuario=self.user,
+            nome="Luciana Jardim",
+            cargo="Analista",
+            setor="Financeiro",
+            ramal="8269",
+            email="lcjardim@exemplo.gov.br",
+        )
+        self.user.user_permissions.add(
+            Permission.objects.get_by_natural_key("view_reserva", "reserva_salas", "reserva"),
+            Permission.objects.get_by_natural_key("view_sala", "reserva_salas", "sala"),
+        )
+
+    def test_usuario_com_apenas_permissoes_de_leitura_pode_editar_proprio_ramal(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("ramais_update", kwargs={"pk": self.profile.pk}))
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_usuario_com_apenas_permissoes_de_leitura_nao_pode_editar_ramal_de_terceiro(self):
+        outro_user = get_user_model().objects.create_user(username="outro", password="123456")
+        outro_profile = PessoaRamal.objects.create(
+            usuario=outro_user,
+            nome="Outro Usuario",
+            cargo="Analista",
+            setor="Financeiro",
+            ramal="9999",
+            email="outro@exemplo.gov.br",
+        )
+
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("ramais_update", kwargs={"pk": outro_profile.pk}))
+
+        self.assertEqual(response.status_code, 403)

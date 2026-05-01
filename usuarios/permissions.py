@@ -183,6 +183,54 @@ PROFILE_DEFINITIONS = {
             ("Administracao", ["view", "add", "change", "delete"]),
         ],
     },
+    "Lousa Digital": {
+        "models": [
+            "lousa_digital.Processo",
+            "lousa_digital.Encaminhamento",
+            "lousa_digital.EventoTimeline",
+        ],
+        "levels": [
+            ("Leitura", ["view"]),
+            ("Edicao", ["view", "add", "change"]),
+            ("Administracao", ["view", "add", "change", "delete"]),
+        ],
+    },
+    "Usuarios": {
+        "models": [
+            "auth.User",
+            "auth.Group",
+            "usuarios.SetorNode",
+            "usuarios.SetorGrant",
+            "usuarios.UserSetorMembership",
+            "usuarios.PermissionResolutionAudit",
+        ],
+        "levels": [
+            ("Leitura", ["view"]),
+            ("Edicao", ["view", "add", "change"]),
+            ("Administracao", ["view", "add", "change", "delete"]),
+        ],
+    },
+    "Notificacoes": {
+        "models": [
+            "notificacoes.NotificacaoUsuario",
+            "notificacoes.DesktopAPIToken",
+        ],
+        "levels": [
+            ("Leitura", ["view"]),
+            ("Edicao", ["view", "add", "change"]),
+            ("Administracao", ["view", "add", "change", "delete"]),
+        ],
+    },
+    "Rastreamento de Navegacao": {
+        "models": [
+            "rastreamento_navegacao.DailyPageVisit",
+        ],
+        "levels": [
+            ("Leitura", ["view"]),
+            ("Edicao", ["view", "add", "change"]),
+            ("Administracao", ["view", "add", "change", "delete"]),
+        ],
+    },
 }
 
 # Labels de apresentação na UI (matriz de perfis).

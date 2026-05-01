@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load acompanhamento_tags %}
+
+{% block container_class %}container-wide acompanhamento-container{% endblock %}
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/acompanhamento_sistemas/acompanhamento_sistemas.css' %}?v={% now 'U' %}" />
+  <style>
+    .acompanhamento-processo-etapa-alerta {
+      margin: 10px 0 0;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: #fff4cc;
+      color: #7a5800;
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>{{ etapa.processo.sistema.nome }} · {{ etapa.processo.titulo }} · {{ etapa.get_tipo_etapa_display }}</h2>
+  </section>
+
+  <div class="card-actions">
+    <a class="btn btn-light" href="{% url 'acompanhamento_sistemas_detail' etapa.processo.sistema.pk %}">Voltar ao sistema</a>
+    <a class="btn btn-light" href="{% url 'acompanhamento_sistemas_processo_detail' etapa.processo.pk %}">Voltar ao processo</a>
+  </div>
+
+  <div class="acompanhamento-detail-grid acompanhamento-detail-grid--etapa">
+    <section class="detail-card acompanhamento-card">
+      <h3>Detalhe da etapa</h3>
+      <p><strong>Processo:</strong> {{ etapa.processo.titulo }}</p>
+      <p><strong>Status da etapa:</strong> {{ etapa.get_status_display }}</p>
+      {% if etapa.marcadores_historicos %}
+        <div class="acompanhamento-marcadores acompanhamento-marcadores--detail-inline">
+          {% for marcador in etapa.marcadores_historicos %}
+            <span class="acompanhamento-marcador acompanhamento-marcador--{{ marcador.classe }}">{{ marcador.label }}</span>
+          {% endfor %}
+        </div>
+      {% endif %}
+      <p><strong>Status do processo:</strong> {% if etapa.processo.processo_finalizado %}Finalizado{% else %}Em andamento{% endif %}</p>
+      {% if pode_gerir_processos %}
+        {% if etapa.pode_alterar_status %}
+          <button class="btn" type="button" id="acompanhamento-open-processo-etapa-status-modal">Alterar status</button>
+        {% else %}
+          <div class="acompanhamento-processo-etapa-alerta">
+            {% if not etapa.dependencias_concluidas %}
+              {{ etapa.mensagem_bloqueio_dependencia }}
+            {% else %}
+              Esta etapa já está em um status final e não aceita novas mudanças.
+            {% endif %}
+          </div>
+        {% endif %}
+      {% endif %}
+    </section>
+
+    <section class="detail-card detail-card-tall acompanhamento-card">
+      <div class="acompanhamento-timeline-head">
+        <h3>Timeline da etapa</h3>
+      </div>
+      <ul class="incrementos-timeline">
+        {% for historico in historicos %}
+          <li class="incremento-item">
+            <div class="incremento-meta">
+              <span>{{ historico.timeline_titulo }}</span>
+              <span>{{ historico.get_tipo_evento_display }}</span>
+              <span>{{ historico.criado_em|date:"d/m/Y H:i" }}</span>
+              <span>{{ historico.criado_por|usuario_nome|default:"Sistema" }}</span>
+            </div>
+            <div class="incremento-text">{{ historico.descricao|linebreaksbr }}</div>
+            {% if historico.justificativa %}
+              <p class="card-meta"><strong>Justificativa:</strong> {{ historico.justificativa }}</p>
+            {% endif %}
+            {% if historico.anexos.all %}
+              <div class="acompanhamento-anexos">
+                {% for anexo in historico.anexos.all %}
+                  <a href="{{ anexo.arquivo.url }}" target="_blank" rel="noopener">{{ anexo.nome_exibicao }}</a>
+                {% endfor %}
+              </div>
+            {% endif %}
+          </li>
+        {% empty %}
+          <li class="incremento-item">Nenhum histórico registrado para esta etapa.</li>
+        {% endfor %}
+      </ul>
+      {% include "acompanhamento_sistemas/_timeline_pagination.html" %}
+    </section>
+  </div>
+
+  {% if pode_gerir_processos %}
+    <div class="profile-alert-backdrop{% if not abrir_modal_status %} auth-required-hidden{% endif %}" id="acompanhamento-processo-etapa-status-backdrop" aria-hidden="{% if abrir_modal_status %}false{% else %}true{% endif %}"></div>
+    <div class="profile-alert-modal{% if not abrir_modal_status %} auth-required-hidden{% endif %} acompanhamento-note-modal" id="acompanhamento-processo-etapa-status-modal" role="dialog" aria-modal="true" aria-label="Alterar status da etapa do processo">
+      <h3>Alterar status da etapa</h3>
+      <p class="acompanhamento-note-text">Toda mudança exige nota/acompanhamento. Ao enviar a etapa para `Validação`, o anexo é obrigatório.</p>
+      <form method="post" enctype="multipart/form-data" action="{% url 'acompanhamento_sistemas_processo_etapa_update' etapa.pk %}" class="acompanhamento-form">
+        {% csrf_token %}
+        {{ etapa_form.non_field_errors }}
+        <p>
+          {{ etapa_form.status.label_tag }}
+          {{ etapa_form.status }}
+          {% for error in etapa_form.status.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
+        </p>
+        <p>
+          {{ etapa_form.justificativa_status.label_tag }}
+          {{ etapa_form.justificativa_status }}
+          {% for error in etapa_form.justificativa_status.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
+        </p>
+        <p>
+          {{ etapa_form.anexos.label_tag }}
+          {{ etapa_form.anexos }}
+          {% for error in etapa_form.anexos.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
+        </p>
+        <div class="profile-alert-actions">
+          <button class="btn" type="submit">Salvar atualização</button>
+          <button class="btn btn-secondary" type="button" id="acompanhamento-processo-etapa-status-cancel">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+  {% if pode_gerir_processos %}
+    <script>
+      (() => {
+        const modal = document.getElementById("acompanhamento-processo-etapa-status-modal");
+        const backdrop = document.getElementById("acompanhamento-processo-etapa-status-backdrop");
+        const openBtn = document.getElementById("acompanhamento-open-processo-etapa-status-modal");
+        const closeBtn = document.getElementById("acompanhamento-processo-etapa-status-cancel");
+        const focusTarget = modal ? modal.querySelector("select, textarea") : null;
+
+        const openBox = () => {
+          if (!modal || !backdrop) return;
+          modal.classList.remove("auth-required-hidden");
+          backdrop.classList.remove("auth-required-hidden");
+          modal.setAttribute("aria-hidden", "false");
+          backdrop.setAttribute("aria-hidden", "false");
+          if (focusTarget) focusTarget.focus();
+        };
+
+        const closeBox = () => {
+          if (!modal || !backdrop) return;
+          modal.classList.add("auth-required-hidden");
+          backdrop.classList.add("auth-required-hidden");
+          modal.setAttribute("aria-hidden", "true");
+          backdrop.setAttribute("aria-hidden", "true");
+        };
+
+        if (openBtn) openBtn.addEventListener("click", openBox);
+        if (closeBtn) closeBtn.addEventListener("click", closeBox);
+        if (backdrop) backdrop.addEventListener("click", closeBox);
+        document.addEventListener("keydown", (event) => {
+          if (event.key === "Escape") closeBox();
+        });
+      })();
+    </script>
+  {% endif %}
+{% endblock %}
