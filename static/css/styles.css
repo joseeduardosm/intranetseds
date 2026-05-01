@@ -628,6 +628,10 @@ main.container {
   box-shadow: 0 4px 10px rgba(31, 42, 68, 0.08);
 }
 
+.home-shortcuts-panel .servico-card {
+  position: relative;
+}
+
 .servico-card:hover {
   filter: brightness(1.03);
 }
@@ -671,6 +675,14 @@ main.container {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.home-shortcuts-panel .servico-card-footer {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1;
 }
 
 .servicos-empty {
