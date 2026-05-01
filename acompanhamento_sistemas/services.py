@@ -466,24 +466,6 @@ def _etapa_exige_data(tipo_etapa: str) -> bool:
     return tipo_etapa not in ETAPAS_SEM_DATA
 
 
-def _validar_datas_etapas_finais_para_atualizacao(etapa: EtapaSistema, nova_data: date | None) -> None:
-    if etapa.tipo_etapa not in ETAPAS_FINAIS_COM_DATA_OBRIGATORIA:
-        return
-
-    etapas = {item.tipo_etapa: item for item in etapa.entrega.etapas.all()}
-    faltantes = []
-    for tipo in ETAPAS_FINAIS_COM_DATA_OBRIGATORIA:
-        etapa_relacionada = etapas.get(tipo)
-        data_referencia = nova_data if tipo == etapa.tipo_etapa else (etapa_relacionada.data_etapa if etapa_relacionada else None)
-        if not data_referencia:
-            faltantes.append(etapa_relacionada.get_tipo_etapa_display() if etapa_relacionada is not None else tipo)
-
-    if faltantes:
-        raise ValidationError(
-            "Defina a data de Desenvolvimento, Homologação do Desenvolvimento e Produção antes de atualizar essas etapas."
-        )
-
-
 def entrega_pode_ser_publicada(entrega: EntregaSistema) -> bool:
     etapas = {etapa.tipo_etapa: etapa for etapa in entrega.etapas.all()}
     requisitos = etapas.get(EtapaSistema.TipoEtapa.REQUISITOS)
@@ -746,7 +728,6 @@ def atualizar_etapa_com_historico(
         and not nova_data
     ):
         raise ValidationError("Informe a data da etapa.")
-    _validar_datas_etapas_finais_para_atualizacao(etapa, nova_data)
 
     if etapa.eh_homologacao and status_alterado and novo_status == EtapaSistema.Status.REPROVADO:
         etapa.data_etapa = nova_data

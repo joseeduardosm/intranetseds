@@ -22,13 +22,6 @@ ETAPAS_SEM_DATA = {
     EtapaSistema.TipoEtapa.HOMOLOGACAO_REQUISITOS,
 }
 
-ETAPAS_FINAIS_COM_DATA_OBRIGATORIA = {
-    EtapaSistema.TipoEtapa.DESENVOLVIMENTO,
-    EtapaSistema.TipoEtapa.HOMOLOGACAO_DESENVOLVIMENTO,
-    EtapaSistema.TipoEtapa.PRODUCAO,
-}
-
-
 User = get_user_model()
 
 
@@ -245,19 +238,6 @@ class EtapaSistemaAtualizacaoForm(forms.ModelForm):
                 and not cleaned_data.get("data_etapa")
             ):
                 self.add_error("data_etapa", "Informe a data da etapa.")
-            if self.instance.tipo_etapa in ETAPAS_FINAIS_COM_DATA_OBRIGATORIA:
-                etapas = {etapa.tipo_etapa: etapa for etapa in self.instance.entrega.etapas.all()}
-                faltam_datas = []
-                for tipo_etapa in ETAPAS_FINAIS_COM_DATA_OBRIGATORIA:
-                    etapa = etapas.get(tipo_etapa)
-                    data_referencia = cleaned_data.get("data_etapa") if tipo_etapa == self.instance.tipo_etapa else (etapa.data_etapa if etapa else None)
-                    if not data_referencia:
-                        faltam_datas.append(etapa.get_tipo_etapa_display() if etapa is not None else tipo_etapa)
-                if faltam_datas:
-                    self.add_error(
-                        "data_etapa",
-                        "Defina a data de Desenvolvimento, Homologação do Desenvolvimento e Produção antes de atualizar essas etapas.",
-                    )
             if (
                 self.instance.tipo_etapa == EtapaSistema.TipoEtapa.REQUISITOS
                 and status_novo == EtapaSistema.Status.ENTREGUE
