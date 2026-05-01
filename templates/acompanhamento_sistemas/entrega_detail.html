@@ -13,7 +13,7 @@
 
   <div class="card-actions acompanhamento-card-actions--tight">
     <a class="btn btn-light" href="{% url 'acompanhamento_sistemas_entrega_historico' entrega.pk %}">Histórico</a>
-    {% if pode_publicar_ciclo %}
+    {% if pode_exibir_publicar_ciclo %}
       <a class="btn" href="#" id="acompanhamento-open-publish-modal">Publicar ciclo</a>
     {% endif %}
     {% if perms.acompanhamento_sistemas.change_entregasistema %}
@@ -132,14 +132,29 @@
 {% endblock %}
 
 {% block extra_js %}
-  {% if pode_publicar_ciclo %}
+  {% if pode_exibir_publicar_ciclo %}
+    {{ publicacao_pendencias|json_script:"acompanhamento-publicacao-pendencias" }}
     <script>
       (() => {
         const openBtn = document.getElementById("acompanhamento-open-publish-modal");
+        const pendingRulesEl = document.getElementById("acompanhamento-publicacao-pendencias");
+        const pendingRules = pendingRulesEl ? JSON.parse(pendingRulesEl.textContent || "[]") : [];
+        if (!openBtn) return;
+
+        if (pendingRules.length) {
+          openBtn.addEventListener("click", (event) => {
+            event.preventDefault();
+            if (window.__sgiOpenMsgBox) {
+              window.__sgiOpenMsgBox(pendingRules, "Regras para publicar ciclo");
+            }
+          });
+          return;
+        }
+
         const closeBtn = document.getElementById("acompanhamento-publish-cancel");
         const modal = document.getElementById("acompanhamento-publish-modal");
         const backdrop = document.getElementById("acompanhamento-publish-backdrop");
-        if (!openBtn || !closeBtn || !modal || !backdrop) return;
+        if (!closeBtn || !modal || !backdrop) return;
 
         const openModal = () => {
           modal.classList.remove("auth-required-hidden");

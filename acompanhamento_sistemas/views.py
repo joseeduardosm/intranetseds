@@ -53,7 +53,6 @@ from .services import (
     atualizar_etapa_com_historico,
     atualizar_etapa_processo_requisito,
     atualizar_processo_requisito,
-    entrega_pode_ser_publicada,
     etapa_pode_alterar_status_em_rascunho,
     criar_entrega_com_etapas,
     criar_processo_requisito,
@@ -63,6 +62,7 @@ from .services import (
     gerar_ciclo_a_partir_processo,
     gerar_novo_sistema_a_partir_processos,
     publicar_entrega,
+    regras_pendentes_publicacao_entrega,
     sistema_pode_gerar_novo_sistema,
 )
 
@@ -1038,10 +1038,16 @@ class EntregaSistemaDetailView(AcompanhamentoReadAccessMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["pode_publicar_ciclo"] = (
+        pode_exibir_publicar_ciclo = (
             _usuario_pode_editar_entrega(self.request.user, self.object)
             and self.object.status == EntregaSistema.Status.RASCUNHO
-            and entrega_pode_ser_publicada(self.object)
+        )
+        publicacao_pendencias = regras_pendentes_publicacao_entrega(self.object) if pode_exibir_publicar_ciclo else []
+        context["pode_exibir_publicar_ciclo"] = pode_exibir_publicar_ciclo
+        context["publicacao_pendencias"] = publicacao_pendencias
+        context["pode_publicar_ciclo"] = (
+            pode_exibir_publicar_ciclo
+            and not publicacao_pendencias
         )
         context["pode_editar_sistema"] = _usuario_pode_editar_sistema(self.request.user, self.object.sistema)
         context["pode_excluir_ciclo"] = _usuario_pode_excluir_entrega(self.request.user, self.object)

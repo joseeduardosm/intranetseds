@@ -466,49 +466,40 @@ def _etapa_exige_data(tipo_etapa: str) -> bool:
     return tipo_etapa not in ETAPAS_SEM_DATA
 
 
-def entrega_pode_ser_publicada(entrega: EntregaSistema) -> bool:
+def regras_pendentes_publicacao_entrega(entrega: EntregaSistema) -> list[str]:
     etapas = {etapa.tipo_etapa: etapa for etapa in entrega.etapas.all()}
     requisitos = etapas.get(EtapaSistema.TipoEtapa.REQUISITOS)
     homologacao_requisitos = etapas.get(EtapaSistema.TipoEtapa.HOMOLOGACAO_REQUISITOS)
+    pendencias = []
     if requisitos is None or homologacao_requisitos is None:
-        return False
+        return ["O ciclo não possui as etapas obrigatórias para publicação."]
     if requisitos.status != EtapaSistema.Status.ENTREGUE:
-        return False
+        pendencias.append("Entregue a etapa de Requisitos antes de publicar o ciclo.")
     if homologacao_requisitos.status != EtapaSistema.Status.EM_ANDAMENTO:
-        return False
-
-    for tipo_etapa in ETAPAS_FINAIS_COM_DATA_OBRIGATORIA:
-        etapa = etapas.get(tipo_etapa)
-        if etapa is None or not etapa.data_etapa:
-            return False
-    return True
-
-
-def validar_publicacao_entrega(entrega: EntregaSistema) -> None:
-    etapas = {etapa.tipo_etapa: etapa for etapa in entrega.etapas.all()}
-    requisitos = etapas.get(EtapaSistema.TipoEtapa.REQUISITOS)
-    homologacao_requisitos = etapas.get(EtapaSistema.TipoEtapa.HOMOLOGACAO_REQUISITOS)
-
-    if requisitos is None or homologacao_requisitos is None:
-        raise ValidationError("O ciclo não possui as etapas obrigatórias para publicação.")
-    if requisitos.status != EtapaSistema.Status.ENTREGUE:
-        raise ValidationError("Entregue a etapa de Requisitos antes de publicar o ciclo.")
-    if homologacao_requisitos.status != EtapaSistema.Status.EM_ANDAMENTO:
-        raise ValidationError(
-            "A etapa de Homologação de Requisitos deve estar em andamento para publicar o ciclo."
-        )
+        pendencias.append("A etapa de Homologação de Requisitos deve estar em andamento para publicar o ciclo.")
 
     etapas_sem_data = []
     for tipo_etapa in ETAPAS_FINAIS_COM_DATA_OBRIGATORIA:
         etapa = etapas.get(tipo_etapa)
-        if etapa is not None and not etapa.data_etapa:
-            etapas_sem_data.append(etapa.get_tipo_etapa_display())
+        if etapa is None or not etapa.data_etapa:
+            etapas_sem_data.append(etapa.get_tipo_etapa_display() if etapa is not None else tipo_etapa)
     if etapas_sem_data:
-        raise ValidationError(
+        pendencias.append(
             "Defina a data das etapas seguintes antes de publicar o ciclo: "
             + ", ".join(etapas_sem_data)
             + "."
         )
+    return pendencias
+
+
+def entrega_pode_ser_publicada(entrega: EntregaSistema) -> bool:
+    return not regras_pendentes_publicacao_entrega(entrega)
+
+
+def validar_publicacao_entrega(entrega: EntregaSistema) -> None:
+    pendencias = regras_pendentes_publicacao_entrega(entrega)
+    if pendencias:
+        raise ValidationError(pendencias)
 
 
 def enviar_notificacao_historico(historico: HistoricoEtapaSistema, *, request=None):
