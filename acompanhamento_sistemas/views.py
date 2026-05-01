@@ -1261,7 +1261,7 @@ class EtapaSistemaUpdateView(LoginRequiredMixin, View):
             try:
                 atualizar_etapa_com_historico(
                     etapa_atual,
-                    nova_data=form.cleaned_data["data_etapa"],
+                    nova_data=form.cleaned_data.get("data_etapa"),
                     novo_status=form.cleaned_data["status"],
                     justificativa=form.cleaned_data.get("justificativa_status"),
                     texto_nota=form.cleaned_data.get("texto_nota"),

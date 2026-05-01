@@ -227,7 +227,7 @@ class EtapaSistemaAtualizacaoForm(forms.ModelForm):
                 self.fields["anexos"].label = "Anexo dos requisitos"
                 self.fields["anexos"].help_text = "Ao concluir Requisitos, anexe obrigatoriamente o documento de requisitos."
             if self.instance.tipo_etapa in ETAPAS_SEM_DATA:
-                self.fields["data_etapa"].help_text = "Esta etapa não utiliza data."
+                self.fields.pop("data_etapa", None)
 
     def clean(self):
         cleaned_data = super().clean()

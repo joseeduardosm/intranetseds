@@ -57,14 +57,16 @@
           {% if not ciclo_publicado %}
             <p class="card-meta">Enquanto o ciclo estiver em rascunho, a etapa de Requisitos já pode avançar com justificativa e anexo. As demais etapas liberam status, comentários e anexos após a publicação.</p>
           {% endif %}
-          <p>
-            <label for="{{ etapa_form.data_etapa.id_for_label }}">{{ etapa_form.data_etapa.label }}</label>
-            {{ etapa_form.data_etapa }}
-            {% if etapa_form.data_etapa.help_text %}
-              <span class="helptext">{{ etapa_form.data_etapa.help_text }}</span>
-            {% endif %}
-            {% for error in etapa_form.data_etapa.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
-          </p>
+          {% if etapa_form.data_etapa %}
+            <p>
+              <label for="{{ etapa_form.data_etapa.id_for_label }}">{{ etapa_form.data_etapa.label }}</label>
+              {{ etapa_form.data_etapa }}
+              {% if etapa_form.data_etapa.help_text %}
+                <span class="helptext">{{ etapa_form.data_etapa.help_text }}</span>
+              {% endif %}
+              {% for error in etapa_form.data_etapa.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
+            </p>
+          {% endif %}
           {% if pode_alterar_status_etapa %}
             <p>
               {{ etapa_form.status.label_tag }}
@@ -157,7 +159,7 @@
 
   {% endif %}
 
-  {% if pode_editar_etapa %}
+  {% if pode_editar_etapa and etapa_form.data_etapa %}
     <div class="profile-alert-backdrop auth-required-hidden" id="acompanhamento-date-calendar-backdrop" aria-hidden="true"></div>
     <div
       class="profile-alert-modal auth-required-hidden acompanhamento-date-calendar-modal"
@@ -198,7 +200,7 @@
 {% endblock %}
 
 {% block extra_js %}
-  {% if pode_editar_etapa %}
+  {% if pode_editar_etapa and etapa_form.data_etapa %}
     <script>
       (() => {
         const parseDateAny = (value) => {
