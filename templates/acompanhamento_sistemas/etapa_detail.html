@@ -193,7 +193,7 @@
 {% endblock %}
 
 {% block extra_js %}
-  {% if pode_editar_etapa and etapa_form.data_etapa %}
+  {% if pode_lancar_nota_etapa or etapa_form.data_etapa %}
     <script>
       (() => {
         const parseDateAny = (value) => {

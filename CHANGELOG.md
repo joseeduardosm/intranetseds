@@ -2,6 +2,13 @@
 
 Este arquivo consolida as principais mudanças funcionais e estruturais do projeto `Intranet SEDS`.
 
+## 2026-05-04
+
+### Acompanhamento de Sistemas
+
+- ajustada a regra de dependência das homologações para permitir reabrir/corrigir uma homologação já aprovada quando a etapa anterior foi retomada, mantendo o bloqueio para nova aprovação enquanto a etapa anterior não estiver concluída;
+- corrigido o botão `Lançar nota` em etapas sem campo de data, como `Homologação de Requisitos`, garantindo abertura do modal e registro de anotações.
+
 ## 2026-05-01
 
 ### Acompanhamento de Sistemas

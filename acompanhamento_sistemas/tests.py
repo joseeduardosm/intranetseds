@@ -1094,6 +1094,60 @@ class AcompanhamentoSistemasTests(TestCase):
         self.assertContains(response_ciclo, "Em andamento")
         self.assertNotContains(response_ciclo, "<td>Reprovado</td>", html=False)
 
+    def test_homologacao_aprovada_pode_ser_reaberta_quando_requisitos_foram_retomados(self):
+        sistema = self._criar_sistema()
+        entrega = self._criar_entrega(sistema, titulo="Ciclo Correcao")
+        self._preparar_ciclo_para_fluxo(entrega)
+        self._recarregar_entrega(entrega)
+        etapa_requisitos, etapa_homologacao, etapa_desenvolvimento = list(entrega.etapas.order_by("ordem")[:3])
+
+        response_aprovacao = self.client.post(
+            reverse("acompanhamento_sistemas_etapa_update", kwargs={"pk": etapa_homologacao.pk}),
+            {
+                "data_etapa": "",
+                "status": EtapaSistema.Status.APROVADO,
+                "justificativa_status": "Aprovacao lançada por engano",
+            },
+        )
+        self.assertEqual(response_aprovacao.status_code, 302)
+        etapa_homologacao.refresh_from_db()
+        etapa_desenvolvimento.refresh_from_db()
+        self.assertEqual(etapa_homologacao.status, EtapaSistema.Status.APROVADO)
+        self.assertEqual(etapa_desenvolvimento.status, EtapaSistema.Status.EM_ANDAMENTO)
+
+        etapa_requisitos.status = EtapaSistema.Status.EM_ANDAMENTO
+        etapa_requisitos.save(update_fields=["status", "atualizado_em"])
+
+        response_correcao = self.client.post(
+            reverse("acompanhamento_sistemas_etapa_update", kwargs={"pk": etapa_homologacao.pk}),
+            {
+                "data_etapa": "",
+                "status": EtapaSistema.Status.EM_ANDAMENTO,
+                "justificativa_status": "Correção da homologação aprovada indevidamente",
+            },
+        )
+
+        self.assertEqual(response_correcao.status_code, 302)
+        etapa_homologacao.refresh_from_db()
+        self.assertEqual(etapa_homologacao.status, EtapaSistema.Status.EM_ANDAMENTO)
+
+        response_reaprovacao_antecipada = self.client.post(
+            reverse("acompanhamento_sistemas_etapa_update", kwargs={"pk": etapa_homologacao.pk}),
+            {
+                "data_etapa": "",
+                "status": EtapaSistema.Status.APROVADO,
+                "justificativa_status": "Tentativa de aprovar antes da nova entrega",
+            },
+        )
+
+        self.assertEqual(response_reaprovacao_antecipada.status_code, 200)
+        etapa_homologacao.refresh_from_db()
+        self.assertEqual(etapa_homologacao.status, EtapaSistema.Status.EM_ANDAMENTO)
+        self.assertContains(
+            response_reaprovacao_antecipada,
+            "A etapa anterior precisa estar como Entregue antes de alterar o status desta etapa.",
+        )
+
     def test_marcador_retomada_exibe_contador_quando_houver_nova_reprovacao(self):
         sistema = self._criar_sistema()
         entrega = self._criar_entrega(sistema, titulo="Ciclo Retorno 2")
@@ -1432,6 +1486,19 @@ class AcompanhamentoSistemasTests(TestCase):
         self.assertContains(response, f'value="{etapa.data_etapa.isoformat()}"', html=False)
         self.assertNotContains(response, "Calendário")
         self.assertContains(response, "Selecionar data da etapa")
+
+    def test_tela_da_etapa_sem_data_renderiza_script_de_lancar_nota(self):
+        sistema = self._criar_sistema()
+        entrega = self._criar_entrega(sistema)
+        etapa = entrega.etapas.get(tipo_etapa=EtapaSistema.TipoEtapa.HOMOLOGACAO_REQUISITOS)
+
+        response = self.client.get(reverse("acompanhamento_sistemas_etapa_detail", kwargs={"pk": etapa.pk}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Lançar nota")
+        self.assertContains(response, 'id="acompanhamento-open-note-modal"', html=False)
+        self.assertContains(response, 'openBtn.addEventListener("click", openNoteModal);', html=False)
+        self.assertNotContains(response, "Selecionar data da etapa")
 
     def test_api_do_calendario_retorna_etapas_de_todos_os_sistemas_com_ciclo_e_status(self):
         sistema_a = self._criar_sistema(nome="Sistema Alfa")

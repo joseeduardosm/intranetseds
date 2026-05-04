@@ -402,13 +402,18 @@ def _status_eh_conclusao(etapa: EtapaSistema, status: str) -> bool:
     return status == EtapaSistema.Status.ENTREGUE
 
 
-def _status_exige_etapa_anterior_concluida(etapa: EtapaSistema, status: str) -> bool:
-    return status in {
+def _status_exige_etapa_anterior_concluida(etapa: EtapaSistema, status_anterior: str, status_novo: str) -> bool:
+    status_controlado = status_novo in {
         EtapaSistema.Status.EM_ANDAMENTO,
         EtapaSistema.Status.ENTREGUE,
         EtapaSistema.Status.APROVADO,
         EtapaSistema.Status.REPROVADO,
     }
+    if not status_controlado:
+        return False
+    if etapa.eh_homologacao and status_anterior != EtapaSistema.Status.PENDENTE:
+        return _status_eh_conclusao(etapa, status_novo)
+    return True
 
 
 def _etapa_exige_data(tipo_etapa: str) -> bool:
@@ -553,7 +558,7 @@ def atualizar_etapa_com_historico(
 
     if (
         status_alterado
-        and _status_exige_etapa_anterior_concluida(etapa, novo_status)
+        and _status_exige_etapa_anterior_concluida(etapa, status_anterior, novo_status)
         and etapa_anterior is not None
         and not _status_eh_conclusao(etapa_anterior, etapa_anterior.status)
     ):
