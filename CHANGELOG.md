@@ -9,6 +9,14 @@ Este arquivo consolida as principais mudanças funcionais e estruturais do proje
 - ajustada a regra de dependência das homologações para permitir reabrir/corrigir uma homologação já aprovada quando a etapa anterior foi retomada, mantendo o bloqueio para nova aprovação enquanto a etapa anterior não estiver concluída;
 - corrigido o botão `Lançar nota` em etapas sem campo de data, como `Homologação de Requisitos`, garantindo abertura do modal e registro de anotações.
 
+### Home
+
+- aplicado ajuste visual nos cards de atalhos para fixar o rodapé com o nome do serviço e evitar sobreposição com imagens.
+
+### Manutenção
+
+- adicionados ao `.gitignore` artefatos locais de build, distribuição, objetos do cliente `.NET`, executável gerado e cópia antiga de configurações.
+
 ## 2026-05-01
 
 ### Acompanhamento de Sistemas

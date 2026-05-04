@@ -50,3 +50,8 @@ backup_*.sql
 runserver.log
 RFs
 =1.1.2
+build/
+dist/
+desktop_client_dotnet/obj/
+client_desktop_dotnet
+intranet/settings_old.py
