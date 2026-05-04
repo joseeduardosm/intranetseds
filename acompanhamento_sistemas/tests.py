@@ -15,6 +15,7 @@ from django.utils import timezone
 from administracao.models import SMTPConfiguration
 from auditoria.models import AuditLog
 from notificacoes.models import NotificacaoUsuario
+from notificacoes.services import SOURCE_ACOMPANHAMENTO_SISTEMAS
 
 from .models import (
     HistoricoSistema,
@@ -1372,6 +1373,64 @@ class AcompanhamentoSistemasTests(TestCase):
 
         self.assertEqual(response_get.status_code, 200)
         self.assertEqual(response_post.status_code, 404)
+
+    @override_settings(ACOMPANHAMENTO_MODAL_NOTIFICATIONS_START_AT="2000-01-01T00:00:00-03:00")
+    def test_modal_global_renderiza_notificacao_nao_lida_do_acompanhamento(self):
+        sistema = self._criar_sistema()
+        InteressadoSistema.objects.create(
+            sistema=sistema,
+            usuario=self.viewer,
+            tipo_interessado="DEV",
+            nome_snapshot="Viewer Sistemas",
+            email_snapshot=self.viewer.email,
+            criado_por=self.user,
+        )
+        historico = HistoricoSistema.objects.create(
+            sistema=sistema,
+            tipo_evento=HistoricoSistema.TipoEvento.NOTA,
+            descricao="Atualização para modal web",
+            criado_por=self.user,
+        )
+        notificacao = NotificacaoUsuario.objects.create(
+            user=self.viewer,
+            source_app=SOURCE_ACOMPANHAMENTO_SISTEMAS,
+            event_type="sistema_nota",
+            title=f"Sistema: {sistema.nome}",
+            body_short="Atualização para modal web",
+            target_url=sistema.get_absolute_url(),
+            dedupe_key=f"teste-modal-{historico.pk}",
+            payload_json={"sistema_id": sistema.pk, "historico_sistema_id": historico.pk},
+        )
+        self.client.force_login(self.viewer)
+
+        response = self.client.get(reverse("home"))
+
+        self.assertContains(response, "acompanhamento-msgbox-modal")
+        self.assertContains(
+            response,
+            reverse("acompanhamento_sistemas_notificacao_marcar_lida", kwargs={"pk": notificacao.pk}),
+        )
+        self.assertContains(response, "Atualização para modal web")
+
+    def test_ok_do_modal_marca_notificacao_do_acompanhamento_como_lida(self):
+        notificacao = NotificacaoUsuario.objects.create(
+            user=self.viewer,
+            source_app=SOURCE_ACOMPANHAMENTO_SISTEMAS,
+            event_type="sistema_nota",
+            title="Sistema: Teste",
+            body_short="Conteúdo",
+            target_url="/acompanhamento-sistemas/",
+        )
+        self.client.force_login(self.viewer)
+
+        response = self.client.post(
+            reverse("acompanhamento_sistemas_notificacao_marcar_lida", kwargs={"pk": notificacao.pk}),
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        notificacao.refresh_from_db()
+        self.assertIsNotNone(notificacao.read_at)
 
     def test_interessado_interno_ganha_leitura_restrita_ao_proprio_sistema(self):
         sistema_visivel = self._criar_sistema(nome="Sistema Interessado")

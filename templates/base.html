@@ -73,17 +73,6 @@
 
       </div>
     </header>
-    {% if diario_bordo_alert and diario_bordo_alert_bloco %}
-      <div class="nav-alert-banner">
-        <a class="nav-alert nav-alert-link" href="{% url 'diario_bordo_detail' diario_bordo_alert_bloco.pk %}">
-          {{ diario_bordo_alert }}
-        </a>
-      </div>
-    {% elif diario_bordo_alert %}
-      <div class="nav-alert-banner">
-        <div class="nav-alert">{{ diario_bordo_alert }}</div>
-      </div>
-    {% endif %}
     <main class="container {% block container_class %}{% endblock %}">
       {% if messages %}
         <section class="flash-messages" aria-live="polite" style="display:none;">
@@ -111,6 +100,94 @@
         <button class="btn" type="button" id="global-msgbox-close">Fechar</button>
       </div>
     </div>
+    {% if diario_bordo_alert_incrementos %}
+      <ul id="diario-msgbox-source" hidden>
+        {% for incremento in diario_bordo_alert_incrementos %}
+          <li data-read-url="{% url 'diario_bordo_incremento_marcar_lido' incremento.pk %}" data-detail-url="{% url 'diario_bordo_detail' incremento.bloco.pk %}">
+            <span data-field="bloco">{{ incremento.bloco.nome }}</span>
+            <span data-field="data">{{ incremento.criado_em|date:"d/m/Y H:i" }}</span>
+            <span data-field="usuario">
+              {% if incremento.criado_por %}
+                {% if incremento.criado_por.get_full_name %}
+                  {{ incremento.criado_por.get_full_name }}
+                {% else %}
+                  {{ incremento.criado_por.username }}
+                {% endif %}
+              {% else %}
+                -
+              {% endif %}
+            </span>
+            <div data-field="texto">{{ incremento.texto }}</div>
+            <div data-field="anexos">
+              {% if incremento.anexo %}
+                <a href="{{ incremento.anexo.url }}" target="_blank" rel="noopener">{{ incremento.anexo_nome }}</a>
+              {% endif %}
+              {% for anexo in incremento.anexos.all %}
+                <a href="{{ anexo.arquivo.url }}" target="_blank" rel="noopener">{{ anexo.nome_arquivo }}</a>
+              {% endfor %}
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+      <div class="profile-alert-backdrop auth-required-hidden diario-msgbox-backdrop" id="diario-msgbox-backdrop" aria-hidden="true"></div>
+      <div class="profile-alert-modal auth-required-hidden diario-msgbox-modal" id="diario-msgbox-modal" role="dialog" aria-modal="true" aria-labelledby="diario-msgbox-title">
+        <p class="diario-msgbox-kicker">Diário de Bordo</p>
+        <h3 id="diario-msgbox-title"></h3>
+        <p class="diario-msgbox-meta" id="diario-msgbox-meta"></p>
+        <div class="diario-msgbox-body">
+          <div class="diario-msgbox-section">
+            <strong>Conteúdo da atualização:</strong>
+            <div class="diario-msgbox-text" id="diario-msgbox-text"></div>
+          </div>
+          <div class="diario-msgbox-section diario-msgbox-anexos" id="diario-msgbox-anexos-wrap">
+            <strong>Anexos:</strong>
+            <div class="diario-msgbox-anexos-list" id="diario-msgbox-anexos"></div>
+          </div>
+        </div>
+        <p class="diario-msgbox-error" id="diario-msgbox-error" hidden></p>
+        <div class="profile-alert-actions diario-msgbox-actions">
+          <button class="btn" type="button" id="diario-msgbox-ok">OK</button>
+          <a class="btn btn-secondary" href="#" id="diario-msgbox-detail">Abrir bloco</a>
+        </div>
+      </div>
+    {% endif %}
+    {% if acompanhamento_sistemas_alert_notificacoes %}
+      <ul id="acompanhamento-msgbox-source" hidden>
+        {% for notificacao in acompanhamento_sistemas_alert_notificacoes %}
+          <li data-read-url="{{ notificacao.read_url }}" data-detail-url="{{ notificacao.target_url }}">
+            <span data-field="titulo">{{ notificacao.titulo }}</span>
+            <span data-field="meta">{{ notificacao.meta }}</span>
+            <div data-field="conteudo">{{ notificacao.conteudo }}</div>
+            <div data-field="anexos">
+              {% for anexo in notificacao.anexos %}
+                <a href="{{ anexo.url }}" target="_blank" rel="noopener">{{ anexo.nome }}</a>
+              {% endfor %}
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+      <div class="profile-alert-backdrop auth-required-hidden diario-msgbox-backdrop" id="acompanhamento-msgbox-backdrop" aria-hidden="true"></div>
+      <div class="profile-alert-modal auth-required-hidden diario-msgbox-modal acompanhamento-msgbox-modal" id="acompanhamento-msgbox-modal" role="dialog" aria-modal="true" aria-labelledby="acompanhamento-msgbox-title">
+        <p class="diario-msgbox-kicker">Acompanhamento de Sistemas</p>
+        <h3 id="acompanhamento-msgbox-title"></h3>
+        <p class="diario-msgbox-meta" id="acompanhamento-msgbox-meta"></p>
+        <div class="diario-msgbox-body">
+          <div class="diario-msgbox-section">
+            <strong>Conteúdo da atualização:</strong>
+            <div class="diario-msgbox-text" id="acompanhamento-msgbox-text"></div>
+          </div>
+          <div class="diario-msgbox-section diario-msgbox-anexos" id="acompanhamento-msgbox-anexos-wrap">
+            <strong>Anexos:</strong>
+            <div class="diario-msgbox-anexos-list" id="acompanhamento-msgbox-anexos"></div>
+          </div>
+        </div>
+        <p class="diario-msgbox-error" id="acompanhamento-msgbox-error" hidden></p>
+        <div class="profile-alert-actions diario-msgbox-actions">
+          <button class="btn" type="button" id="acompanhamento-msgbox-ok">OK</button>
+          <a class="btn btn-secondary" href="#" id="acompanhamento-msgbox-detail">Abrir item</a>
+        </div>
+      </div>
+    {% endif %}
     <footer class="site-footer">
       <div class="container">
         <span>Secretaria de Desenvolvimento Social · SGI SEDS · 2026</span>
@@ -318,6 +395,298 @@
           if (!form || !(form instanceof HTMLFormElement)) return;
           syncCsrfInputs(form);
         });
+      })();
+    </script>
+    <script>
+      (() => {
+        const source = document.getElementById("diario-msgbox-source");
+        const modal = document.getElementById("diario-msgbox-modal");
+        const backdrop = document.getElementById("diario-msgbox-backdrop");
+        const titleEl = document.getElementById("diario-msgbox-title");
+        const metaEl = document.getElementById("diario-msgbox-meta");
+        const textEl = document.getElementById("diario-msgbox-text");
+        const anexosWrap = document.getElementById("diario-msgbox-anexos-wrap");
+        const anexosEl = document.getElementById("diario-msgbox-anexos");
+        const errorEl = document.getElementById("diario-msgbox-error");
+        const okBtn = document.getElementById("diario-msgbox-ok");
+        const detailLink = document.getElementById("diario-msgbox-detail");
+        if (!source || !modal || !backdrop || !titleEl || !metaEl || !textEl || !anexosWrap || !anexosEl || !errorEl || !okBtn || !detailLink) {
+          return;
+        }
+
+        const getCookie = (name) => {
+          const prefix = `${name}=`;
+          return document.cookie
+            .split(";")
+            .map((item) => item.trim())
+            .find((item) => item.startsWith(prefix))
+            ?.slice(prefix.length) || "";
+        };
+        const normalize = (value) => (value || "").replace(/\s+/g, " ").trim();
+        const structuredLabels = new Set([
+          "Sistema",
+          "Ciclo",
+          "Entrega",
+          "Processo",
+          "Etapa",
+          "Tipo de atualização",
+          "Conteúdo",
+          "Justificativa",
+          "Responsável",
+          "Data/hora",
+        ]);
+        const queue = Array.from(source.querySelectorAll("li[data-read-url]")).map((item) => {
+          const anexosSource = item.querySelector('[data-field="anexos"]');
+          return {
+            readUrl: item.dataset.readUrl,
+            detailUrl: item.dataset.detailUrl || "#",
+            bloco: normalize(item.querySelector('[data-field="bloco"]')?.textContent),
+            data: normalize(item.querySelector('[data-field="data"]')?.textContent),
+            usuario: normalize(item.querySelector('[data-field="usuario"]')?.textContent),
+            texto: (item.querySelector('[data-field="texto"]')?.textContent || "").trim(),
+            anexos: anexosSource ? Array.from(anexosSource.querySelectorAll("a")).map((link) => link.cloneNode(true)) : [],
+          };
+        }).filter((item) => item.readUrl && item.bloco);
+
+        let currentIndex = 0;
+
+        const hideModal = () => {
+          modal.classList.add("auth-required-hidden");
+          backdrop.classList.add("auth-required-hidden");
+          modal.setAttribute("aria-hidden", "true");
+          backdrop.setAttribute("aria-hidden", "true");
+          document.dispatchEvent(new CustomEvent("sgi:diario-msgbox-finished"));
+        };
+
+        const showCurrent = () => {
+          const item = queue[currentIndex];
+          if (!item) {
+            hideModal();
+            return;
+          }
+          titleEl.textContent = item.bloco;
+          metaEl.textContent = `${item.data} - ${item.usuario}`;
+          textEl.innerHTML = "";
+          const content = document.createElement("p");
+          content.textContent = item.texto || "-";
+          textEl.appendChild(content);
+          detailLink.href = item.detailUrl;
+          anexosEl.innerHTML = "";
+          item.anexos.forEach((link) => {
+            const row = document.createElement("div");
+            row.appendChild(link);
+            anexosEl.appendChild(row);
+          });
+          if (!item.anexos.length) {
+            const empty = document.createElement("span");
+            empty.className = "diario-msgbox-empty";
+            empty.textContent = "Nenhum anexo.";
+            anexosEl.appendChild(empty);
+          }
+          errorEl.hidden = true;
+          errorEl.textContent = "";
+          okBtn.disabled = false;
+          okBtn.textContent = "OK";
+          modal.classList.remove("auth-required-hidden");
+          backdrop.classList.remove("auth-required-hidden");
+          modal.setAttribute("aria-hidden", "false");
+          backdrop.setAttribute("aria-hidden", "false");
+          window.setTimeout(() => okBtn.focus(), 50);
+        };
+
+        const markCurrentRead = async () => {
+          const item = queue[currentIndex];
+          if (!item) return;
+          okBtn.disabled = true;
+          okBtn.textContent = "Registrando...";
+          const controller = new AbortController();
+          const timeoutId = window.setTimeout(() => controller.abort(), 12000);
+          try {
+            const response = await fetch(item.readUrl, {
+              method: "POST",
+              headers: {
+                "X-CSRFToken": getCookie("csrftoken"),
+                "X-Requested-With": "XMLHttpRequest",
+              },
+              credentials: "same-origin",
+              signal: controller.signal,
+            });
+            if (!response.ok) {
+              throw new Error("Falha ao registrar leitura.");
+            }
+            currentIndex += 1;
+            showCurrent();
+          } catch (error) {
+            errorEl.textContent = "Não foi possível registrar a leitura. Tente novamente.";
+            errorEl.hidden = false;
+            okBtn.disabled = false;
+            okBtn.textContent = "OK";
+          } finally {
+            window.clearTimeout(timeoutId);
+          }
+        };
+
+        okBtn.addEventListener("click", markCurrentRead);
+        document.addEventListener("keydown", (event) => {
+          if (modal.classList.contains("auth-required-hidden")) return;
+          if (event.key === "Escape") {
+            event.preventDefault();
+          }
+        });
+
+        if (queue.length) {
+          showCurrent();
+        }
+      })();
+    </script>
+    <script>
+      (() => {
+        const source = document.getElementById("acompanhamento-msgbox-source");
+        const modal = document.getElementById("acompanhamento-msgbox-modal");
+        const backdrop = document.getElementById("acompanhamento-msgbox-backdrop");
+        const titleEl = document.getElementById("acompanhamento-msgbox-title");
+        const metaEl = document.getElementById("acompanhamento-msgbox-meta");
+        const textEl = document.getElementById("acompanhamento-msgbox-text");
+        const anexosWrap = document.getElementById("acompanhamento-msgbox-anexos-wrap");
+        const anexosEl = document.getElementById("acompanhamento-msgbox-anexos");
+        const errorEl = document.getElementById("acompanhamento-msgbox-error");
+        const okBtn = document.getElementById("acompanhamento-msgbox-ok");
+        const detailLink = document.getElementById("acompanhamento-msgbox-detail");
+        if (!source || !modal || !backdrop || !titleEl || !metaEl || !textEl || !anexosWrap || !anexosEl || !errorEl || !okBtn || !detailLink) {
+          return;
+        }
+
+        const getCookie = (name) => {
+          const prefix = `${name}=`;
+          return document.cookie
+            .split(";")
+            .map((item) => item.trim())
+            .find((item) => item.startsWith(prefix))
+            ?.slice(prefix.length) || "";
+        };
+        const normalize = (value) => (value || "").replace(/\s+/g, " ").trim();
+        const structuredLabels = new Set(["Processo", "Nota"]);
+        const queue = Array.from(source.querySelectorAll("li[data-read-url]")).map((item) => {
+          const anexosSource = item.querySelector('[data-field="anexos"]');
+          return {
+            readUrl: item.dataset.readUrl,
+            detailUrl: item.dataset.detailUrl || "#",
+            titulo: normalize(item.querySelector('[data-field="titulo"]')?.textContent),
+            meta: normalize(item.querySelector('[data-field="meta"]')?.textContent),
+            conteudo: (item.querySelector('[data-field="conteudo"]')?.textContent || "").trim(),
+            anexos: anexosSource ? Array.from(anexosSource.querySelectorAll("a")).map((link) => link.cloneNode(true)) : [],
+          };
+        }).filter((item) => item.readUrl && item.titulo);
+
+        let currentIndex = 0;
+
+        const hideModal = () => {
+          modal.classList.add("auth-required-hidden");
+          backdrop.classList.add("auth-required-hidden");
+          modal.setAttribute("aria-hidden", "true");
+          backdrop.setAttribute("aria-hidden", "true");
+        };
+
+        const showCurrent = () => {
+          const item = queue[currentIndex];
+          if (!item) {
+            hideModal();
+            return;
+          }
+          titleEl.textContent = item.titulo;
+          metaEl.textContent = item.meta;
+          textEl.innerHTML = "";
+          const lines = (item.conteudo || "-").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+          lines.forEach((line) => {
+            const fieldMatch = line.match(/^([^:]{2,40}):\s*(.*)$/);
+            if (fieldMatch && structuredLabels.has(fieldMatch[1])) {
+              const row = document.createElement("div");
+              row.className = "diario-msgbox-field";
+              const label = document.createElement("span");
+              label.className = "diario-msgbox-field-label";
+              label.textContent = `${fieldMatch[1]}: `;
+              const value = document.createElement("span");
+              value.className = "diario-msgbox-field-value";
+              value.textContent = fieldMatch[2] || "-";
+              row.append(label, value);
+              textEl.appendChild(row);
+              return;
+            }
+            const paragraph = document.createElement("p");
+            paragraph.textContent = line;
+            textEl.appendChild(paragraph);
+          });
+          detailLink.href = item.detailUrl;
+          anexosEl.innerHTML = "";
+          item.anexos.forEach((link) => {
+            const row = document.createElement("div");
+            row.appendChild(link);
+            anexosEl.appendChild(row);
+          });
+          if (!item.anexos.length) {
+            const empty = document.createElement("span");
+            empty.className = "diario-msgbox-empty";
+            empty.textContent = "Nenhum anexo.";
+            anexosEl.appendChild(empty);
+          }
+          errorEl.hidden = true;
+          errorEl.textContent = "";
+          okBtn.disabled = false;
+          okBtn.textContent = "OK";
+          modal.classList.remove("auth-required-hidden");
+          backdrop.classList.remove("auth-required-hidden");
+          modal.setAttribute("aria-hidden", "false");
+          backdrop.setAttribute("aria-hidden", "false");
+          window.setTimeout(() => okBtn.focus(), 50);
+        };
+
+        const markCurrentRead = async () => {
+          const item = queue[currentIndex];
+          if (!item) return;
+          okBtn.disabled = true;
+          okBtn.textContent = "Registrando...";
+          const controller = new AbortController();
+          const timeoutId = window.setTimeout(() => controller.abort(), 12000);
+          try {
+            const response = await fetch(item.readUrl, {
+              method: "POST",
+              headers: {
+                "X-CSRFToken": getCookie("csrftoken"),
+                "X-Requested-With": "XMLHttpRequest",
+              },
+              credentials: "same-origin",
+              signal: controller.signal,
+            });
+            if (!response.ok) {
+              throw new Error("Falha ao registrar leitura.");
+            }
+            currentIndex += 1;
+            showCurrent();
+          } catch (error) {
+            errorEl.textContent = "Não foi possível registrar a leitura. Tente novamente.";
+            errorEl.hidden = false;
+            okBtn.disabled = false;
+            okBtn.textContent = "OK";
+          } finally {
+            window.clearTimeout(timeoutId);
+          }
+        };
+
+        okBtn.addEventListener("click", markCurrentRead);
+        document.addEventListener("keydown", (event) => {
+          if (modal.classList.contains("auth-required-hidden")) return;
+          if (event.key === "Escape") {
+            event.preventDefault();
+          }
+        });
+
+        if (!queue.length) return;
+        const diarioModal = document.getElementById("diario-msgbox-modal");
+        if (diarioModal && !diarioModal.classList.contains("auth-required-hidden")) {
+          document.addEventListener("sgi:diario-msgbox-finished", showCurrent, { once: true });
+          return;
+        }
+        showCurrent();
       })();
     </script>
     <script>

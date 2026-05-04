@@ -29,6 +29,7 @@ urlpatterns = [
     # CRUD e ações de incrementos.
     path("<int:pk>/incrementos/novo/", views.IncrementoCreateView.as_view(), name="diario_bordo_incremento_create"),
     path("incrementos/<int:pk>/ciente/", views.incremento_ciente, name="diario_bordo_incremento_ciente"),
+    path("incrementos/<int:pk>/lido/", views.incremento_marcar_lido, name="diario_bordo_incremento_marcar_lido"),
     path("incrementos/<int:pk>/editar/", views.IncrementoUpdateView.as_view(), name="diario_bordo_incremento_update"),
     path("incrementos/<int:pk>/excluir/", views.IncrementoDeleteView.as_view(), name="diario_bordo_incremento_delete"),
     # Marcadores próprios do Diário.

@@ -1,12 +1,13 @@
 from datetime import date, datetime
 from unittest.mock import patch
 
+from django.contrib.auth.models import Permission
 from django.contrib.auth import get_user_model
 from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import BlocoTrabalho, DiarioMarcador, DiarioMarcadorVinculo, Incremento
+from .models import BlocoLeitura, BlocoTrabalho, DiarioMarcador, DiarioMarcadorVinculo, Incremento
 from .views import _dias_desde
 from notificacoes.models import NotificacaoUsuario
 
@@ -141,3 +142,22 @@ class DiarioBordoNotificacoesTests(TestCase):
         notificacao = NotificacaoUsuario.objects.get(user=self.participante, event_type="ciencia_incremento")
         self.assertEqual(notificacao.title, f"Diário de Bordo: {self.bloco.nome}")
         self.assertIn("Ciência registrada no incremento: Incremento base", notificacao.body_short)
+
+    def test_incremento_marcar_lido_atualiza_cursor_do_bloco(self):
+        incremento = Incremento.objects.create(
+            bloco=self.bloco,
+            texto="Incremento exibido no modal",
+            criado_por=self.autor,
+        )
+        permissao = Permission.objects.get(codename="view_blocotrabalho")
+        self.participante.user_permissions.add(permissao)
+        self.client.force_login(self.participante)
+
+        response = self.client.post(
+            reverse("diario_bordo_incremento_marcar_lido", kwargs={"pk": incremento.pk}),
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        leitura = BlocoLeitura.objects.get(usuario=self.participante, bloco=self.bloco)
+        self.assertEqual(leitura.ultimo_incremento_visto_em, incremento.criado_em)

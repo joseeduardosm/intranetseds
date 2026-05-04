@@ -7,7 +7,23 @@ Este arquivo consolida as principais mudanças funcionais e estruturais do proje
 ### Acompanhamento de Sistemas
 
 - ajustada a regra de dependência das homologações para permitir reabrir/corrigir uma homologação já aprovada quando a etapa anterior foi retomada, mantendo o bloqueio para nova aprovação enquanto a etapa anterior não estiver concluída;
-- corrigido o botão `Lançar nota` em etapas sem campo de data, como `Homologação de Requisitos`, garantindo abertura do modal e registro de anotações.
+- corrigido o botão `Lançar nota` em etapas sem campo de data, como `Homologação de Requisitos`, garantindo abertura do modal e registro de anotações;
+- adicionadas notificações web em formato de msgbox modal para atualizações do acompanhamento, reaproveitando a caixa `NotificacaoUsuario` já emitida junto com os e-mails;
+- limitado o modal web do acompanhamento a notificações novas, evitando exibir em fila o histórico antigo de notificações não lidas;
+- reorganizado o conteúdo das notificações do acompanhamento para exibir `data/hora - usuário` no cabeçalho e corpo resumido por `Processo` ou `Nota`, com suporte a anexos e áreas com scroll quando necessário;
+- criado endpoint para marcar notificações do acompanhamento como lidas ao clicar em `OK` no modal.
+
+### Diário de Bordo
+
+- substituída a barra amarela global de atualização por msgbox modal bloqueante, exibindo uma atualização por vez;
+- alterada a confirmação de leitura para ocorrer no clique em `OK`, com avanço automático para a próxima notificação pendente;
+- incluídos nome do bloco, data/hora, usuário, conteúdo e anexos da atualização no modal;
+- removida a marcação automática de leitura ao abrir o detalhe do bloco, preservando a leitura explícita via msgbox.
+
+### Notificações Web
+
+- padronizado o visual dos msgboxes globais de leitura obrigatória, com tamanho fixo, área de conteúdo/anexos reservada e botões em posição estável;
+- adicionados timeout e recuperação visual no botão `OK` para evitar estado permanente de `Registrando...` quando a gravação da leitura falhar ou demorar.
 
 ### Home
 

@@ -163,6 +163,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'intranet.context_processors.ramal_profile',
                 'intranet.context_processors.diario_bordo_alert',
+                'intranet.context_processors.acompanhamento_sistemas_alert',
                 'intranet.context_processors.sala_situacao_access',
                 'intranet.context_processors.identidade_visual',
                 'intranet.context_processors.administracao_navigation',
@@ -173,6 +174,10 @@ TEMPLATES = [
 
 # Entrada WSGI para servidores web tradicionais.
 WSGI_APPLICATION = 'intranet.wsgi.application'
+
+# Notificações web em modal devem considerar apenas eventos gerados após a
+# ativação do recurso, evitando despejar histórico antigo não lido aos usuários.
+ACOMPANHAMENTO_MODAL_NOTIFICATIONS_START_AT = "2026-05-04T19:00:00-03:00"
 
 
 # Banco de dados.

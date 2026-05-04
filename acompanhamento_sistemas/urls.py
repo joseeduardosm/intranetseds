@@ -5,6 +5,7 @@ from . import views
 
 urlpatterns = [
     path("", views.SistemaListView.as_view(), name="acompanhamento_sistemas_list"),
+    path("notificacoes/<int:pk>/lida/", views.notificacao_marcar_lida, name="acompanhamento_sistemas_notificacao_marcar_lida"),
     path("mockups/processos/", views.MockProcessosView.as_view(), name="acompanhamento_sistemas_mock_processos"),
     path("mockups/processos/<slug:slug>/", views.MockProcessosView.as_view(), name="acompanhamento_sistemas_mock_processos_detail"),
     path("novo/", views.SistemaCreateView.as_view(), name="acompanhamento_sistemas_create"),

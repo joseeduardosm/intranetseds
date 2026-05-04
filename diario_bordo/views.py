@@ -239,6 +239,28 @@ def incremento_ciente(request, pk):
     return HttpResponseRedirect(bloco.get_absolute_url())
 
 
+@require_POST
+@permission_required("diario_bordo.view_blocotrabalho", raise_exception=True)
+def incremento_marcar_lido(request, pk):
+    """Marca o incremento exibido no modal global como lido para o usuário."""
+
+    queryset = Incremento.objects.select_related("bloco")
+    if not _can_view_all(request.user):
+        queryset = queryset.filter(bloco__participantes=request.user)
+    incremento = get_object_or_404(queryset, pk=pk)
+    leitura, _ = BlocoLeitura.objects.get_or_create(
+        usuario=request.user,
+        bloco=incremento.bloco,
+    )
+    if (
+        not leitura.ultimo_incremento_visto_em
+        or incremento.criado_em > leitura.ultimo_incremento_visto_em
+    ):
+        leitura.ultimo_incremento_visto_em = incremento.criado_em
+        leitura.save(update_fields=["ultimo_incremento_visto_em"])
+    return JsonResponse({"ok": True})
+
+
 @permission_required("diario_bordo.change_blocotrabalho", raise_exception=True)
 def bloco_status_api(request, pk):
     """Atualiza status do bloco via API (drag-and-drop)."""
@@ -705,8 +727,6 @@ class BlocoTrabalhoDetailView(PermissionRequiredMixin, DetailView):
             context["voltar_url"] = f"{reverse('diario_bordo_list')}{query_suffix}"
         else:
             context["voltar_url"] = reverse("diario_bordo_list")
-        _mark_bloco_seen(self.request.user, self.object)
-
         incrementos_ordenados = Incremento.objects.order_by("-criado_em")
         blocos = BlocoTrabalho.objects.prefetch_related(
             Prefetch("incrementos", queryset=incrementos_ordenados),

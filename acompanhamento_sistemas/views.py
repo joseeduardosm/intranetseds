@@ -5,6 +5,7 @@ from types import SimpleNamespace
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
@@ -15,10 +16,14 @@ from django.db.models.functions import Coalesce, Greatest
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
+from django.utils import timezone
+from django.views.decorators.http import require_POST
 from django.views import View
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
 
 from auditoria.models import AuditLog
+from notificacoes.models import NotificacaoUsuario
+from notificacoes.services import SOURCE_ACOMPANHAMENTO_SISTEMAS
 from usuarios.utils import usuarios_visiveis
 
 from .forms import (
@@ -211,6 +216,23 @@ def _enfileirar_erros_formulario(request, form):
     for _, erros in form.errors.items():
         for erro in erros:
             messages.error(request, erro)
+
+
+@login_required
+@require_POST
+def notificacao_marcar_lida(request, pk):
+    """Marca como lida uma notificação web do Acompanhamento de Sistemas."""
+
+    notificacao = get_object_or_404(
+        NotificacaoUsuario,
+        pk=pk,
+        user=request.user,
+        source_app=SOURCE_ACOMPANHAMENTO_SISTEMAS,
+    )
+    if not notificacao.read_at:
+        notificacao.read_at = timezone.now()
+        notificacao.save(update_fields=["read_at"])
+    return JsonResponse({"ok": True})
 
 
 def _eh_historico_avanco_automatico(historico) -> bool:
