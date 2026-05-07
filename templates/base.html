@@ -422,6 +422,24 @@
             .find((item) => item.startsWith(prefix))
             ?.slice(prefix.length) || "";
         };
+        const postRead = (url) => new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open("POST", url, true);
+          xhr.timeout = 12000;
+          xhr.withCredentials = true;
+          xhr.setRequestHeader("X-CSRFToken", getCookie("csrftoken"));
+          xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              resolve();
+              return;
+            }
+            reject(new Error("Falha ao registrar leitura."));
+          };
+          xhr.onerror = () => reject(new Error("Falha ao registrar leitura."));
+          xhr.ontimeout = () => reject(new Error("Tempo esgotado ao registrar leitura."));
+          xhr.send();
+        });
         const normalize = (value) => (value || "").replace(/\s+/g, " ").trim();
         const structuredLabels = new Set([
           "Sistema",
@@ -449,10 +467,13 @@
         }).filter((item) => item.readUrl && item.bloco);
 
         let currentIndex = 0;
+        let isMarkingRead = false;
 
         const hideModal = () => {
           modal.classList.add("auth-required-hidden");
           backdrop.classList.add("auth-required-hidden");
+          modal.style.display = "none";
+          backdrop.style.display = "none";
           modal.setAttribute("aria-hidden", "true");
           backdrop.setAttribute("aria-hidden", "true");
           document.dispatchEvent(new CustomEvent("sgi:diario-msgbox-finished"));
@@ -487,6 +508,8 @@
           errorEl.textContent = "";
           okBtn.disabled = false;
           okBtn.textContent = "OK";
+          modal.style.display = "";
+          backdrop.style.display = "";
           modal.classList.remove("auth-required-hidden");
           backdrop.classList.remove("auth-required-hidden");
           modal.setAttribute("aria-hidden", "false");
@@ -495,35 +518,16 @@
         };
 
         const markCurrentRead = async () => {
+          if (isMarkingRead) return;
           const item = queue[currentIndex];
           if (!item) return;
-          okBtn.disabled = true;
-          okBtn.textContent = "Registrando...";
-          const controller = new AbortController();
-          const timeoutId = window.setTimeout(() => controller.abort(), 12000);
-          try {
-            const response = await fetch(item.readUrl, {
-              method: "POST",
-              headers: {
-                "X-CSRFToken": getCookie("csrftoken"),
-                "X-Requested-With": "XMLHttpRequest",
-              },
-              credentials: "same-origin",
-              signal: controller.signal,
-            });
-            if (!response.ok) {
-              throw new Error("Falha ao registrar leitura.");
-            }
-            currentIndex += 1;
-            showCurrent();
-          } catch (error) {
-            errorEl.textContent = "Não foi possível registrar a leitura. Tente novamente.";
-            errorEl.hidden = false;
-            okBtn.disabled = false;
-            okBtn.textContent = "OK";
-          } finally {
-            window.clearTimeout(timeoutId);
-          }
+          isMarkingRead = true;
+          currentIndex += 1;
+          showCurrent();
+          postRead(item.readUrl).catch((error) => {
+            console.error("Falha ao registrar leitura do Diário de Bordo.", error);
+          });
+          isMarkingRead = false;
         };
 
         okBtn.addEventListener("click", markCurrentRead);
@@ -564,6 +568,24 @@
             .find((item) => item.startsWith(prefix))
             ?.slice(prefix.length) || "";
         };
+        const postRead = (url) => new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open("POST", url, true);
+          xhr.timeout = 12000;
+          xhr.withCredentials = true;
+          xhr.setRequestHeader("X-CSRFToken", getCookie("csrftoken"));
+          xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              resolve();
+              return;
+            }
+            reject(new Error("Falha ao registrar leitura."));
+          };
+          xhr.onerror = () => reject(new Error("Falha ao registrar leitura."));
+          xhr.ontimeout = () => reject(new Error("Tempo esgotado ao registrar leitura."));
+          xhr.send();
+        });
         const normalize = (value) => (value || "").replace(/\s+/g, " ").trim();
         const structuredLabels = new Set(["Processo", "Nota"]);
         const queue = Array.from(source.querySelectorAll("li[data-read-url]")).map((item) => {
@@ -579,10 +601,13 @@
         }).filter((item) => item.readUrl && item.titulo);
 
         let currentIndex = 0;
+        let isMarkingRead = false;
 
         const hideModal = () => {
           modal.classList.add("auth-required-hidden");
           backdrop.classList.add("auth-required-hidden");
+          modal.style.display = "none";
+          backdrop.style.display = "none";
           modal.setAttribute("aria-hidden", "true");
           backdrop.setAttribute("aria-hidden", "true");
         };
@@ -633,6 +658,8 @@
           errorEl.textContent = "";
           okBtn.disabled = false;
           okBtn.textContent = "OK";
+          modal.style.display = "";
+          backdrop.style.display = "";
           modal.classList.remove("auth-required-hidden");
           backdrop.classList.remove("auth-required-hidden");
           modal.setAttribute("aria-hidden", "false");
@@ -641,35 +668,16 @@
         };
 
         const markCurrentRead = async () => {
+          if (isMarkingRead) return;
           const item = queue[currentIndex];
           if (!item) return;
-          okBtn.disabled = true;
-          okBtn.textContent = "Registrando...";
-          const controller = new AbortController();
-          const timeoutId = window.setTimeout(() => controller.abort(), 12000);
-          try {
-            const response = await fetch(item.readUrl, {
-              method: "POST",
-              headers: {
-                "X-CSRFToken": getCookie("csrftoken"),
-                "X-Requested-With": "XMLHttpRequest",
-              },
-              credentials: "same-origin",
-              signal: controller.signal,
-            });
-            if (!response.ok) {
-              throw new Error("Falha ao registrar leitura.");
-            }
-            currentIndex += 1;
-            showCurrent();
-          } catch (error) {
-            errorEl.textContent = "Não foi possível registrar a leitura. Tente novamente.";
-            errorEl.hidden = false;
-            okBtn.disabled = false;
-            okBtn.textContent = "OK";
-          } finally {
-            window.clearTimeout(timeoutId);
-          }
+          isMarkingRead = true;
+          currentIndex += 1;
+          showCurrent();
+          postRead(item.readUrl).catch((error) => {
+            console.error("Falha ao registrar leitura do Acompanhamento de Sistemas.", error);
+          });
+          isMarkingRead = false;
         };
 
         okBtn.addEventListener("click", markCurrentRead);

@@ -2,6 +2,20 @@
 
 Este arquivo consolida as principais mudanças funcionais e estruturais do projeto `Intranet SEDS`.
 
+## 2026-05-07
+
+### Notificações Web
+
+- corrigido o fechamento dos modais globais de leitura do `Diário de Bordo` e do `Acompanhamento de Sistemas`, evitando que o último item da fila permanecesse preso na tela;
+- alterado o fluxo do botão `OK` para avançar/fechar a interface imediatamente e registrar a leitura em segundo plano, sem manter o usuário bloqueado pelo POST;
+- reforçada a classe utilitária `auth-required-hidden` com `display: none !important`, garantindo precedência sobre modais com `display: flex !important`;
+- adicionado fallback inline em `hideModal()` para ocultar modal e backdrop mesmo diante de cache ou conflito de CSS.
+
+### Documentação e Transição
+
+- criado relatório de transição do SGI SEDS em `docs/relatorio_transicao_sgi_seds.md`, com visão estratégica de arquitetura, stack, dados, segurança, integrações, operação, riscos e próximos passos;
+- documentada a configuração real do servidor, incluindo `systemd`, `intranet.service`, Gunicorn, Nginx, MariaDB, ausência de Apache em uso, portas, arquivos de configuração e comandos operacionais.
+
 ## 2026-05-04
 
 ### Acompanhamento de Sistemas
